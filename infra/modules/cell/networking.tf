@@ -32,9 +32,9 @@ resource "google_compute_subnetwork" "serverless_connector_subnet" {
 # 3. Serverless VPC Access Connector (Cloud Run -> Cloud SQL / Memorystore)
 # -----------------------------------------------------------------------------
 resource "google_vpc_access_connector" "connector" {
-  name          = "${local.name_prefix}-vpc-conn"
-  project       = var.project_id
-  region        = var.region
+  name    = "${local.name_prefix}-vpc-conn"
+  project = var.project_id
+  region  = var.region
   subnet {
     name = google_compute_subnetwork.serverless_connector_subnet.name
   }

@@ -10,6 +10,7 @@ out/
 tmp/
 coverage/
 .nyc_output/
+*.tsbuildinfo
 
 # Nx cache
 .nx/cache/

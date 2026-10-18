@@ -145,10 +145,10 @@ resource "google_storage_bucket_iam_member" "api_exports_admin" {
 
 # Pub/Sub Access
 resource "google_pubsub_topic_iam_member" "api_pubsub_publisher" {
-  topic  = google_pubsub_topic.analytics_ingest.name
+  topic   = google_pubsub_topic.analytics_ingest.name
   project = var.project_id
-  role   = "roles/pubsub.publisher"
-  member = "serviceAccount:${google_service_account.api_runtime.email}"
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${google_service_account.api_runtime.email}"
 }
 
 resource "google_pubsub_subscription_iam_member" "worker_pubsub_subscriber" {

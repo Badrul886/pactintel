@@ -110,10 +110,10 @@ resource "cloudflare_zone_settings_override" "primary_settings" {
   zone_id = var.cloudflare_zone_id_primary
 
   settings {
-    min_tls_version          = "1.2"
-    always_use_https         = "on"
-    ssl                      = "strict"
-    brotli                   = "on"
+    min_tls_version  = "1.2"
+    always_use_https = "on"
+    ssl              = "strict"
+    brotli           = "on"
     security_header {
       enabled            = true
       max_age            = 31536000
