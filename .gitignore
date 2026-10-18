@@ -22,8 +22,8 @@ coverage/
 !.env.example
 *.pem
 *.key
-*secret*
-*credential*
+*secret*.json
+*credential*.json
 credentials.json
 service-account*.json
 

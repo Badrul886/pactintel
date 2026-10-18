@@ -35,6 +35,7 @@ jobs:
   plan:
     name: Terraform Plan (${{ matrix.environment }})
     needs: format-and-validate
+    if: vars.WIF_PROVIDER != ''
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -92,7 +93,7 @@ jobs:
   apply:
     name: Terraform Apply (${{ matrix.environment }})
     needs: plan
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.WIF_PROVIDER != ''
     environment: iac-apply
     runs-on: ubuntu-latest
     strategy:

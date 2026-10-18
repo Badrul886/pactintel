@@ -67,7 +67,7 @@ jobs:
   pr-preview:
     name: Deploy PR Preview (${{ github.event.number }})
     needs: quality
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && vars.WIF_PROVIDER != ''
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -109,7 +109,7 @@ jobs:
   build-and-push:
     name: Build & Push Container Images (Docker)
     needs: quality
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.WIF_PROVIDER != ''
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -156,7 +156,7 @@ jobs:
   migrate-staging:
     name: Execute Staging DB Migration Job
     needs: build-and-push
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.WIF_PROVIDER != ''
     runs-on: ubuntu-latest
     steps:
       - name: Authenticate to Google Cloud
@@ -181,7 +181,7 @@ jobs:
   deploy-staging:
     name: Deploy Staging with Canary Traffic Split
     needs: migrate-staging
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.WIF_PROVIDER != ''
     runs-on: ubuntu-latest
     steps:
       - name: Authenticate to Google Cloud
@@ -232,7 +232,7 @@ jobs:
   deploy-production:
     name: Deploy Production (Cell gcp-us1)
     needs: deploy-staging
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.WIF_PROVIDER_PROD != ''
     environment: production
     runs-on: ubuntu-latest
     steps:
