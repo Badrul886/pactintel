@@ -1,0 +1,31 @@
+# ==============================================================================
+# PactIntel Collab Server Container
+# Process Type: collab (Hocuspocus WebSocket Realtime Collaboration)
+# ==============================================================================
+
+FROM node:20-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/collab-server/package.json apps/collab-server/
+
+RUN pnpm install --frozen-lockfile
+
+COPY tsconfig.base.json nx.json ./
+COPY apps/collab-server/ apps/collab-server/
+
+RUN pnpm nx run collab-server:build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=1234
+
+USER node
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist/apps/collab-server ./dist
+
+EXPOSE 1234
+CMD ["node", "dist/main.js"]

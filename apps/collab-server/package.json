@@ -1,0 +1,23 @@
+{
+  "name": "@pactintel/collab-server",
+  "version": "0.1.0",
+  "private": true,
+  "nx": {
+    "tags": [
+      "scope:collab"
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/apps/collab-server/src/main.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^2.15.0",
+    "@hocuspocus/extension-redis": "^2.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3"
+  }
+}

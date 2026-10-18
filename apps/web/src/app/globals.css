@@ -1,0 +1,221 @@
+/* ==========================================================================
+   PactIntel Web Global Styles
+   Strictly adheres to docs/DESIGN_SYSTEM.md
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  /* --- Primary (Action only, never decoration) --------------------------- */
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-subtle: #EFF6FF;
+  --color-primary-muted: #DBEAFE;
+
+  /* --- Neutrals (Cool slate gray) ---------------------------------------- */
+  --color-gray-950: #0C0F1D;
+  --color-gray-800: #1E293B;
+  --color-gray-600: #475569;
+  --color-gray-500: #64748B;
+  --color-gray-400: #94A3B8;
+  --color-gray-200: #E2E8F0;
+  --color-gray-100: #F1F5F9;
+  --color-gray-50: #F8FAFC;
+  --color-white: #FFFFFF;
+
+  /* --- Semantic / Status ------------------------------------------------- */
+  --status-success-bg: #F0FDF4;
+  --status-success-text: #15803D;
+  --status-success-dot: #22C55E;
+
+  --status-warning-bg: #FFFBEB;
+  --status-warning-text: #B45309;
+  --status-warning-dot: #F59E0B;
+
+  --status-error-bg: #FEF2F2;
+  --status-error-text: #B91C1C;
+  --status-error-dot: #EF4444;
+
+  --status-info-bg: #EFF6FF;
+  --status-info-text: #1E40AF;
+  --status-info-dot: #3B82F6;
+
+  --status-neutral-bg: #F1F5F9;
+  --status-neutral-text: #475569;
+  --status-neutral-dot: #94A3B8;
+
+  /* --- Surfaces ---------------------------------------------------------- */
+  --surface-page: #F8FAFC;
+  --surface-card: #FFFFFF;
+  --surface-sidebar: #F1F5F9;
+  --surface-overlay: rgba(15, 23, 42, 0.5);
+  --surface-input: #FFFFFF;
+
+  /* --- Borders & Shadows ------------------------------------------------- */
+  --border-color: #E2E8F0;
+  --border-subtle: #F1F5F9;
+  --border-focus: #2563EB;
+  --border-error: #EF4444;
+
+  --shadow-popover: 0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-modal: 0 8px 24px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.06);
+  --shadow-toast: 0 4px 12px rgba(15, 23, 42, 0.1);
+
+  /* --- Border Radius ----------------------------------------------------- */
+  --radius-default: 6px;
+  --radius-badge: 4px;
+  --radius-avatar: 9999px;
+
+  /* --- Spacing ----------------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --sidebar-width: 240px;
+  --topbar-height: 48px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-gray-800);
+  background-color: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Status Badge Pattern (Section 8.2) ---------------------------------- */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-badge);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  width: fit-content;
+}
+
+.status-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.status-badge-success {
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+.status-badge-success .status-badge-dot { background-color: var(--status-success-dot); }
+
+.status-badge-warning {
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-text);
+}
+.status-badge-warning .status-badge-dot { background-color: var(--status-warning-dot); }
+
+.status-badge-error {
+  background-color: var(--status-error-bg);
+  color: var(--status-error-text);
+}
+.status-badge-error .status-badge-dot { background-color: var(--status-error-dot); }
+
+.status-badge-info {
+  background-color: var(--status-info-bg);
+  color: var(--status-info-text);
+}
+.status-badge-info .status-badge-dot { background-color: var(--status-info-dot); }
+
+.status-badge-neutral {
+  background-color: var(--status-neutral-bg);
+  color: var(--status-neutral-text);
+}
+.status-badge-neutral .status-badge-dot { background-color: var(--status-neutral-dot); }
+
+/* --- Table Component (Section 8.1) --------------------------------------- */
+.pact-table-container {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-default);
+  background-color: var(--surface-card);
+  overflow: hidden;
+}
+
+.pact-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.pact-table th {
+  background-color: var(--color-gray-100);
+  color: var(--color-gray-600);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pact-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px;
+}
+
+.pact-table tr:last-child td {
+  border-bottom: none;
+}
+
+.pact-table tr:hover td {
+  background-color: var(--color-gray-50);
+}
+
+/* --- Buttons (Section 8.3) ----------------------------------------------- */
+.pact-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-default);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+  text-decoration: none;
+}
+
+.pact-btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.pact-btn-primary:hover {
+  background-color: var(--color-primary-hover);
+}
+
+.pact-btn-secondary {
+  background-color: var(--color-white);
+  color: var(--color-gray-800);
+  border: 1px solid var(--border-color);
+}
+
+.pact-btn-secondary:hover {
+  background-color: var(--color-gray-50);
+}

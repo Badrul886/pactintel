@@ -1,0 +1,16 @@
+project_id               = "pactintel-dev-us1"
+cell_id                  = "us1"
+region                   = "us-central1"
+dr_region                = "us-east4"
+vpc_cidr                 = "10.10.0.0/16"
+serverless_subnet_cidr   = "10.10.1.0/28"
+sql_tier                 = "db-custom-1-3840"
+sql_ha                   = "ZONAL"
+sql_disk_size_gb         = 20
+redis_tier               = "BASIC"
+redis_memory_size_gb     = 1
+kms_location             = "us"
+evidence_bucket_location = "US"
+github_repository        = "Badrul886/pactintel"
+primary_domain           = "dev.pactintel.com"
+recipient_domain         = "dev.pact.link"

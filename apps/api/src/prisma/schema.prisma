@@ -1,0 +1,622 @@
+// =============================================================================
+// PactIntel Prisma Schema (v2.0.0, PostgreSQL 17 / Cloud SQL)
+// Invariant I-08 & Blueprint §3: All internal PKs are application-generated UUIDv7.
+// Every tenant-scoped entity has organization_id for RLS enforcement.
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// 1. Organization & Identity
+// -----------------------------------------------------------------------------
+
+model Organization {
+  id        String   @id // UUIDv7
+  name      String
+  slug      String   @unique
+  cellId    String   @default("gcp-us1") @map("cell_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  workspaces                  Workspace[]
+  teams                       Team[]
+  users                       User[]
+  workspaceMemberships        WorkspaceMembership[]
+  teamMemberships             TeamMembership[]
+  documents                   Document[]
+  documentVersions            DocumentVersion[]
+  templates                   Template[]
+  contentBlocks               ContentBlock[]
+  folders                     Folder[]
+  comments                    Comment[]
+  signatureRequests           SignatureRequest[]
+  signers                     Signer[]
+  signatureEvents             SignatureEvent[]
+  paymentProviderConnections  PaymentProviderConnection[]
+  payments                    Payment[]
+  paymentCredentialAuditLogs  PaymentCredentialAuditLog[]
+  subscription                Subscription?
+  billingEvents               BillingEvent[]
+  apiKeys                     ApiKey[]
+  webhooks                    Webhook[]
+  auditLogEntries             AuditLogEntry[]
+  brandKits                   BrandKit[]
+  outboxEvents                OutboxEvent[]
+
+  @@map("organizations")
+}
+
+model Workspace {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  name           String
+  slug           String
+  isDefault      Boolean   @default(false) @map("is_default")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    WorkspaceMembership[]
+  documents      Document[]
+  templates      Template[]
+  contentBlocks  ContentBlock[]
+  folders        Folder[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@map("workspaces")
+}
+
+model Team {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  name           String
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships  TeamMembership[]
+
+  @@index([organizationId])
+  @@map("teams")
+}
+
+model User {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workosUserId   String?   @unique @map("workos_user_id")
+  email          String
+  name           String?
+  role           String    @default("member") // owner, admin, manager, member, collaborator
+  status         String    @default("active") // active, pending, deactivated
+  seatType       String    @default("full") @map("seat_type") // full, collab
+  avatarUrl      String?   @map("avatar_url")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspaceMemberships WorkspaceMembership[]
+  teamMemberships      TeamMembership[]
+  documentsOwned       Document[]            @relation("DocumentOwner")
+  documentVersions     DocumentVersion[]
+  comments             Comment[]
+  signers              Signer[]
+  apiKeysCreated       ApiKey[]
+  auditLogs            AuditLogEntry[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId, status])
+  @@map("users")
+}
+
+model WorkspaceMembership {
+  id              String   @id // UUIDv7
+  userId          String   @map("user_id")
+  workspaceId     String   @map("workspace_id")
+  organizationId  String   @map("organization_id")
+  role            String   @default("member") // admin, manager, member, collaborator
+  hasContentAdmin Boolean  @default(false) @map("has_content_admin")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("workspace_memberships")
+}
+
+model TeamMembership {
+  id             String   @id // UUIDv7
+  userId         String   @map("user_id")
+  teamId         String   @map("team_id")
+  organizationId String   @map("organization_id")
+  isManager      Boolean  @default(false) @map("is_manager")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team         Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@index([teamId])
+  @@map("team_memberships")
+}
+
+// -----------------------------------------------------------------------------
+// 2. Documents & Content
+// -----------------------------------------------------------------------------
+
+model Document {
+  id                String    @id // UUIDv7
+  organizationId    String    @map("organization_id")
+  workspaceId       String    @map("workspace_id")
+  ownerId           String    @map("owner_id")
+  sourceTemplateId  String?   @map("source_template_id")
+  isTemplateLinked  Boolean   @default(false) @map("is_template_linked")
+  type              String    @default("proposal") // proposal, quote, contract, brochure, sow, sign_off, job_offer, form
+  title             String
+  status            String    @default("draft") // draft, sent, viewed, signed, declined, expired, archived, voided
+  customDomain      String?   @map("custom_domain")
+  slug              String
+  passwordHash      String?   @map("password_hash")
+  expiresAt         DateTime? @map("expires_at")
+  maxViews          Int?      @map("max_views")
+  domainRestriction String[]  @map("domain_restriction")
+  currency          String    @default("USD")
+  totalValue        Decimal?  @map("total_value") @db.Decimal(15, 2)
+  metadata          Json      @default("{}")
+  currentVersionId  String?   @map("current_version_id")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner             User               @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sourceTemplate    Template?          @relation(fields: [sourceTemplateId], references: [id])
+  versions          DocumentVersion[]
+  comments          Comment[]
+  signatureRequests SignatureRequest[]
+  signatureEvents   SignatureEvent[]
+  payments          Payment[]
+
+  @@unique([organizationId, slug])
+  @@index([workspaceId, status])
+  @@index([ownerId])
+  @@index([organizationId, status])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id              String   @id // UUIDv7
+  documentId      String   @map("document_id")
+  organizationId  String   @map("organization_id")
+  versionNumber   Int      @map("version_number")
+  contentSnapshot Json     @map("content_snapshot")
+  contentHash     String   @map("content_hash") // SHA-256 of canonical JSON
+  isSigned        Boolean  @default(false) @map("is_signed")
+  isCurrent       Boolean  @default(false) @map("is_current")
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator           User?              @relation(fields: [createdBy], references: [id])
+  signatureRequests SignatureRequest[]
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, isCurrent])
+  @@map("document_versions")
+}
+
+model Template {
+  id              String    @id // UUIDv7
+  organizationId  String    @map("organization_id")
+  workspaceId     String    @map("workspace_id")
+  title           String
+  category        String?
+  industryTags    String[]  @map("industry_tags")
+  content         Json
+  defaultSettings Json      @default("{}") @map("default_settings")
+  variableFields  Json      @default("[]") @map("variable_fields")
+  signerRoles     Json      @default("[]") @map("signer_roles")
+  isSystem        Boolean   @default(false) @map("is_system")
+  folderId        String?   @map("folder_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  folder       Folder?      @relation(fields: [folderId], references: [id])
+  documents    Document[]
+
+  @@index([workspaceId])
+  @@map("templates")
+}
+
+model ContentBlock {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  title          String
+  type           String // text, image, case_study, clause, bio
+  content        Json
+  tags           String[]
+  usageCount     Int       @default(0) @map("usage_count")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("content_blocks")
+}
+
+model Folder {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  parentId       String?   @map("parent_id")
+  name           String
+  entityType     String    @map("entity_type") // document, template
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent       Folder?      @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children     Folder[]     @relation("FolderHierarchy")
+  templates    Template[]
+
+  @@map("folders")
+}
+
+model Comment {
+  id             String    @id // UUIDv7
+  documentId     String    @map("document_id")
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  parentId       String?   @map("parent_id")
+  blockId        String?   @map("block_id")
+  body           String
+  isSuggestion   Boolean   @default(false) @map("is_suggestion")
+  resolved       Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       Comment?     @relation("CommentThread", fields: [parentId], references: [id])
+  children     Comment[]    @relation("CommentThread")
+
+  @@index([documentId])
+  @@map("comments")
+}
+
+// -----------------------------------------------------------------------------
+// 3. E-Signature & Audit Trail
+// -----------------------------------------------------------------------------
+
+model SignatureRequest {
+  id                 String    @id // UUIDv7
+  documentId         String    @map("document_id")
+  organizationId     String    @map("organization_id")
+  documentVersionId  String    @map("document_version_id")
+  externalProviderId String?   @map("external_provider_id") // BoldSign doc ID
+  status             String    @default("pending") // pending, in_progress, completed, declined, voided, expired
+  signingOrder       String    @default("parallel") @map("signing_order") // parallel, sequential
+  sentAt             DateTime? @map("sent_at")
+  completedAt        DateTime? @map("completed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  document        Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  signers         Signer[]
+
+  @@index([documentId])
+  @@map("signature_requests")
+}
+
+model Signer {
+  id                  String    @id // UUIDv7
+  signatureRequestId  String    @map("signature_request_id")
+  organizationId      String    @map("organization_id")
+  userId              String?   @map("user_id")
+  email               String
+  name                String?
+  roleLabel           String?   @map("role_label")
+  signingOrder        Int       @default(0) @map("signing_order")
+  verificationMethod  String    @default("none") @map("verification_method") // none, email, passcode, sms, kba, id_document, qes
+  status              String    @default("pending") // pending, sent, viewed, signed, declined, reassigned
+  signatureData       Json?     @map("signature_data")
+  signingToken        String?   @unique @map("signing_token")
+  tokenExpiresAt      DateTime? @map("token_expires_at")
+  passcodeHash        String?   @map("passcode_hash")
+  signedAt            DateTime? @map("signed_at")
+  ipAddress           String?   @map("ip_address")
+  userAgent           String?   @map("user_agent")
+  externalSignerId    String?   @map("external_signer_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  signatureRequest SignatureRequest @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user             User?            @relation(fields: [userId], references: [id])
+  signatureEvents  SignatureEvent[]
+
+  @@index([signatureRequestId])
+  @@index([email])
+  @@map("signers")
+}
+
+model SignatureEvent {
+  id             String   @id // UUIDv7
+  documentId     String   @map("document_id")
+  organizationId String   @map("organization_id")
+  signerId       String?  @map("signer_id")
+  eventType      String   @map("event_type") // sent, viewed, signed, declined, voided, reassigned, reminder_sent
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  metadata       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  // Append-only: No updatedAt, immutable triggers prevent UPDATE and DELETE
+
+  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  signer       Signer?      @relation(fields: [signerId], references: [id])
+
+  @@index([documentId, createdAt])
+  @@map("signature_events")
+}
+
+// -----------------------------------------------------------------------------
+// 4. Payments (BYOK & Payment Links)
+// -----------------------------------------------------------------------------
+
+model PaymentProviderConnection {
+  id                     String    @id // UUIDv7
+  organizationId         String    @map("organization_id")
+  providerType           String    @map("provider_type") // stripe, paypal, square, razorpay, mollie, payment_link, custom
+  displayName            String    @map("display_name")
+  encryptedCredentials   Bytes?    @map("encrypted_credentials")
+  dekCiphertext          Bytes?    @map("dek_ciphertext")
+  kmsKeyId               String?   @map("kms_key_id")
+  paymentLinkUrlTemplate String?   @map("payment_link_url_template")
+  supportedCurrencies    String[]  @default(["USD"]) @map("supported_currencies")
+  isActive               Boolean   @default(true) @map("is_active")
+  isVerified             Boolean   @default(false) @map("is_verified")
+  lastVerifiedAt         DateTime? @map("last_verified_at")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
+
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+  auditLogs    PaymentCredentialAuditLog[]
+
+  @@index([organizationId])
+  @@map("payment_provider_connections")
+}
+
+model Payment {
+  id                    String    @id // UUIDv7
+  documentId            String?   @map("document_id")
+  organizationId        String    @map("organization_id")
+  providerConnectionId  String    @map("provider_connection_id")
+  payerEmail            String    @map("payer_email")
+  payerName             String?   @map("payer_name")
+  amount                Decimal   @db.Decimal(15, 2)
+  currency              String
+  status                String    @default("pending") // pending, processing, completed, failed, refunded, disputed
+  paymentType           String    @default("full") @map("payment_type") // full, deposit, installment, recurring
+  recurringConfig       Json?     @map("recurring_config")
+  externalTransactionId String?   @map("external_transaction_id")
+  externalCheckoutUrl   String?   @map("external_checkout_url")
+  paidAt                DateTime? @map("paid_at")
+  metadata              Json      @default("{}")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  document           Document?                 @relation(fields: [documentId], references: [id])
+  organization       Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  providerConnection PaymentProviderConnection @relation(fields: [providerConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([organizationId, status])
+  @@map("payments")
+}
+
+model PaymentCredentialAuditLog {
+  id                   String   @id // UUIDv7
+  organizationId       String   @map("organization_id")
+  providerConnectionId String   @map("provider_connection_id")
+  actorId              String?  @map("actor_id")
+  action               String // created, read, updated, deleted, used_for_payment, rotated
+  ipAddress            String?  @map("ip_address")
+  metadata             Json     @default("{}")
+  createdAt            DateTime @default(now()) @map("created_at")
+  // Append-only: No updatedAt, immutable triggers prevent UPDATE and DELETE
+
+  organization       Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  providerConnection PaymentProviderConnection @relation(fields: [providerConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@map("payment_credential_audit_logs")
+}
+
+// -----------------------------------------------------------------------------
+// 5. Billing & Subscriptions (Paddle)
+// -----------------------------------------------------------------------------
+
+model Subscription {
+  id                      String    @id // UUIDv7
+  organizationId          String    @unique @map("organization_id")
+  paddleSubscriptionId    String?   @unique @map("paddle_subscription_id")
+  paddleCustomerId        String?   @map("paddle_customer_id")
+  planTier                String    @default("free") @map("plan_tier") // free, starter, professional, business, enterprise
+  status                  String    @default("active") // active, past_due, paused, cancelled, trialing
+  fullSeatLimit           Int       @default(1) @map("full_seat_limit")
+  fullSeatCount           Int       @default(1) @map("full_seat_count")
+  collabSeatLimit         Int       @default(0) @map("collab_seat_limit")
+  collabSeatCount         Int       @default(0) @map("collab_seat_count")
+  documentLimit           Int?      @map("document_limit")
+  documentsUsedThisPeriod Int       @default(0) @map("documents_used_this_period")
+  billingCycle            String    @default("monthly") @map("billing_cycle") // monthly, annual
+  currentPeriodStart      DateTime? @map("current_period_start")
+  currentPeriodEnd        DateTime? @map("current_period_end")
+  gracePeriodEnd          DateTime? @map("grace_period_end")
+  addOns                  Json      @default("[]") @map("add_ons")
+  paddlePlanId            String?   @map("paddle_plan_id")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model BillingEvent {
+  id             String   @id // UUIDv7
+  organizationId String?  @map("organization_id")
+  paddleEventId  String   @unique @map("paddle_event_id") // Idempotency key
+  eventType      String   @map("event_type")
+  payload        Json
+  processed      Boolean  @default(false)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@map("billing_events")
+}
+
+// -----------------------------------------------------------------------------
+// 6. Security, API Keys, Webhooks, Audit & Outbox
+// -----------------------------------------------------------------------------
+
+model ApiKey {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  name           String
+  keyHash        String    @unique @map("key_hash") // SHA-256 hash (never store plaintext)
+  keyPrefix      String    @map("key_prefix") // First 8 chars
+  scopes         String[]  @default([])
+  lastUsedAt     DateTime? @map("last_used_at")
+  expiresAt      DateTime? @map("expires_at")
+  createdBy      String    @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  revokedAt      DateTime? @map("revoked_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator      User         @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("api_keys")
+}
+
+model Webhook {
+  id              String    @id // UUIDv7
+  organizationId  String    @map("organization_id")
+  url             String
+  secret          String // HMAC signing secret
+  events          String[] // Subscribed event types
+  isActive        Boolean   @default(true) @map("is_active")
+  failureCount    Int       @default(0) @map("failure_count")
+  lastTriggeredAt DateTime? @map("last_triggered_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("webhooks")
+}
+
+model AuditLogEntry {
+  id             String   @id // UUIDv7
+  organizationId String   @map("organization_id")
+  actorId        String?  @map("actor_id")
+  actorType      String   @default("user") @map("actor_type") // user, api_key, system
+  action         String
+  resourceType   String   @map("resource_type")
+  resourceId     String?  @map("resource_id")
+  changes        Json?
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  createdAt      DateTime @default(now()) @map("created_at")
+  // Append-only: No updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_log_entries")
+}
+
+model BrandKit {
+  id              String    @id // UUIDv7
+  organizationId  String    @map("organization_id")
+  name            String
+  primaryColor    String?   @map("primary_color")
+  secondaryColor  String?   @map("secondary_color")
+  accentColor     String?   @map("accent_color")
+  logoUrl         String?   @map("logo_url")
+  faviconUrl      String?   @map("favicon_url")
+  fontHeading     String?   @map("font_heading")
+  fontBody        String?   @map("font_body")
+  customCss       String?   @map("custom_css")
+  emailFromName   String?   @map("email_from_name")
+  emailFromDomain String?   @map("email_from_domain")
+  removeBadge     Boolean   @default(false) @map("remove_badge")
+  isDefault       Boolean   @default(false) @map("is_default")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("brand_kits")
+}
+
+model OutboxEvent {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  eventType      String    @map("event_type")
+  aggregateType  String    @map("aggregate_type")
+  aggregateId    String    @map("aggregate_id")
+  payload        Json
+  createdAt      DateTime  @default(now()) @map("created_at")
+  processedAt    DateTime? @map("processed_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([processedAt, createdAt])
+  @@index([organizationId, createdAt])
+  @@map("outbox_events")
+}

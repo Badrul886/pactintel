@@ -1,0 +1,19 @@
+{
+  "name": "@pactintel/web-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "nx": {
+    "tags": [
+      "scope:web"
+    ]
+  },
+  "scripts": {
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.1",
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3"
+  }
+}

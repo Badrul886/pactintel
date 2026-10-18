@@ -1,0 +1,13 @@
+# Run lint-staged on pre-commit
+npx lint-staged
+
+# Secret scanner: reject any staged credentials or private keys
+if git diff --cached --name-only | grep -E '\.(pem|key)$' > /dev/null; then
+  echo "Error: Attempting to commit a private key (.pem or .key file). Commit rejected."
+  exit 1
+fi
+
+if git diff --cached | grep -E 'AKIA[0-9A-Z]{16}|-----BEGIN (RSA|EC|OPENSSH) PRIVATE KEY-----' > /dev/null; then
+  echo "Error: Detected high-entropy secret or private key in staged changes. Commit rejected."
+  exit 1
+fi

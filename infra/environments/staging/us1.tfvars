@@ -1,0 +1,16 @@
+project_id               = "pactintel-staging-us1"
+cell_id                  = "us1"
+region                   = "us-central1"
+dr_region                = "us-east4"
+vpc_cidr                 = "10.10.0.0/16"
+serverless_subnet_cidr   = "10.10.1.0/28"
+sql_tier                 = "db-custom-2-7680"
+sql_ha                   = "REGIONAL"
+sql_disk_size_gb         = 50
+redis_tier               = "STANDARD_HA"
+redis_memory_size_gb     = 2
+kms_location             = "us"
+evidence_bucket_location = "US"
+github_repository        = "Badrul886/pactintel"
+primary_domain           = "staging.pactintel.com"
+recipient_domain         = "staging.pact.link"

@@ -1,0 +1,44 @@
+# ==============================================================================
+# PactIntel API Container
+# Process Type: api (NestJS REST API)
+# ==============================================================================
+
+FROM node:20-alpine AS builder
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+WORKDIR /app
+
+# Copy dependency specifications
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+COPY libs/shared-types/package.json libs/shared-types/
+COPY libs/shared-utils/package.json libs/shared-utils/
+COPY libs/data-manifest/package.json libs/data-manifest/
+COPY libs/ui/package.json libs/ui/
+COPY libs/ai/package.json libs/ai/
+
+RUN pnpm install --frozen-lockfile
+
+# Copy source trees and config
+COPY tsconfig.base.json nx.json ./
+COPY apps/api/ apps/api/
+COPY libs/ libs/
+
+# Generate Prisma Client & Build
+RUN npx prisma generate --schema=apps/api/src/prisma/schema.prisma
+RUN pnpm nx run api:build
+
+# Production runner
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Run as non-root user for security (Invariant I-04 / CIS benchmark)
+USER node
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist/apps/api ./dist
+COPY --from=builder /app/apps/api/src/prisma ./prisma
+
+EXPOSE 3000
+CMD ["node", "dist/main.js"]

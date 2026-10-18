@@ -1,0 +1,21 @@
+{
+  "name": "@pactintel/shared-utils",
+  "version": "0.1.0",
+  "nx": {
+    "tags": [
+      "scope:shared"
+    ]
+  },
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.7.3"
+  }
+}

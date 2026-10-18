@@ -1,0 +1,122 @@
+name: Infrastructure as Code (IaC)
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/iac.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/iac.yml'
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  format-and-validate:
+    name: Terraform Format & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Check Terraform Formatting
+        run: terraform fmt -check -recursive infra/
+
+  plan:
+    name: Terraform Plan (${{ matrix.environment }})
+    needs: format-and-validate
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.CI_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Terraform Init
+        working-directory: infra/environments/${{ matrix.environment }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: infra/environments/${{ matrix.environment }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: infra/environments/${{ matrix.environment }}
+        run: |
+          terraform plan -no-color -var-file=us1.tfvars -out=tfplan > plan_output.txt
+          cat plan_output.txt
+
+      - name: Post Plan to Pull Request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = 'infra/environments/${{ matrix.environment }}/plan_output.txt';
+            let planText = '';
+            if (fs.existsSync(path)) {
+              planText = fs.readFileSync(path, 'utf8');
+            }
+            const body = `#### Terraform Plan: \`${{ matrix.environment }}\`\n<details><summary>Show Plan</summary>\n\n\`\`\`hcl\n${planText.substring(0, 60000)}\n\`\`\`\n</details>`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  apply:
+    name: Terraform Apply (${{ matrix.environment }})
+    needs: plan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: iac-apply
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.CI_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Terraform Init
+        working-directory: infra/environments/${{ matrix.environment }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: infra/environments/${{ matrix.environment }}
+        run: terraform apply -auto-approve -var-file=us1.tfvars

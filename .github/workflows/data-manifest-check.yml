@@ -1,0 +1,38 @@
+name: Data Manifest Check
+
+on:
+  pull_request:
+    paths:
+      - 'apps/api/src/prisma/schema.prisma'
+      - 'libs/data-manifest/**'
+      - 'tools/scripts/check-data-manifest.ts'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/api/src/prisma/schema.prisma'
+      - 'libs/data-manifest/**'
+      - 'tools/scripts/check-data-manifest.ts'
+
+jobs:
+  verify-manifest:
+    name: Verify Invariant I-10 Data Manifest Registry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Execute Data Manifest Verification Gate
+        run: pnpm run check:manifest

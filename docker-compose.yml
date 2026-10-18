@@ -1,0 +1,85 @@
+name: pactintel-local
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: pactintel-postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: local
+      POSTGRES_DB: pactintel
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-queue:
+    image: redis:7-alpine
+    container_name: pactintel-redis-queue
+    command: redis-server --save "" --appendonly no --maxmemory-policy noeviction
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_queue_data:/data
+
+  redis-session:
+    image: redis:7-alpine
+    container_name: pactintel-redis-session
+    command: redis-server --maxmemory-policy volatile-lru
+    ports:
+      - '6380:6379'
+
+  redis-cache:
+    image: redis:7-alpine
+    container_name: pactintel-redis-cache
+    command: redis-server --maxmemory-policy allkeys-lru
+    ports:
+      - '6381:6379'
+
+  redis-realtime:
+    image: redis:7-alpine
+    container_name: pactintel-redis-realtime
+    ports:
+      - '6382:6379'
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24
+    container_name: pactintel-clickhouse
+    ports:
+      - '8123:8123'
+      - '9000:9000'
+    volumes:
+      - chdata:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+
+  # Object Storage emulator: SeaweedFS (replaces discontinued MinIO, Blueprint §8.4, ADR-0010)
+  # [VERIFY]: Pin exact tag chrislusf/seaweedfs:3.59
+  object-store:
+    image: chrislusf/seaweedfs:3.59
+    container_name: pactintel-seaweedfs
+    command: server -s3 -dir=/data
+    ports:
+      - '8333:8333'
+    volumes:
+      - seaweed_data:/data
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: pactintel-mailpit
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+volumes:
+  pgdata:
+  redis_queue_data:
+  chdata:
+  seaweed_data:

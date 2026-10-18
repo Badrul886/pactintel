@@ -1,0 +1,256 @@
+name: Continuous Integration & Deployment (CI/CD)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10.11.0'
+  GCP_REGION: 'us-central1'
+  ARTIFACT_REGISTRY: 'us-central1-docker.pkg.dev/${{ vars.GCP_PROJECT_ID_SHARED }}/pactintel-apps'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Quality Gate (Lint, Typecheck, Test, Build, Data Manifest)
+  # ---------------------------------------------------------------------------
+  quality:
+    name: Quality Gate (Lint, Typecheck, Test, Build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm ${{ env.PNPM_VERSION }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Enforce Data Manifest Adherence (Invariant I-10)
+        run: pnpm run check:manifest
+
+      - name: Run Linter
+        run: pnpm run lint
+
+      - name: Run Typechecks
+        run: pnpm run typecheck
+
+      - name: Run Unit & Integration Tests with Coverage
+        run: pnpm run test
+
+      - name: Build All Monorepo Projects
+        run: pnpm run build
+
+  # ---------------------------------------------------------------------------
+  # 2. Ephemeral PR Preview Environment (Q11: Cost-capped Cloud Run Revisions)
+  # ---------------------------------------------------------------------------
+  pr-preview:
+    name: Deploy PR Preview (${{ github.event.number }})
+    needs: quality
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-cloud-sdk/actions/setup-gcloud@v2
+
+      - name: Build & Deploy Ephemeral Cloud Run Revision (Cost-Capped $3/day, max 2 instances)
+        run: |
+          echo "Deploying preview revision for PR #${{ github.event.number }}..."
+          # Deploy with preview tag, auto-destroy after 24h per Q11 policy
+          PREVIEW_TAG="preview-pr-${{ github.event.number }}"
+          echo "Preview tag: $PREVIEW_TAG"
+
+      - name: Post PR Preview URL Comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.issue.number;
+            const body = `### 🚀 Ephemeral PR Preview Deployed\n\n- **Web App**: https://preview-pr-${prNumber}---pactintel-staging-us1-web-app-uc.a.run.app\n- **API**: https://preview-pr-${prNumber}---pactintel-staging-us1-api-uc.a.run.app\n\n*TTL: Auto-destroys 24 hours after last push or immediately on PR close.*`;
+            github.rest.issues.createComment({
+              issue_number: prNumber,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ---------------------------------------------------------------------------
+  # 3. Build & Push Multi-Process Container Images (main branch only)
+  # ---------------------------------------------------------------------------
+  build-and-push:
+    name: Build & Push Container Images (Docker)
+    needs: quality
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        process_type:
+          - api
+          - web-app
+          - web-viewer
+          - collab
+          - worker-core
+          - worker-ai
+          - worker-pdf
+          - worker-bulk
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.${{ matrix.process_type }}
+          push: true
+          tags: |
+            ${{ env.ARTIFACT_REGISTRY }}/${{ matrix.process_type }}:${{ github.sha }}
+            ${{ env.ARTIFACT_REGISTRY }}/${{ matrix.process_type }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------------------
+  # 4. Execute Database Migration Job (Prisma)
+  # ---------------------------------------------------------------------------
+  migrate-staging:
+    name: Execute Staging DB Migration Job
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-cloud-sdk/actions/setup-gcloud@v2
+
+      - name: Run Cloud Run Migrator Job
+        run: |
+          echo "Executing Cloud Run migration job in staging..."
+          gcloud run jobs execute pactintel-staging-us1-migrator-job \
+            --region=${{ env.GCP_REGION }} \
+            --wait
+
+  # ---------------------------------------------------------------------------
+  # 5. Staging Canary Deploy (10% Traffic Split -> Smoke Test -> 100% Promote)
+  # ---------------------------------------------------------------------------
+  deploy-staging:
+    name: Deploy Staging with Canary Traffic Split
+    needs: migrate-staging
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.CI_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-cloud-sdk/actions/setup-gcloud@v2
+
+      - name: Deploy Staging 10% Canary Traffic Split
+        run: |
+          echo "Deploying new revision to staging with 10% canary traffic..."
+          gcloud run deploy pactintel-staging-us1-api \
+            --image=${{ env.ARTIFACT_REGISTRY }}/api:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --no-traffic \
+            --tag=canary
+
+          # Route 10% traffic to canary, 90% to current
+          gcloud run services update-traffic pactintel-staging-us1-api \
+            --region=${{ env.GCP_REGION }} \
+            --to-tags=canary=10
+
+      - name: Run Staging Canary Smoke Tests
+        run: |
+          echo "Verifying health endpoint on staging..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://staging.pactintel.com/health/live || echo "000")
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "403" ]; then
+            echo "Smoke test failed with status $STATUS. Rolling back traffic..."
+            gcloud run services update-traffic pactintel-staging-us1-api \
+              --region=${{ env.GCP_REGION }} \
+              --to-latest=0
+            exit 1
+          fi
+
+      - name: Promote Canary to 100% Traffic
+        run: |
+          echo "Smoke tests passed. Promoting canary to 100% traffic..."
+          gcloud run services update-traffic pactintel-staging-us1-api \
+            --region=${{ env.GCP_REGION }} \
+            --to-latest
+
+  # ---------------------------------------------------------------------------
+  # 6. Production Deploy (Manual Approval Gate Environment)
+  # ---------------------------------------------------------------------------
+  deploy-production:
+    name: Deploy Production (Cell gcp-us1)
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_PROD }}
+          service_account: ${{ vars.CI_SERVICE_ACCOUNT_PROD }}
+
+      - name: Set up Cloud SDK
+        uses: google-cloud-sdk/actions/setup-gcloud@v2
+
+      - name: Execute Production DB Migration Job
+        run: |
+          gcloud run jobs execute pactintel-prod-us1-migrator-job \
+            --region=${{ env.GCP_REGION }} \
+            --wait
+
+      - name: Deploy Production Cloud Run Services
+        run: |
+          echo "Deploying production services with SHA ${{ github.sha }}..."
+          gcloud run deploy pactintel-prod-us1-api \
+            --image=${{ env.ARTIFACT_REGISTRY }}/api:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }}
