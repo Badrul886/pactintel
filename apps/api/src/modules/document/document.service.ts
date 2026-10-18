@@ -1,9 +1,10 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, NotFoundException, Optional } from '@nestjs/common';
 import { DocumentRepository } from './document.repository';
 import { DocumentOutboxService } from './outbox/document-outbox.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
 import { CreateDocumentDto, UpdateDocumentDto, DocumentStatus } from '@pactintel/shared-types';
-import { sha256, canonicalJson } from '@pactintel/shared-utils';
+import { sha256, canonicalJson, generateId } from '@pactintel/shared-utils';
 
 @Injectable()
 export class DocumentService {
@@ -11,6 +12,7 @@ export class DocumentService {
     private readonly docRepo: DocumentRepository,
     private readonly outbox: DocumentOutboxService,
     private readonly prisma: PrismaService,
+    @Optional() private readonly notificationService?: NotificationService,
   ) {}
 
   /**
@@ -306,12 +308,46 @@ export class DocumentService {
 
   /**
    * Validates recipient access for public document viewer (/d/:slug).
-   * Checks expiration, password gate, and domain restriction.
+   * RULE ACC-004: Strict check sequence MUST be:
+   * 1. Link expiry -> EXPIRED
+   * 2. Domain restriction -> DOMAIN_RESTRICTED (or EMAIL_REQUIRED)
+   * 3. View limit (COUNT DISTINCT session_id) -> VIEW_LIMIT_EXCEEDED
+   * 4. Password gate -> PASSWORD_REQUIRED
+   *
+   * ALL denial states MUST return HTTP 200 with the sender's brand kit.
    */
-  async validateRecipientAccess(slug: string, passwordAttempt?: string, recipientEmail?: string) {
+  async validateRecipientAccess(
+    slug: string,
+    passwordAttempt?: string,
+    recipientEmail?: string,
+    sessionId?: string,
+  ) {
     const doc = await this.getDocumentBySlug(slug);
 
-    // 1. Check expiration against current time (RULE I18N-001)
+    // Load sender's brand kit (RULE BRAND-001)
+    const brandKitEntity = this.prisma.brandKit
+      ? await this.prisma.brandKit.findFirst({
+          where: { organizationId: doc.organizationId, isDefault: true, deletedAt: null },
+        })
+      : null;
+
+    const brandKit = brandKitEntity
+      ? {
+          id: brandKitEntity.id,
+          name: brandKitEntity.name,
+          primaryColor: brandKitEntity.primaryColor,
+          secondaryColor: brandKitEntity.secondaryColor,
+          accentColor: brandKitEntity.accentColor,
+          logoUrl: brandKitEntity.logoUrl,
+          faviconUrl: brandKitEntity.faviconUrl,
+          fontHeading: brandKitEntity.fontHeading,
+          fontBody: brandKitEntity.fontBody,
+          customCss: brandKitEntity.customCss,
+          removeBadge: brandKitEntity.removeBadge,
+        }
+      : null;
+
+    // 1. Link Expiry Check
     if (doc.expiresAt && new Date() > doc.expiresAt) {
       if (doc.status !== 'signed' && doc.status !== 'expired') {
         await this.prisma.document.update({
@@ -321,58 +357,115 @@ export class DocumentService {
       }
       return {
         accessible: false,
+        denialType: 'EXPIRED',
         reason: 'EXPIRED',
-        message: 'This document has expired.',
+        status: 'EXPIRED',
+        message: 'This document link has expired.',
+        documentId: doc.id,
+        title: doc.title,
         expiresAt: doc.expiresAt,
+        brandKit,
       };
     }
 
-    // 2. Password Gate Check
-    if (doc.passwordHash) {
-      if (!passwordAttempt) {
-        return {
-          accessible: false,
-          reason: 'PASSWORD_REQUIRED',
-          message: 'This document is protected with a password.',
-          title: doc.title,
-        };
-      }
-      if (sha256(passwordAttempt) !== doc.passwordHash) {
-        throw new HttpException(
-          { code: 'INVALID_PASSWORD', message: 'The provided document password is incorrect.' },
-          HttpStatus.UNAUTHORIZED,
-        );
-      }
-    }
-
-    // 3. Domain Restriction Check
+    // 2. Domain Restriction Check
     if (doc.domainRestriction && doc.domainRestriction.length > 0) {
       if (!recipientEmail) {
         return {
           accessible: false,
+          denialType: 'EMAIL_REQUIRED',
           reason: 'EMAIL_REQUIRED',
+          status: 'EMAIL_REQUIRED',
           message: 'Please provide your email address to access this document.',
+          documentId: doc.id,
+          title: doc.title,
           allowedDomains: doc.domainRestriction,
+          brandKit,
         };
       }
 
-      const emailDomain = recipientEmail.split('@')[1]?.toLowerCase();
+      const emailDomain = recipientEmail.split('@')[1]?.toLowerCase().trim();
       const isAllowed = doc.domainRestriction.some(
-        (domain) => domain.toLowerCase() === emailDomain,
+        (domain) => domain.toLowerCase().trim() === emailDomain,
       );
 
       if (!isAllowed) {
-        throw new HttpException(
-          {
-            code: 'DOMAIN_RESTRICTED',
-            message: `Access restricted. Only recipients from [${doc.domainRestriction.join(', ')}] can access this document.`,
-          },
-          HttpStatus.FORBIDDEN,
-        );
+        return {
+          accessible: false,
+          denialType: 'DOMAIN_RESTRICTED',
+          reason: 'DOMAIN_RESTRICTED',
+          status: 'DOMAIN_RESTRICTED',
+          message: `Access restricted. Only recipients from [${doc.domainRestriction.join(', ')}] can access this document.`,
+          documentId: doc.id,
+          title: doc.title,
+          allowedDomains: doc.domainRestriction,
+          brandKit,
+        };
       }
     }
 
-    // Record viewed transition if status is 'sent'
+    // 3. View Limit Check (COUNT DISTINCT session_id)
+    if (doc.maxViews && doc.maxViews > 0) {
+      const viewEvents = await this.prisma.outboxEvent.findMany({
+        where: {
+          aggregateId: doc.id,
+          eventType: 'analytics.document_viewed_first_time',
+        },
+        select: { payload: true },
+      });
+
+      const distinctSessions = new Set<string>();
+      for (const ev of viewEvents) {
+        const p = ev.payload as any;
+        if (p?.sessionId) distinctSessions.add(p.sessionId);
+      }
+
+      const isNewSession = !sessionId || !distinctSessions.has(sessionId);
+      if (distinctSessions.size >= doc.maxViews && isNewSession) {
+        return {
+          accessible: false,
+          denialType: 'VIEW_LIMIT_EXCEEDED',
+          reason: 'VIEW_LIMIT_EXCEEDED',
+          status: 'VIEW_LIMIT_EXCEEDED',
+          message: 'The maximum allowed views for this document has been reached.',
+          documentId: doc.id,
+          title: doc.title,
+          maxViews: doc.maxViews,
+          brandKit,
+        };
+      }
+    }
+
+    // 4. Password Gate Check
+    if (doc.passwordHash) {
+      if (!passwordAttempt) {
+        return {
+          accessible: false,
+          denialType: 'PASSWORD_REQUIRED',
+          reason: 'PASSWORD_REQUIRED',
+          status: 'PASSWORD_REQUIRED',
+          message: 'This document is protected with a password.',
+          documentId: doc.id,
+          title: doc.title,
+          brandKit,
+        };
+      }
+      if (sha256(passwordAttempt) !== doc.passwordHash) {
+        return {
+          accessible: false,
+          denialType: 'PASSWORD_REQUIRED',
+          reason: 'PASSWORD_REQUIRED',
+          status: 'PASSWORD_REQUIRED',
+          message: 'The provided document password is incorrect.',
+          error: 'Incorrect password',
+          documentId: doc.id,
+          title: doc.title,
+          brandKit,
+        };
+      }
+    }
+
+    // All 4 security gates passed. Record viewed transition if status is 'sent'
     if (doc.status === 'sent') {
       await this.transitionStatus(doc.organizationId, doc.id, 'viewed');
     }
@@ -396,6 +489,60 @@ export class DocumentService {
           isSigned: currentVersion?.isSigned,
         },
       },
+      brandKit,
+    };
+  }
+
+  /**
+   * Request access to a restricted document (NO auth required).
+   * Writes audit log entry and notifies document owner.
+   */
+  async requestAccess(
+    documentId: string,
+    body: { requesterEmail: string; requesterName: string; message?: string },
+    metadata?: { ipAddress?: string; userAgent?: string },
+  ) {
+    const doc = await this.prisma.document.findFirst({
+      where: { id: documentId, deletedAt: null },
+    });
+    if (!doc) {
+      throw new NotFoundException(`Document with id '${documentId}' not found.`);
+    }
+
+    // 1. Write audit_log_entry { action: 'access_requested' }
+    await this.prisma.auditLogEntry.create({
+      data: {
+        id: generateId(),
+        organizationId: doc.organizationId,
+        actorType: 'system',
+        action: 'access_requested',
+        resourceType: 'document',
+        resourceId: doc.id,
+        changes: {
+          requesterEmail: body.requesterEmail,
+          requesterName: body.requesterName,
+          message: body.message || null,
+        },
+        ipAddress: metadata?.ipAddress,
+        userAgent: metadata?.userAgent,
+      },
+    });
+
+    // 2. notifyUser(document.ownerId, orgId, { eventType: 'access_requested', ... })
+    if (this.notificationService) {
+      await this.notificationService.notifyUser(doc.ownerId, doc.organizationId, {
+        eventType: 'access_requested',
+        title: 'Document Access Requested',
+        body: `${body.requesterName || body.requesterEmail} has requested access to view '${doc.title}'.`,
+        resourceType: 'document',
+        resourceId: doc.id,
+      });
+    }
+
+    // 3. Return 202 Accepted status
+    return {
+      status: 'accepted',
+      message: 'Access request has been submitted to the document owner.',
     };
   }
 

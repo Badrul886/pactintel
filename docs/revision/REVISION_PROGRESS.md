@@ -8,11 +8,11 @@
 
 ## Source Documents
 
-| Document | Location |
-|---|---|
-| Architecture Revision Brief | [docs/ARCHITECTURE_REVISION_BRIEF.md](../ARCHITECTURE_REVISION_BRIEF.md) |
+| Document                                | Location                                                                                       |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Architecture Revision Brief             | [docs/ARCHITECTURE_REVISION_BRIEF.md](../ARCHITECTURE_REVISION_BRIEF.md)                       |
 | Addendum A — Google Cloud + AI Platform | [docs/ARCHITECTURE_REVISION_BRIEF_ADDENDUM_A.md](../ARCHITECTURE_REVISION_BRIEF_ADDENDUM_A.md) |
-| Master Implementation Blueprint | [docs/MASTER_IMPLEMENTATION_BLUEPRINT.md](../MASTER_IMPLEMENTATION_BLUEPRINT.md) |
+| Master Implementation Blueprint         | [docs/MASTER_IMPLEMENTATION_BLUEPRINT.md](../MASTER_IMPLEMENTATION_BLUEPRINT.md)               |
 
 ---
 
@@ -54,33 +54,33 @@
 
 The following new sections are registered in the ToC but their full content has not yet been authored. Each is a significant standalone document:
 
-| Section | Status | Priority | Phase Gate |
-|---|---|---|---|
-| §15 Cloud Foundation (GCP) | ⬜ Not started | P0 | Phase-0a |
-| §16 Async, Eventing & Scheduling | ⬜ Not started | P1 | Phase-0b |
-| §17 Data Governance & Tenant Lifecycle | ⬜ Not started | P1 | Phase-0b |
-| §18 Resilience, Capacity & Scale Levers | ⬜ Not started | P2 | Phase 1 |
-| §19 Vendor & Dependency Strategy | ⬜ Not started | P1 | Phase-0b |
-| §20 AI Platform Architecture | ⬜ Not started | P1 | Phase-0b |
-| Appendix B — ADR Index | 🔄 Stub (ADR-0001 created) | P0 | Phase-0a |
-| Appendix C — Verification Log | ⬜ Not started | P1 | Phase-0b |
-| Appendix D — Defect Register Resolution Map | ⬜ Not started | P1 | Phase-0b |
-| Appendix E — Data Manifest Seed | ⬜ Not started | P1 | Phase-0b |
+| Section                                     | Status                     | Priority | Phase Gate |
+| ------------------------------------------- | -------------------------- | -------- | ---------- |
+| §15 Cloud Foundation (GCP)                  | ⬜ Not started             | P0       | Phase-0a   |
+| §16 Async, Eventing & Scheduling            | ⬜ Not started             | P1       | Phase-0b   |
+| §17 Data Governance & Tenant Lifecycle      | ⬜ Not started             | P1       | Phase-0b   |
+| §18 Resilience, Capacity & Scale Levers     | ⬜ Not started             | P2       | Phase 1    |
+| §19 Vendor & Dependency Strategy            | ⬜ Not started             | P1       | Phase-0b   |
+| §20 AI Platform Architecture                | ⬜ Not started             | P1       | Phase-0b   |
+| Appendix B — ADR Index                      | 🔄 Stub (ADR-0001 created) | P0       | Phase-0a   |
+| Appendix C — Verification Log               | ⬜ Not started             | P1       | Phase-0b   |
+| Appendix D — Defect Register Resolution Map | ⬜ Not started             | P1       | Phase-0b   |
+| Appendix E — Data Manifest Seed             | ⬜ Not started             | P1       | Phase-0b   |
 
 ### Phase 4: Full Section Pass (§3–§13 GCP spot-check) 🔄 Pending
 
 The remaining sections (§3 Data Architecture, §4 API Contracts, §5.2–§6, §7, §9–§13) contain additional spot-check items from the Brief §B4 defect register. These do not contain AWS infrastructure references but need verification and cleanup:
 
-| Section | Item | Priority |
-|---|---|---|
-| §3.2 schema | UUIDv7 PKs (X-14) — `gen_random_uuid()` calls must be replaced | P1 |
-| §3.2 schema | Partition declarations for high-growth tables (X-15) | P1 |
-| §4 API | Cursor pagination pattern (D-21, X-49) — offset pagination must be removed | P1 |
-| §5.2 | `bcrypt`/`Argon2` API key hashing → SHA-256 HMAC (D-13, X-21) | P1 |
-| §10 Observability | Grafana Alloy / OTel collector config (replaces Grafana Agent) | P2 |
-| §11 Standards | IaC naming convention and required GCP labels | P1 |
-| §12 Build Sequencing | Split Phase 0 into 0a (platform) + 0b (product) | P1 |
-| §13 Edge Cases | EVT-001 through EVT-010 (outbox rules), JOB-001 (Cloud Scheduler / BullMQ) | P2 |
+| Section              | Item                                                                       | Priority |
+| -------------------- | -------------------------------------------------------------------------- | -------- |
+| §3.2 schema          | UUIDv7 PKs (X-14) — `gen_random_uuid()` calls must be replaced             | P1       |
+| §3.2 schema          | Partition declarations for high-growth tables (X-15)                       | P1       |
+| §4 API               | Cursor pagination pattern (D-21, X-49) — offset pagination must be removed | P1       |
+| §5.2                 | `bcrypt`/`Argon2` API key hashing → SHA-256 HMAC (D-13, X-21)              | P1       |
+| §10 Observability    | Grafana Alloy / OTel collector config (replaces Grafana Agent)             | P2       |
+| §11 Standards        | IaC naming convention and required GCP labels                              | P1       |
+| §12 Build Sequencing | Split Phase 0 into 0a (platform) + 0b (product)                            | P1       |
+| §13 Edge Cases       | EVT-001 through EVT-010 (outbox rules), JOB-001 (Cloud Scheduler / BullMQ) | P2       |
 
 ---
 

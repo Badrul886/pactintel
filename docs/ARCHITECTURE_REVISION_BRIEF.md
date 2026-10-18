@@ -1,11 +1,11 @@
 # ARCHITECTURE REVISION BRIEF — "Build Once, Scale Forever"
 
-| | |
-|---|---|
-| **Target document** | `docs/MASTER_IMPLEMENTATION_BLUEPRINT.md` — revise v1.1.0 → **v2.0.0** |
-| **Executor** | Google Antigravity (agent) working in the `pactintel2` repository |
-| **Brief date** | 2026-10-04 |
-| **Launch message** | Save this file as `docs/ARCHITECTURE_REVISION_BRIEF.md`, then tell the agent: *"Read docs/ARCHITECTURE_REVISION_BRIEF.md completely and execute it phase by phase. Do not skip or summarize any item. Report after each phase."* |
+|                     |                                                                                                                                                                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Target document** | `docs/MASTER_IMPLEMENTATION_BLUEPRINT.md` — revise v1.1.0 → **v2.0.0**                                                                                                                                                           |
+| **Executor**        | Google Antigravity (agent) working in the `pactintel2` repository                                                                                                                                                                |
+| **Brief date**      | 2026-10-04                                                                                                                                                                                                                       |
+| **Launch message**  | Save this file as `docs/ARCHITECTURE_REVISION_BRIEF.md`, then tell the agent: _"Read docs/ARCHITECTURE_REVISION_BRIEF.md completely and execute it phase by phase. Do not skip or summarize any item. Report after each phase."_ |
 
 ---
 
@@ -18,6 +18,7 @@ You are a principal cloud/SaaS architect and technical writer. Revise the PactIn
 Blueprint v1.1.0 was written as "start small, migrate later". It explicitly schedules, or implicitly requires, the migrations below. Find and eliminate every one of them, plus any others you discover.
 
 **Explicit migrations in v1.1.0**
+
 - Fly.io (Phases 0–2) → AWS ECS/EKS (Phase 3+) [§8.1]; "Fly Postgres, backed by Supabase" [§8.1] (also factually wrong).
 - PostgreSQL full-text search → Meilisearch [§2.1, §12 Phase 3].
 - Raw JSONB document content → Yjs-compatible format [§12 Phase 2].
@@ -25,6 +26,7 @@ Blueprint v1.1.0 was written as "start small, migrate later". It explicitly sche
 - Fly-specific deploy, secrets, health-check and preview-environment mechanics [§5.4, §8.2, §8.3, §10.5, INFRA-002, INFRA-003].
 
 **Implicit migrations hidden in v1.1.0**
+
 - One Postgres + one ClickHouse + one bucket set vs. promised US/EU data residency [§3, GDPR-002] → later splitting one database into regional databases.
 - One KMS key per organization [§5.3] → key-count quota/cost → re-keying.
 - Paddle columns baked into core tables, BoldSign-only signing, Resend-only email, WorkOS-shaped user table → vendor-exit migrations.
@@ -38,13 +40,14 @@ Blueprint v1.1.0 was written as "start small, migrate later". It explicitly sche
 - **Solo developer.** Low operational overhead is a hard requirement. Prefer fully managed AWS services. No component that needs manual patching. Everything automated, alarmed and runbooked.
 - **Cost-aware, pre-revenue.** The AWS account is new (free-tier credits expire). Build structure first, capacity later (see A3). State the cost impact of each structural decision.
 - **No Stripe.** Paddle (merchant of record) for platform billing + BYOK for end-user payments. Unchanged.
-- **Local-first development.** AWS is used only when needed, but the local environment must mirror production *structure* through ports/adapters.
+- **Local-first development.** AWS is used only when needed, but the local environment must mirror production _structure_ through ports/adapters.
 - **Product scope unchanged** (`docs/PRODUCT_BLUEPRINT.md`).
 - **Hosting is AWS only.** No Fly.io. No Supabase. No Upstash. No Kubernetes/EKS.
 
 ## A3. Definitions — migration vs. scaling
 
 **Migration (forbidden by design)** — any future change that requires one or more of:
+
 - moving data between data stores, engines, accounts or regions (other than the controlled tenant-relocation tool in §17);
 - re-platforming compute, networking or the orchestrator;
 - re-keying or re-encrypting existing data;
@@ -72,18 +75,18 @@ Blueprint v1.1.0 was written as "start small, migrate later". It explicitly sche
 - **W-09 Owner-dependent items** (business, legal, budget): do not stall. State a default, proceed, and add the item to `docs/revision/QUESTIONS_FOR_OWNER.md`.
 - **W-10 Lean Phase-0 footprint.** Structure now, capacity later. Report the projected monthly AWS cost of the Phase-0 launch configuration and of each capacity switch. If the Phase-0 AWS bill exceeds ~US$350/month, propose reductions that violate no invariant.
 - **W-11 Small passes.** After each pass, re-read the edited region; check numbering, anchors, table rendering; append to `docs/revision/PROGRESS_LOG.md`. If the repo uses git, commit per pass (`docs(blueprint): <pass>`).
-- **W-12 Keep the existing style:** GitHub-flavored Markdown, `> [!IMPORTANT]` / `> [!CAUTION]` callouts, SQL in fenced blocks, tables for matrices, and the rule format *Scenario / Risk / Implementation / Module / Phase / Test*.
+- **W-12 Keep the existing style:** GitHub-flavored Markdown, `> [!IMPORTANT]` / `> [!CAUTION]` callouts, SQL in fenced blocks, tables for matrices, and the rule format _Scenario / Risk / Implementation / Module / Phase / Test_.
 
 ## A5. Process and deliverables
 
-| Phase | Work | Output |
-|---|---|---|
-| **1 Inventory** | Read both docs completely. List every blueprint statement touching hosting, scale, region, vendor, keys, schema permanence, public contracts, or "later / Phase N+" deferral. Map each to a brief item (D-xx, X-xx, S-xx). | `docs/revision/INVENTORY.md` |
-| **2 Verify & decide** | Complete the verification list (B7). Write one ADR per decision D-01…D-24 plus any extra (status *Accepted*, sources, verified-on date). | `docs/adr/ADR-00NN-*.md`, `docs/revision/OPEN_VERIFICATIONS.md` |
-| **3 Edit** | Apply B3–B5. Order: §0 → new §15–§19 → §1 → §2 → §3 → §4 → §5 → §6 → §7 → §8 → §9 → §10 → §11 → §12 → §13 → §14 → appendices. | `docs/MASTER_IMPLEMENTATION_BLUEPRINT.md` v2.0.0 |
-| **4 Consistency sweep** | Global greps (B8), cross-reference check, ToC, rule-ID uniqueness, phase tags, DDL-vs-table consistency, glossary. | `docs/revision/PROGRESS_LOG.md` |
-| **5 Audit** | Run the B8 checklist. Fix failures. Re-audit until all pass. | `docs/revision/AUDIT_REPORT.md` (pass/fail per item with section references) |
-| **6 Companion docs** | Part C. | updated cost analysis, `AGENTS.md`, `GEMINI.md` |
+| Phase                   | Work                                                                                                                                                                                                                       | Output                                                                       |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| **1 Inventory**         | Read both docs completely. List every blueprint statement touching hosting, scale, region, vendor, keys, schema permanence, public contracts, or "later / Phase N+" deferral. Map each to a brief item (D-xx, X-xx, S-xx). | `docs/revision/INVENTORY.md`                                                 |
+| **2 Verify & decide**   | Complete the verification list (B7). Write one ADR per decision D-01…D-24 plus any extra (status _Accepted_, sources, verified-on date).                                                                                   | `docs/adr/ADR-00NN-*.md`, `docs/revision/OPEN_VERIFICATIONS.md`              |
+| **3 Edit**              | Apply B3–B5. Order: §0 → new §15–§19 → §1 → §2 → §3 → §4 → §5 → §6 → §7 → §8 → §9 → §10 → §11 → §12 → §13 → §14 → appendices.                                                                                              | `docs/MASTER_IMPLEMENTATION_BLUEPRINT.md` v2.0.0                             |
+| **4 Consistency sweep** | Global greps (B8), cross-reference check, ToC, rule-ID uniqueness, phase tags, DDL-vs-table consistency, glossary.                                                                                                         | `docs/revision/PROGRESS_LOG.md`                                              |
+| **5 Audit**             | Run the B8 checklist. Fix failures. Re-audit until all pass.                                                                                                                                                               | `docs/revision/AUDIT_REPORT.md` (pass/fail per item with section references) |
+| **6 Companion docs**    | Part C.                                                                                                                                                                                                                    | updated cost analysis, `AGENTS.md`, `GEMINI.md`                              |
 
 Also produce `docs/revision/CHANGE_REPORT.md` (every section changed, every rule revised/added, every migration eliminated) and `docs/revision/QUESTIONS_FOR_OWNER.md`.
 
@@ -95,18 +98,18 @@ Also produce `docs/revision/CHANGE_REPORT.md` (every section changed, every rule
 
 Assumptions to validate by Phase-0 load test. Change a number only with written justification in §0.
 
-| Dimension | Per pooled cell | Platform |
-|---|---|---|
-| Organizations | 5,000 | 250,000+ by adding cells |
-| Users | 100,000 | 5,000,000+ |
-| Documents / versions | 50 M / 150 M | linear in cells |
-| Signature events per month | 20 M | linear |
-| Recipient page peak | 5,000 req/s | linear |
-| API sustained | 1,000 req/s | linear |
-| Concurrent WebSockets | 5,000 collaboration + 20,000 notification | linear |
-| Background jobs per day | 5 M | linear |
-| Analytics events per year | 5 B | linear |
-| Jurisdictions | US and EU designed in from Day 1; extensible (UK, CA, AU, IN, ME…) by adding cells only | — |
+| Dimension                  | Per pooled cell                                                                         | Platform                 |
+| -------------------------- | --------------------------------------------------------------------------------------- | ------------------------ |
+| Organizations              | 5,000                                                                                   | 250,000+ by adding cells |
+| Users                      | 100,000                                                                                 | 5,000,000+               |
+| Documents / versions       | 50 M / 150 M                                                                            | linear in cells          |
+| Signature events per month | 20 M                                                                                    | linear                   |
+| Recipient page peak        | 5,000 req/s                                                                             | linear                   |
+| API sustained              | 1,000 req/s                                                                             | linear                   |
+| Concurrent WebSockets      | 5,000 collaboration + 20,000 notification                                               | linear                   |
+| Background jobs per day    | 5 M                                                                                     | linear                   |
+| Analytics events per year  | 5 B                                                                                     | linear                   |
+| Jurisdictions              | US and EU designed in from Day 1; extensible (UK, CA, AU, IN, ME…) by adding cells only | —                        |
 
 A **dedicated cell** (enterprise / regulated / HIPAA) uses the identical architecture, sized per contract.
 
@@ -133,6 +136,7 @@ A **dedicated cell** (enterprise / regulated / HIPAA) uses the identical archite
 These are decisions, not options. Implement them. Each needs an ADR with verified sources. Where a decision says **[VERIFY]**, confirm against official docs first; if a verified blocker exists, record it in the ADR, choose the nearest alternative that still satisfies every invariant, and log it in `OPEN_VERIFICATIONS.md`.
 
 ### D-01 Compute — ECS on Fargate, defined in IaC
+
 - All services run on **Amazon ECS with Fargate**. Prefer ARM64 (Graviton) where every image is verified to run (**[VERIFY]** Playwright/Chromium on linux-arm64).
 - Every ECS resource is defined in IaC from the first deploy. **Do not use console wizards or ECS Express Mode as a permanent mechanism.** If Express Mode is used to bootstrap, the resources must be imported into IaC before Phase 0a exits.
 - Later cost levers stay in-family: EC2 capacity providers / ECS Managed Instances (**[VERIFY]**) without changing service definitions or the orchestrator.
@@ -140,6 +144,7 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - Autoscaling policy per service with defined signals (table in §16).
 
 ### D-02 Cell architecture — control plane + data plane
+
 - **Cell** = an independent regional deployment of the data plane: own VPC, ECS services, Aurora cluster, Redis instances, S3 buckets, KMS keys, search/vector, ClickHouse service/database, telemetry routing. Short code: `us1`, `eu1`, `ded-<customer>`.
 - **Control plane** = a small global stack: (a) **tenant directory** (org id, org slug, home cell, jurisdiction, status, custom hostnames, placement flags); (b) **billing authority** (provider webhooks, plan/entitlement catalog, subscription state) with entitlement projections pushed to cells; (c) **global webhook ingress/router** (Paddle, BoldSign, WorkOS, payment-processor, CRM, email events) → verify → route to the right cell; (d) **login router** (WorkOS org → cell); (e) cell registry + provisioning automation; (f) feature-flag/config source. It holds **no document content** and only minimal personal data. Which routing metadata may live outside the EU is a legal question → `QUESTIONS_FOR_OWNER.md`.
 - **Edge routing:** Cloudflare (Workers + KV or equivalent) resolves host/path → cell origin. Primary routing is **lookup-free**: the cell code is embedded in hostnames (`<cell>.app…`, `<cell>.api…`), API-key prefixes (`pk_live_<cell>_…`), public document URLs and collab URLs. Directory lookups are needed only for custom hostnames and login.
@@ -150,6 +155,7 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - **Control-plane resilience:** the directory read path must survive a control-plane regional outage for already-routed tenants (edge replica/cache). Document RTO/RPO.
 
 ### D-03 AWS organization and accounts
+
 - AWS Organizations with: a **management account** (billing only, root MFA, no workloads); **security/log-archive** account (CloudTrail/Config/audit exports in Object-Lock buckets); **shared-services** account (IaC state, ECR or cross-account ECR policy, CI roles); `dev`, `staging`; one **prod account per jurisdiction** at minimum; the control plane in its own account; dedicated cells in their own accounts when a contract/regulation requires.
 - Human access through **IAM Identity Center** only (no IAM users). CI via **GitHub OIDC** roles per account. Break-glass role with alerting.
 - **SCPs:** deny regions outside the allowlist; deny disabling CloudTrail/GuardDuty/Config; deny public S3; require encryption; deny leaving the organization.
@@ -157,6 +163,7 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - This is structural: moving resources across accounts later is a migration.
 
 ### D-04 Network, egress and edge protection
+
 - Per-cell VPC, non-overlapping CIDRs from an **IPAM plan** that reserves ranges for future cells, peering/Transit Gateway and on-prem. `/16` per cell.
 - 3 AZs × (public, private-app, private-data, isolated) subnets, sized for Fargate ENI growth (IP exhaustion cannot be fixed cheaply later). Compute may start in 2 AZs; subnets exist in 3.
 - **NAT per AZ with static Elastic IPs; publish these as the platform's egress IPs** (customers allowlist them for webhooks and CRM callbacks; changing them later breaks customers).
@@ -167,6 +174,7 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - Public DNS authoritative at Cloudflare; private hosted zones inside VPCs.
 
 ### D-05 PostgreSQL — Aurora PostgreSQL-Compatible
+
 - Engine: **Aurora PostgreSQL 17.x** (verified 2026-10: PG 17 supported, 17.9 minor, pgvector 0.8.0 in 17.x; Serverless v2 scale-to-zero available). **[VERIFY]** extensions: pgvector HNSW/iterative scan, pg_trgm, pg_partman, pg_cron, pgaudit, pg_stat_statements; and Serverless v2 scale-to-zero ↔ RDS Proxy compatibility. Fall back to RDS PostgreSQL Multi-AZ **only** on a verified blocker, with a documented ceiling and ADR.
 - **Topology per cell:** writer + at least one reader in another AZ before the first paying customer. Separate `DATABASE_WRITER_URL` / `DATABASE_READER_URL` config from Day 1 (both may point at one endpoint in staging). Read-your-writes rules for signing/payment flows; replication-lag-aware routing. Serverless v2 for non-prod (scale-to-zero) and early prod; provisioned for large cells.
 - **Pooling layer is mandatory** (RDS Proxy or PgBouncer), validated with Prisma + transaction-scoped RLS context; connection-storm test at maximum task count.
@@ -180,6 +188,7 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - **Major upgrades** via blue/green + expand/contract; runbook; extension pinning.
 
 ### D-06 Redis topology by role
+
 - Roles → instances: **`queue`** (BullMQ; `noeviction`; cluster mode disabled or hash-tagged; durability tier per ADR: ElastiCache Multi-AZ vs MemoryDB — **[VERIFY]** BullMQ compatibility), **`session`** (TTL; `noeviction`), **`cache+ratelimit`** (`allkeys-lru`), **`realtime`** (pub/sub for collab and notifications; non-durable).
 - Eviction policy is **per instance**, not per logical DB — rewrite INFRA-004. Minimum two instances in prod; no instance hosts roles with conflicting eviction needs.
 - Role-based config (`REDIS_QUEUE_URL`, `REDIS_SESSION_URL`, …) from Day 1 so roles split without code changes.
@@ -187,6 +196,7 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - Hocuspocus uses its Redis extension for multi-instance operation.
 
 ### D-07 Async and event architecture
+
 - **Transactional outbox** (`outbox_events`) written in the same DB transaction as the state change. A relay publishes to BullMQ now; adding SNS/SQS/EventBridge/Kinesis later changes only the publish step. Consumers are idempotent (inbox/dedupe key). Event envelope: `id` (UUIDv7), `type`, `schema_version`, `cell`, `organization_id`, `occurred_at`, `trace_id`, `payload`. Schemas live in `libs/shared-types` with compatibility tests.
 - `EventEmitter2` is no longer the cross-module mechanism (allowed only for non-critical in-transaction hooks).
 - **Process types from Day 1** (same repo; image per type or one image with entrypoints): `web-app`, **`web-viewer`** (public recipient pages; separate scaling, WAF rules, blast radius), `api`, `worker-core` (email/webhooks/notifications), `worker-bulk`, `worker-ai`, `worker-pdf` (Chromium), `collab`, one-off `migrator`.
@@ -194,6 +204,7 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - **Fairness (I-13):** per-tenant concurrency/rate limits for PDF, AI, webhooks, bulk send and email; bulk send is rate-limited fan-out; large tenants can be isolated on dedicated queues or cells.
 
 ### D-08 Object storage classes and evidence
+
 - **Classes** (one bucket per cell × class; naming convention): `evidence` (signed PDFs, provider certificates, anchored hashes; **S3 Object Lock Compliance + versioning**; retention set per object at PUT per org policy; delete-deny except an MFA archive role; SSE-KMS with **bucket keys**; replication in-jurisdiction only), `uploads` (customer files via **presigned POST with content-length-range**; quarantine class), `public-media` (R2 or S3+CDN — decide in ADR; permanent boundary), `exports` and `pdf-cache` (lifecycle expiry), `collab-snapshots` (if used), `analytics-archive` (Parquet).
 - Cloudflare R2 bucket locks are retention rules an admin can remove; they are **not** equivalent to S3 Compliance mode (verified). Signed evidence stays on S3.
 - **Evidence rule:** the legal PDF is produced **once** at completion (or retrieved from the signing provider), hashed, archived, and never regenerated for legal use. Provider artifacts (final PDF, audit certificate) are copied into the evidence class. Table `evidence_artifacts`.
@@ -201,69 +212,82 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - Replication targets never leave the jurisdiction.
 
 ### D-09 Keys and secrets
+
 - **Hierarchy:** per-cell, per-purpose KMS CMKs (`data-at-rest`, `cred-vault`, `integration-tokens`, `evidence`, `field-encryption`) → **per-tenant data key (TK)**, random 256-bit, wrapped by the cell KEK and stored in the DB (encryption context `{org_id, purpose}`) → per-record DEKs wrapped by TK. **Crypto-shredding = destroy the wrapped TK** (backups hold it until they expire — document this honestly). **No per-organization CMK by default** (cost $1/key/month verified; per-region key quota **[VERIFY]**). Enterprise customer-managed key is an optional `key_provider` value on the tenant record.
 - **Multi-Region keys (MRK)** for any key whose ciphertext replicates across regions (Aurora replicas/backups, S3 CRR, DR). A single-Region key cannot be converted to MRK later. Replicas stay in-jurisdiction.
 - Rotation: KMS automatic rotation + background rewrap job. Local development uses a `KeyProvider` port with a local-key adapter.
 - **Secrets:** AWS Secrets Manager (and SSM Parameter Store where cheaper), injected as ECS `secrets`; rotation plan; no plaintext in task definitions or IaC state where avoidable.
 
 ### D-10 Analytics — ClickHouse Cloud
+
 - Production tier from Day 1 in every cell/jurisdiction (**[VERIFY]** dev→prod upgrade path; if it is not in-place, dev tier is non-prod only). **[VERIFY]** regions for US and EU.
 - **Ingestion:** API/viewer → durable event buffer (Kinesis/SQS or equivalent) → batcher/ClickPipes → ClickHouse. At-least-once with dedupe key (`event_id`). ClickHouse needs batched inserts; never per-event inserts from the API.
 - **Privacy by design:** pseudonymous `viewer_id`; `viewer_email`/name/IP are not in the ordering key; the identity mapping lives in Postgres (or is crypto-shreddable). Erasure = delete the mapping + TTL.
 - **Enforcement counters** (view limits, password attempts, session counting for ACC-001/004) live in Redis/Postgres (atomic), **never** in ClickHouse. An analytics outage must never affect viewing or signing.
 
 ### D-11 Search and vectors — final choice now, behind ports
-- `SearchPort` and `VectorPort` with outbox-fed indexers from Day 1. **Default:** Postgres FTS (`tsvector`/GIN, `pg_trgm`) + pgvector on the cell's reader tier as the *permanent* baseline. An ADR with an options matrix (Postgres, Meilisearch Cloud, OpenSearch) must prove whether portfolio intelligence (§5.18) needs an external engine; if yes, choose it **now** and index from Phase 0. Adding an engine behind the port is additive; "migrate in Phase 3" is forbidden.
+
+- `SearchPort` and `VectorPort` with outbox-fed indexers from Day 1. **Default:** Postgres FTS (`tsvector`/GIN, `pg_trgm`) + pgvector on the cell's reader tier as the _permanent_ baseline. An ADR with an options matrix (Postgres, Meilisearch Cloud, OpenSearch) must prove whether portfolio intelligence (§5.18) needs an external engine; if yes, choose it **now** and index from Phase 0. Adding an engine behind the port is additive; "migrate in Phase 3" is forbidden.
 - **Embeddings:** pin one embedding model/provider per index (no cross-provider fallback for embeddings; different models are different vector spaces). Store `embedding_model_id` and `dimensions` per row; model upgrades = dual-write + background re-embed + config cutover, no schema change. Plan HNSW memory and per-tenant filtered search.
 
 ### D-12 Edge and the permanent public URL contract
+
 - Cloudflare in front of everything: WAF, bot management/Turnstile on public forms, edge rate limits, Workers routing. WebSocket path for collab/notifications **[VERIFY]**.
-- **Custom domains** via Cloudflare for SaaS: **[VERIFY]** custom-hostname quotas, pricing, rate limits, and the *actual* fallback behavior (ACC-003's claim that Cloudflare "falls back to the default domain" is unverified — rewrite from facts). Add a `custom_domains` table and health job.
+- **Custom domains** via Cloudflare for SaaS: **[VERIFY]** custom-hostname quotas, pricing, rate limits, and the _actual_ fallback behavior (ACC-003's claim that Cloudflare "falls back to the default domain" is unverified — rewrite from facts). Add a `custom_domains` table and health job.
 - **Public URL contract (permanent, ADR required):** recipient-facing documents are served from a **dedicated registrable domain separate from the app domain** (isolates user-generated content from app cookies/XSS and protects the app domain's reputation). Path scheme embeds the cell code and an opaque ≥128-bit token; custom domains map host → org with the same path scheme. Tokens, paths and domains never change; only redirects may be added. Replace the per-org-unique `slug` as a public identifier.
 - App/API hostnames per cell plus a global login router.
 
 ### D-13 Identity and authentication
+
 - `AuthPort` with a WorkOS adapter. **Split identity from membership:** a person (global identity, WorkOS ID) can belong to several organizations, possibly in different cells; the per-org `users` row is a membership (`workos_user_id` is unique per org, not globally). **[VERIFY]** WorkOS multi-organization membership model.
 - **Token model designed now for every client:** web = opaque cookie session in the cell's Redis; mobile/OAuth/MCP = access + refresh tokens (PKCE, scopes) — **[VERIFY]** whether WorkOS (Connect) or another component acts as the OAuth authorization server; API keys (SHA-256 or peppered HMAC for indexed lookup — never Argon2/bcrypt per request; cell code in the prefix; scopes; expiry; rotation); short-lived audience-bound **collab tokens** (never the session cookie, never in a query string logged by the load balancer); signer tokens (≥128-bit CSPRNG, stored hashed, expiring).
 - Revoke-all and step-up/MFA semantics; per-cell session stores; dual-keyed rate limits (AUTH-003 retained).
 
 ### D-14 Billing abstraction
+
 - `BillingPort` with a Paddle adapter. An **internal plan/entitlement catalog** (stable string keys, versioned) drives enforcement; provider price/product IDs live in mapping tables. Provider-specific columns leave core tables (`organizations.paddle_customer_id`, `subscriptions.paddle_*`) → `billing_accounts` / `billing_provider_refs`. A `manual` provider supports enterprise invoicing outside Paddle. List alternative merchants-of-record in the ADR as the exit path.
 - Provider webhooks land in the **control plane** (verify → idempotency by event id and `occurred_at` ordering → state) and publish signed entitlement events to the cell. Cells cache entitlements.
 - Seat and usage metering inside the cell via the outbox + a `usage_ledger` (partitioned); atomic conditional updates, not read-modify-write; provider quantity sync is asynchronous with a reconciliation job. No hot-row counters at scale.
 - **[VERIFY]** Paddle seat-quantity API limits, webhook retry/ordering semantics, and seller-eligibility for the owner's country (business risk → `QUESTIONS_FOR_OWNER.md`).
 
 ### D-15 E-signature provider independence and evidence
+
 - `SigningProviderPort` with a BoldSign adapter. `signature_requests.provider` column; provider IDs in mapping columns; multiple providers can coexist per org/document (coexistence ≠ migration).
 - **Decide and document the full sequence** (sequence diagram): interactive buyer state (pricing selections, form answers, variable merges, Smart Content branch) → **seal** (canonical content + pricing/form snapshot + hash) → final PDF generation → provider envelope creation → verification → signing → completion webhook → **evidence archival** (provider final PDF + audit certificate → S3 evidence class, hashed, recorded) → customer download. The envelope must be created from the sealed state.
 - **Resolve ownership of identity verification:** which steps (email OTP, passcode, SMS, KBA, ID document, QES) PactIntel performs and which the provider performs; name the SMS provider if PactIntel sends OTPs or SMS links (product spec §5.7 requires SMS delivery).
 - **[VERIFY]** BoldSign API rate limits, EU data residency/region, webhook signature header names, BAA availability, retrieval of completed documents and audit certificates, pricing at volume.
 
 ### D-16 Email (and SMS) at scale
+
 - `EmailPort` with **two adapters configured and warmed from Phase 0** (primary Resend, secondary Amazon SES). Failover is configuration. Dedicated sending subdomain from Day 1 (reputation cannot move later). Bounce/complaint/delivery events → `email_events` (partitioned) + per-org suppression list. Per-tenant sender-domain (brand kit) onboarding flow with DKIM/SPF/DMARC checks.
 - **[VERIFY]** the number of verified sending domains each provider allows (a per-tenant-domain scaling cliff), EU regions, rate limits, BAA, webhook events.
 - `SmsPort` (provider chosen in ADR) for SMS delivery and any PactIntel-side OTPs.
 
 ### D-17 AI
+
 - `LlmPort` (Gemini primary, OpenAI fallback for **generation only**) and a separate `EmbeddingPort` (D-11). Region-aware endpoints (GDPR-002). Per-tenant quotas and an AI-credits ledger. Server-side guardrails (AI-003 retained). HIPAA cells route only to BAA-covered endpoints or disable AI (**[VERIFY]** Vertex AI vs AI Studio terms).
 - **Remove AI-001's `x-no-training: true` header and the `safetySettings` claim** unless official docs prove they exist. Replace with verified provider data-use terms, paid/enterprise endpoints, DPAs and a configuration test.
 
 ### D-18 Observability
+
 - Per-cell dashboards, alerts and SLOs. Prometheus labels limited to `cell`, `region`, `service`, templated `route`, `status_class` — **never** organization/user IDs (cardinality). Per-tenant visibility via logs/traces with sampling.
 - Shipping from Fargate through FireLens (Fluent Bit) or an OTel collector sidecar; define retention tiers and cost.
 - **Telemetry stays in-jurisdiction** (EU cells → EU Grafana/Sentry regions; **[VERIFY]** availability). Security/audit logs go to the log-archive account (Object Lock).
 - SLO defaults (validate): recipient viewer and signing 99.95%; API 99.9%; burn-rate alerts. Outside-in synthetic monitoring feeds the public status page. On-call tooling suited to one person (escalation to phone, runbook links).
 
 ### D-19 IaC and CI/CD
-- One IaC tool for *all* providers (AWS, Cloudflare, ClickHouse Cloud, Grafana, GitHub): **default Terraform/OpenTofu** (OpenTofu preferred) **[VERIFY]** provider coverage; ADR may choose another only on proof. Modules: `foundation`, `control-plane`, `cell`, `edge`, `observability`. Instantiating a new cell = new variable set, nothing else. State in S3 (encrypted, versioned, locked) in the shared-services account. Policy-as-code in CI; drift detection.
+
+- One IaC tool for _all_ providers (AWS, Cloudflare, ClickHouse Cloud, Grafana, GitHub): **default Terraform/OpenTofu** (OpenTofu preferred) **[VERIFY]** provider coverage; ADR may choose another only on proof. Modules: `foundation`, `control-plane`, `cell`, `edge`, `observability`. Instantiating a new cell = new variable set, nothing else. State in S3 (encrypted, versioned, locked) in the shared-services account. Policy-as-code in CI; drift detection.
 - GitHub Actions → OIDC → build per process type (BuildKit cache) → ECR (immutable tags = git SHA; image scanning) → one-off migration task → ECS deploy (rolling with circuit breaker, or blue/green **[VERIFY]**) → smoke tests → promote. Automated rollback. Separate IaC pipeline (plan on PR, apply on merge with approval).
 - Preview environments: either TTL-limited ephemeral stacks with a hard cost cap, or removed in favor of local + staging. ADR decides; no always-on previews.
 
 ### D-20 Resilience and disaster recovery
+
 - Multi-AZ for everything stateful from the first paying customer. Per-cell DR region **in the same jurisdiction**, provisioned from IaC as pilot-light (no standing compute): Aurora cross-region (Global Database or snapshot copy + restore), S3 replication, MRK, Cloudflare failover. Defaults to validate: AZ loss → automatic, RTO minutes; region loss → RTO ≤ 4 h, RPO ≤ 15 min.
 - AWS Backup with vault lock and cross-region in-jurisdiction copies; **automated restore drills** (monthly) with evidence; quarterly game days (AZ failure, Redis failover, queue loss, bad deploy, region evacuation).
 
 ### D-21 Product-surface items that cannot be retrofitted
+
 - **i18n from Day 1:** externalized strings (ICU message format), locale on user/org/document, locale-aware formatting, RTL-safe CSS, localizable emails. Only English content ships initially. **Accessibility** WCAG 2.2 AA for recipient/signing pages from Day 1.
 - **API contract:** cursor (keyset) pagination with opaque cursors (totals optional/approximate), `Idempotency-Key` with storage, `ETag`/`If-Match`, rate-limit headers, `202` + operation resource for long jobs, versioning + deprecation policy, error-code registry, OpenAPI generated from the Zod DTOs.
 - **Webhooks:** versioned payloads (`api_version` per endpoint), timestamped signature with replay window, multiple active secrets for rotation, delivery logs, ordering disclaimer.
@@ -272,14 +296,17 @@ These are decisions, not options. Implement them. Each needs an ADR with verifie
 - **Plan/entitlement keys, event types, error codes, permission names** are stable strings.
 
 ### D-22 Data governance and tenant lifecycle
+
 - A machine-readable **data manifest** (`libs/data-manifest`) lists every table, bucket prefix, ClickHouse table, Redis keyspace, search index and vector collection with: owner module, store, scope (tenant / global / control-plane), classification, retention rule, legal-hold eligibility, erasure behavior (delete / anonymize / retain / crypto-shred), export inclusion, residency constraint, backup class, RLS required. **CI fails** if a migration adds an unregistered store or a tenant table lacks RLS/policy. Erasure, export, offboarding and relocation jobs are generated from the manifest.
 - Tooling specified (Phase 2; prerequisites in Phase 0): export (GDPR Art. 20), erasure across all stores, offboarding with the post-cancellation timeline, legal hold, **tenant relocation** (export → import → verify → cut over).
 
 ### D-23 Compliance and subprocessors
+
 - Subprocessor matrix per cell (data categories, jurisdiction, DPA, BAA). Per-cell **subprocessor allowlist** in configuration so a HIPAA cell can disable non-BAA services (AI, analytics, email provider) without code forks. **[VERIFY]** AWS BAA process and HIPAA-eligible service list for the chosen services; BAA availability for BoldSign, WorkOS, ClickHouse, Cloudflare, Sentry, Grafana, Resend/SES.
 - SOC 2 controls mapping: org CloudTrail → log archive, AWS Config, GuardDuty, Security Hub, vault-locked backups, Vanta integration.
 
 ### D-24 Cost guardrails
+
 - Mandatory tags: `env`, `cell`, `service`, `tier`. AWS Budgets + Cost Anomaly Detection from the first day. Per-cell cost reporting. Scale triggers mapped to levers with cost deltas (§18). Credit-expiry plan. The cost analysis document is rewritten for this architecture (Part C).
 
 ## B4. New sections to add (do not renumber existing §1–§14)
@@ -305,20 +332,24 @@ Each new section must be complete enough to implement from, with tables, diagram
 ## B5. Section-by-section edit instructions
 
 ### Header, ToC, Change Log (§14)
+
 Version 2.0.0; status; ToC with §0 and §15–§19 and appendices; change-log entry summarizing: AWS-only, cell architecture, eliminated migrations, schema/rule corrections. Keep v1.x entries. Reconcile the existing "100+ rules across 24 domains" claim with the actual count after edits.
 
 ### §1 System Architecture Overview
+
 - Rewrite the opening: modular-monolith **codebase**, multi-process **runtime**, cell-based **deployment**. Remove "single Node.js process for Phases 0–2" and "extraction when scale demands".
 - §1.1 redraw the diagram: Cloudflare → ALB → ECS services (`web-app`, `web-viewer`, `api`, workers, `collab`) → Aurora / Redis roles / ClickHouse Cloud / S3 classes; control-plane box; cells; external services. Hocuspocus is an **internal** service, not "external".
 - §1.2 replace the three communication mechanisms with: in-process port calls (synchronous, same cell), outbox events (asynchronous, durable), BullMQ (execution). Add module-boundary enforcement (Nx tags/lint) and the rule that modules interact only through exported interfaces. Add control-plane modules (Directory, Billing authority, Webhook router, Login router) distinct from cell modules; add `Platform` (outbox/scheduler/quotas), `Evidence` (archival), `Lifecycle` (export/erasure/relocation), `Search`, `Storage` modules where needed. Update the Key Dependencies column (e.g., Payments → "Secrets Manager" becomes KeyProvider + CredentialVault).
 - §1.3 revise: keep "why modular monolith", add §1.4 **Module extraction path (no migration):** what changes (deployment unit) and what does not (contracts, events, schemas, DB ownership).
 
 ### §2 Tech Stack & Rationale
+
 - Update every row of §2.1 per D-01…D-24: Backend (process types), ORM (repository-isolated; limits), Primary Database (Aurora), Analytics (ingestion), Cache/Queues (roles), Object Storage (S3 classes; R2 decision), Search (no migration), PDF Rendering (isolated worker; generate-once), E-Signature (port, evidence), Platform Billing (port), Auth (port; identity/membership), AI (ports; embeddings pinned), Email (two adapters), CDN (Cloudflare; origin lockdown), Observability (per-cell; residency), CI/CD (OIDC→ECR→ECS), Compliance tooling.
 - Add rows: Compute/orchestrator, IaC, Network/edge routing, Secrets/KMS, Event pipeline, Scheduler, Feature flags/config, SMS, WAF, Control-plane datastore (decide: DynamoDB global tables vs Aurora vs edge KV replica — criteria: small, multi-region read availability, low ops).
 - §2.2 Deviations: add rows for infrastructure (product spec §8 suggests "a PaaS before Kubernetes" → AWS-from-Day-1 cells), payments, collaboration, search. Add §2.3 **"Deviations from Blueprint v1.1.0"** listing every eliminated migration. Add §2.4 pointer to the port/adapter matrix (§19).
 
 ### §3 Data Architecture
+
 - §3.1 add principles: cell-locality, UUIDv7, partition-first, append-only versions, sealed state (pricing/forms/variants included in the hash), schema versioning, manifest registration, money, UTC.
 - §3.2 DDL: apply fixes X-01…X-20 to every table; add every missing table/column (X-10); mark each table **cell** or **control-plane**; rewrite with partial unique indexes for soft-deleted rows; partitioned definitions with composite PKs; remove provider-specific columns from core tables; add `schema_version`, `content_ref`, `public_token_hash`, `sent_at/signed_at/completed_at`, `folder_id`, `current_version_id`, evidence/outbox/idempotency/custom-domain/usage tables. Keep column comments.
 - §3.3 triggers: rewrite per X-05, X-07, X-08 (append-only versions, signer→request→version linkage, TRUNCATE protection, hash chain, privileges, pgaudit).
@@ -326,12 +357,14 @@ Version 2.0.0; status; ToC with §0 and §15–§19 and appendices; change-log e
 - Add §3.5 control-plane schema (directory, cells, custom hostname index, billing authority, entitlement catalog, webhook routing tables); §3.6 partitioning/retention plan; §3.7 content tiering and schema-version/upcasting rules; §3.8 reference to the data manifest (§17).
 
 ### §4 API Contracts
+
 - Conventions per D-21 (cursor pagination, idempotency storage, ETag, async operations, rate-limit headers, versioning/deprecation, error registry, OpenAPI from Zod, cell hostnames).
 - Complete the endpoint catalog for Phases 0–3 (brand kits, folders, content blocks, comments, approvals, automations, integrations, API keys, OAuth/token endpoints, billing, payments initiate/confirm, uploads presign, exports, evidence download, audit-trail export, public recipient/signing endpoints, admin). Mark internal vs public.
 - §4.4 webhooks per D-21 + WH-004 (SSRF, egress IPs, versioning, replay window, secret rotation, per-endpoint circuit breaker, delivery logs endpoints).
 - §4.6/§4.7 and AUTH-004/WH-002: unify inbound ingress through the control-plane router; resolve the fixed-path vs random-path conflict (X-26); list the full inbound set (Paddle, BoldSign, WorkOS, processor webhooks, CRM webhooks, Resend/SES events).
 
 ### §5 Security & Compliance Architecture
+
 - §5.1: fix "PostgreSQL TDE or disk-level" (X-24); HIPAA via dedicated cells; reference the subprocessor matrix.
 - §5.2: one API-key hashing method (X-21); token model per D-13; cell-scoped sessions; membership model.
 - §5.3: rewrite the key hierarchy per D-09, update the diagram, keep rules 1–7 numbered but revised (add MRK, encryption context, TK-based shredding, rotation, quotas); update §5.3.3 network/IAM controls (`kms:ViaService`, encryption-context conditions, `app_vault` DB role).
@@ -339,14 +372,17 @@ Version 2.0.0; status; ToC with §0 and §15–§19 and appendices; change-log e
 - §5.5: erasure across all stores per manifest; backups, logs, search, vectors, ClickHouse design (D-10); S3 evidence retention interplay (D-08).
 
 ### §6 Payments Architecture
+
 - §6.1 per D-14 (BillingPort, control-plane ingestion, entitlement projection, atomic counters, reconciliation, manual provider). Fix seat/document counter races (X-48).
 - §6.2: define how API-tier payment completion is learned at scale (per-connection processor webhooks with encrypted secrets routed to the cell, or polling) — no more "OR"; add idempotency keys on every processor call; reconciliation job; amounts sourced from the sealed pricing snapshot only; payments table references the sealed version.
 - §6.3 keep currency validation; add money representation (D-21).
 
 ### §7 Multi-Tenancy & Permissions
+
 - §7.1 add cell isolation as the outermost layer. §7.2 rewrite the tenant-context code (transaction-scoped; throws if unset; works in HTTP, BullMQ, WebSocket, scheduler). §7.3 define the authorization data model (grants/collaborators/parties tables) so CASL conditions map to SQL-translatable filters with indexes (X-19). §7.5 rate limits at edge + Redis; add §7.6 **Quotas & Fairness** (per-tenant quotas for PDF, AI, webhooks, bulk, email, storage; fair scheduling).
 
 ### §8 Infrastructure, Deployment & Environments (rewrite)
+
 - §8.1 AWS-only hosting: accounts, cells, compute, data, edge, network. **Delete** Fly rationale, "Fly Postgres backed by Supabase", and the "Migration trigger to AWS" paragraph; replace with "Scale triggers → levers" referencing §0/§18.
 - §8.2 environments: local, dev (sandbox account), staging, prod cells; preview policy (D-19); parity matrix (local vs AWS) showing what each environment proves; Paddle/BoldSign sandbox mapping.
 - §8.3 CI/CD per D-19 (replace `fly deploy`; migration task; image per process type; rollback; IaC pipeline).
@@ -355,15 +391,19 @@ Version 2.0.0; status; ToC with §0 and §15–§19 and appendices; change-log e
 - Add §8.6 IaC structure and module map; §8.7 deployment topology per phase (same topology, different capacity); §8.8 autoscaling and capacity; §8.9 cost guardrails; §8.10 runbook index (deploy, rollback, migration, failover, restore, region evacuation, add a cell, relocate a tenant, rotate keys, quota increase).
 
 ### §9 Testing & Quality
+
 Add: load/performance tests against the envelope (k6); chaos/failover and AZ-loss tests; restore tests; migration tests on large synthetic data (expand/contract, concurrent index, partition attach); multi-cell routing tests; **RLS-under-pooler** tests; adapter contract tests per port (sandbox); IaC policy tests; SSRF tests (PDF worker, webhooks); tenant-isolation fuzzing; content-compatibility golden files; i18n pseudo-locale and a11y tests; manifest-enforcement tests. Update coverage targets accordingly.
 
 ### §10 Observability
+
 Per D-18. Reconcile §10.5 `/health` with INFRA-002 (X-34): `/health/live` and `/health/ready`; readiness = critical dependencies only (Postgres, Redis); ClickHouse, BoldSign, Resend etc. degrade gracefully and appear in a non-gating `/health/deps`; cache results to avoid health-check load. Remove Fly references. Add cell/region labels and cardinality rules.
 
 ### §11 Coding Standards & Repo Conventions
+
 Update the monorepo tree: `infra/` (IaC modules), `apps/web-app`, `apps/web-viewer` (or route-group + separate service), `apps/api`, `apps/worker`, `apps/worker-pdf`, `apps/collab-server`, `apps/control-plane`, `apps/edge` (Workers), `libs/ports`, `libs/events`, `libs/data-manifest`, `docs/adr/`. Remove Fly artifacts. One Dockerfile per process type. Add naming conventions for IaC resources, tags, ports/adapters, events. Add standards: no `@Cron`; no vendor SDK imports outside adapters (lint rule); all side-effects via outbox; every migration updates the manifest; i18n keys not literals; a11y lint. Update the quick-start for the new local stack.
 
 ### §12 Build Sequencing
+
 - **Split Phase 0** into **0a Platform Foundation** (AWS org/accounts, IaC, network/CIDR, cell `us1`, minimal control plane + directory + routing, CI/CD to ECS, migration runner, observability baseline, outbox + process types + scheduler, key hierarchy + `KeyProvider`, data manifest + CI enforcement, ports/adapters skeletons, i18n/a11y baseline, token model, public-URL/domain contract) and **0b Product Foundation** (the existing Phase-0 product list). Provide effort estimates for solo execution and a minimal-viable 0a scope (structure only, no standing capacity).
 - Remove every migration statement (Yjs migration, Meilisearch migration, Fly→AWS). Phase 2 co-editing uses the Day-1 canonical content model with deterministic, tested conversion (`prosemirrorJSONToYDoc` / `yXmlFragmentToProsemirrorJSON`) — or Yjs from Phase 0; ADR 0023 decides. KMS key hierarchy and encrypted-token storage move to Phase 0a (needed in Phase 1 for CRM tokens).
 - Add a **Structure-vs-Capacity table** per phase (what is built vs which capacity switches are on).
@@ -371,10 +411,12 @@ Update the monorepo tree: `infra/` (IaC modules), `apps/web-app`, `apps/web-view
 - Review Phases 1–4 so no later phase requires re-architecture; re-tag phases for any rule that moved.
 
 ### §13 Edge Cases & Mandatory Implementation Rules
+
 - Review **every** rule against the new architecture. Update Scenario/Implementation/Module/Phase and add `(Revised v2.0.0 …)` where changed. Rules requiring specific changes: SIG-001/002/003 (append-only versions, canonical bytes via RFC 8785 JCS, sealed pricing/form state, trigger linkage), SIG-004, AUTH-001/002/003/004/005 (token model, hashing, hashed signer tokens, cross-cell), MT-001 (index-friendly policy, FORCE RLS, manifest check), MT-002 (fan-out scheduler, WebSocket, pooler), MT-005, BILL-001/002 (atomic counters, outbox sync), PAY-001…006 (processor webhooks, vault role, partitioned audit table), PAD-001/002 (control plane, `grace_period_end`), GDPR-001/002 (all stores, in-jurisdiction replication, telemetry), ACC-001 (counters off ClickHouse), ACC-002 (access_requests, Turnstile), ACC-003 (verified Cloudflare behavior), ACC-004, WF-001/002/003, WH-001/002/003, COLLAB-001/002/003 (collab tokens, Redis extension, scale-out), I18N-001/002 (i18n Day 1), PDF-001/002 (generate-once, isolation), AI-001/002/003 (remove fictional header; embeddings), AN-001/002, NOTIF-001/002, INFRA-001/002/003/004, CW-001 (high-volume write path, partitioning), RISK-001, PORT-001, SEC-001, ERR-001/002, STORE-001/002 (presigned POST, retention matrix, in-jurisdiction replication), PAD-*, BOLD-001/002 (evidence archival, port).
 - **Add new rule families** in the same format: **CELL-001** no cross-cell access · **CELL-002** routing/lookup-free hostnames · **CELL-003** placement and fullness · **EVT-001** outbox · **EVT-002** idempotent consumers · **EVT-003** event schema versioning · **JOB-001** no in-process cron, shard fan-out · **DATA-001** manifest registration · **DATA-002** partitioning · **DATA-003** sealed content and upcasting · **DATA-004** money/ID formats · **KEY-001** hierarchy · **KEY-002** MRK · **ADP-001** vendor SDKs only inside adapters · **QUOTA-001** per-tenant quotas · **EDGE-001** origin lockdown · **EDGE-002** permanent public URLs · **WS-001** WebSocket scaling/draining · **OPS-001** tags/budgets · **OPS-002** restore drills · **I18N-003** externalized strings · **A11Y-001** · **API-001** pagination/versioning · **WH-004** webhook versioning/SSRF · **PDF-003** PDF SSRF isolation.
 
 ### Appendix A
+
 Add resolved ambiguities: identity-verification ownership (PactIntel vs provider), interactive-pricing + e-sign sequencing, which artifact is the legal PDF, SMS provider, mobile editing scope, control-plane metadata residency. Keep existing entries.
 
 ## B6. Defect and contradiction register (X-01 … X-62)
@@ -382,6 +424,7 @@ Add resolved ambiguities: identity-verification ownership (PactIntel vs provider
 Each item below is a verified defect or contradiction in blueprint v1.1.0 that would force rework, a migration, or a security/legal failure later. Fix every one. Record where each is fixed in Appendix D. Also fix any additional defects you find and add them as X-63+.
 
 ### Schema, data and tenancy
+
 - **X-01** (§3.4, MT-001) RLS predicate `organization_id::text = current_setting(...)` casts the column, so the `organization_id` index cannot be used (full scans at scale). **Fix:** `organization_id = (SELECT current_setting('app.current_tenant', true)::uuid)`; unset context returns no rows; CI test with `EXPLAIN` proving index use.
 - **X-02** (§7.2, §5.2) The Prisma extension runs `set_config(…, true)` on the base client in a separate call, then `query(args)`. The setting is transaction-local and may land on a different pooled connection, so it is lost. The snippet also silently skips when `tenantId` is unset, contradicting MT-002 ("MUST throw"). **Fix:** set context and run the query in the same interactive transaction/connection; throw if unset; test under the pooler.
 - **X-03** (§3.2.1, §3.2.2, §3.2.9) `UNIQUE` constraints on `organizations.slug`, `workspaces(org, slug)`, `users(org, email)`, `documents(org, slug)`, `deal_rooms(org, slug)` ignore `deleted_at`, so soft-deleted rows block reuse (a re-invited email fails). **Fix:** partial unique indexes `WHERE deleted_at IS NULL`.
@@ -405,6 +448,7 @@ Each item below is a verified defect or contradiction in blueprint v1.1.0 that w
 - **X-20** (§2.1 AI row) pgvector dimension/model unspecified; a Gemini→OpenAI fallback would mix incompatible vector spaces. **Fix:** D-11/D-17.
 
 ### Security and integrity
+
 - **X-21** (§3.2.8, §5.2, AUTH-002) API keys: "bcrypt/argon2" vs "Argon2" vs "SHA-256". **Fix:** one method (D-13); per-request Argon2/bcrypt would also prevent indexed lookup and invite DoS.
 - **X-22** (COLLAB-001) The session cookie is passed as a WebSocket **query parameter** (appears in proxy/ALB logs). **Fix:** short-lived audience-bound collab token.
 - **X-23** (AI-001) `x-no-training: true` header and `safetySettings` as a training opt-out are unverified or wrong. **Fix:** D-17.
@@ -424,6 +468,7 @@ Each item below is a verified defect or contradiction in blueprint v1.1.0 that w
 - **X-37** (STORE-001) Add a decision on malware scanning for uploads (e.g., GuardDuty Malware Protection for S3 — **[VERIFY]**) alongside type/size validation; specify the quarantine flow and use presigned **POST** with `content-length-range`.
 
 ### Operations and infrastructure
+
 - **X-38** (§10.5 vs INFRA-002) Two health-check designs; readiness includes ClickHouse, so an analytics outage removes every API task from the load balancer. **Fix:** §10 per D-18.
 - **X-39** (INFRA-004) Per-logical-DB eviction policies are impossible; the policy is per instance. **Fix:** D-06.
 - **X-40** (§1.2, §1.3) In-process `EventEmitter2` bus and `@nestjs/schedule`-style crons: not durable, duplicated on every task. **Fix:** D-07.
@@ -478,6 +523,7 @@ Verify each item against **official vendor documentation** before relying on it.
 ## B8. Acceptance checklist (Phase 5 audit)
 
 ### B8.1 Global greps — each must return **zero** matches in §0–§19 outside the Change Log, Appendix D, ADRs and quoted historical text
+
 - `Fly\.io|flyctl|fly deploy|Fly Postgres|Supabase|Upstash|minio/minio` — and `MinIO` except in the §8.4 explanation of why it is replaced.
 - `EKS|Kubernetes` — allowed only inside the explicit "out of scope" statement.
 - `migrat(e|ion) (to|from) (AWS|Fly|Meilisearch|Yjs)|Migration trigger|when scale (justifies|demands)|Phase 3\+|Meilisearch migration|→ Meilisearch`
@@ -497,6 +543,7 @@ Verify each item against **official vendor documentation** before relying on it.
 - Any `Phase 3`/`Phase 2` statement that implies replacing, migrating or re-platforming a component.
 
 ### B8.2 Content checks (write evidence = section references in `AUDIT_REPORT.md`)
+
 - **C-01** §0 exists with I-01…I-15, envelope, cell/control-plane diagram, scale-levers table (≥14 rows), Structure-vs-Capacity table, glossary.
 - **C-02** §15–§19 exist and contain every item listed in B4.
 - **C-03** Each of D-01…D-24 has an ADR with sources and verified date; Appendix B indexes all ADRs.
@@ -551,6 +598,7 @@ Verify each item against **official vendor documentation** before relying on it.
 # APPENDIX — Facts verified by the brief author (re-verify; do not copy blindly)
 
 As of 2026-10-04, from vendor documentation/announcements found during research:
+
 - Aurora PostgreSQL supports major version 17 (minor 17.9 observed); pgvector 0.8.0 ships with Aurora PostgreSQL 17.x; Aurora Serverless v2 supports scale-to-zero on supported versions; Serverless v2 is priced per ACU-hour (about US$0.12/ACU-hr in us-east, i.e. about US$44/month at a 0.5 ACU floor).
 - AWS App Runner stopped accepting new customers on 2026-04-30; Amazon ECS Express Mode exists as the recommended simplified path (provisions cluster, ALB, HTTPS, security groups, autoscaling; no scale-to-zero).
 - MinIO community edition: prebuilt Docker images discontinued October 2025; repository archived 2026-04-25. Blueprint §8.4 still uses `minio/minio`.

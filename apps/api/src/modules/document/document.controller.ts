@@ -7,8 +7,11 @@ import {
   Body,
   Param,
   Query,
+  Req,
   UseGuards,
   UsePipes,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { DocumentService } from './document.service';
 import { PdfService } from './pdf/pdf.service';
@@ -130,5 +133,22 @@ export class DocumentController {
     const doc = await this.docService.getDocument(orgId, id);
     const targetVersionId = versionId || doc.currentVersionId || doc.versions[0]?.id;
     return this.pdfService.queuePdfGeneration(orgId, id, targetVersionId, userId);
+  }
+
+  /**
+   * Recipient access request endpoint (NO auth required).
+   * RULE ACC-004: Writes audit log entry, notifies document owner, returns 202 Accepted.
+   */
+  @Post(':id/access-requests')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async requestAccess(
+    @Param('id') id: string,
+    @Body() body: { requesterEmail: string; requesterName: string; message?: string },
+    @Req() req: any,
+  ) {
+    return this.docService.requestAccess(id, body, {
+      ipAddress: req.ip,
+      userAgent: req.headers?.['user-agent'],
+    });
   }
 }

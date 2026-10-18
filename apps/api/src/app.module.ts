@@ -16,6 +16,12 @@ import { SigningModule } from './modules/signing/signing.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { TemplateModule } from './modules/template/template.module';
+import { CpqModule } from './modules/cpq/cpq.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { BrandKitModule } from './modules/brand-kit/brand-kit.module';
+import { IntegrationModule } from './modules/integration/integration.module';
+import { CustomDomainModule } from './modules/custom-domain/custom-domain.module';
 
 @Module({
   imports: [
@@ -31,6 +37,12 @@ import { NotificationModule } from './modules/notification/notification.module';
     PaymentsModule,
     BillingModule,
     NotificationModule,
+    TemplateModule,
+    CpqModule,
+    AnalyticsModule,
+    BrandKitModule,
+    IntegrationModule,
+    CustomDomainModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [

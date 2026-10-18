@@ -33,13 +33,15 @@ export default function RecipientLayout({ children }: { children: React.ReactNod
         <div style={{ width: '100%', maxWidth: 'var(--recipient-max-width)' }}>{children}</div>
       </main>
 
-      {/* Subtle bottom trust indicator */}
+      {/* Subtle bottom trust indicator (RULE BRAND-001) */}
       <footer
+        id="pact-recipient-footer"
         style={{
           padding: '24px 0',
           textAlign: 'center',
           fontSize: '12px',
           color: 'var(--color-gray-400)',
+          display: 'var(--brand-badge-display, block)',
         }}
       >
         Powered by PactIntel E-Signature Platform

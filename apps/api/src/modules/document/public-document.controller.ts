@@ -7,15 +7,16 @@ export class PublicDocumentController {
 
   /**
    * Recipient view endpoint (/d/:slug).
-   * Checks expiration, password gate, and domain restrictions.
+   * RULE ACC-004: Checks expiration, domain restriction, view limit, and password gate.
    */
   @Get(':slug')
   async getRecipientDocument(
     @Param('slug') slug: string,
     @Query('password') password?: string,
     @Query('email') email?: string,
+    @Query('sessionId') sessionId?: string,
   ) {
-    return this.docService.validateRecipientAccess(slug, password, email);
+    return this.docService.validateRecipientAccess(slug, password, email, sessionId);
   }
 
   /**
@@ -26,7 +27,8 @@ export class PublicDocumentController {
     @Param('slug') slug: string,
     @Body('password') password?: string,
     @Body('email') email?: string,
+    @Body('sessionId') sessionId?: string,
   ) {
-    return this.docService.validateRecipientAccess(slug, password, email);
+    return this.docService.validateRecipientAccess(slug, password, email, sessionId);
   }
 }

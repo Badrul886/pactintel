@@ -32,6 +32,7 @@ resource "google_cloud_run_v2_service" "api" {
   ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   template {
+    timeout         = "3600s"
     service_account = google_service_account.api_runtime.email
 
     scaling {

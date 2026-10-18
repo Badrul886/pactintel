@@ -22,7 +22,9 @@ export type WebhookEventType =
   | 'payment.refunded'
   | 'subscription.created'
   | 'subscription.updated'
-  | 'subscription.cancelled';
+  | 'subscription.cancelled'
+  | 'template.created'
+  | 'document.created_from_template';
 
 export interface OutboxEventRecord {
   id: string;

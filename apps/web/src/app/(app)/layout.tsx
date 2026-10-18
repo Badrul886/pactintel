@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import NotificationBell from '../../components/layout/NotificationBell';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -67,6 +68,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             Documents
           </Link>
           <Link
+            href="/templates"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Templates
+          </Link>
+          <Link
+            href="/settings/brand-kit"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Brand Kits
+          </Link>
+          <Link
             href="/settings/billing"
             style={{
               padding: '8px 12px',
@@ -98,7 +123,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <span style={{ fontSize: '13px', color: 'var(--color-gray-600)' }}>
             Workspace / Documents
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <NotificationBell />
             <span style={{ fontSize: '13px', fontWeight: 500 }}>Admin User</span>
           </div>
         </header>

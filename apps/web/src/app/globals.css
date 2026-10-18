@@ -219,3 +219,89 @@ body {
 .pact-btn-secondary:hover {
   background-color: var(--color-gray-50);
 }
+
+/* --- Mobile Breakpoint & Recipient View Classes (Sprint 5.1) -------------- */
+.recipient-page-container {
+  max-width: 896px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.recipient-page-layout {
+  display: flex;
+  gap: 32px;
+}
+
+.recipient-page-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.recipient-action-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.recipient-action-bar .pact-btn {
+  flex: initial;
+}
+
+/* CPQ Responsive Columns */
+.cpq-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cpq-col-desc {
+  display: table-cell;
+}
+
+.cpq-col-unit {
+  display: table-cell;
+}
+
+.cpq-col-discount {
+  display: table-cell;
+}
+
+/* Tablet: 640px - 1024px */
+@media (max-width: 1024px) {
+  .recipient-page-layout {
+    flex-direction: column;
+  }
+}
+
+/* Mobile: < 640px */
+@media (max-width: 639px) {
+  .recipient-page-container {
+    padding: 16px 12px;
+  }
+
+  .recipient-action-bar {
+    flex-direction: column-reverse;
+    width: 100%;
+  }
+
+  .recipient-action-bar .pact-btn {
+    width: 100%;
+  }
+
+  /* Rule: Mobile pricing table hides Description first, then Discount. Keeps Name | Qty | Total */
+  .cpq-col-desc {
+    display: none !important;
+  }
+
+  .cpq-col-unit {
+    display: none !important;
+  }
+
+  .cpq-col-discount {
+    display: none !important;
+  }
+
+  .cpq-totals-summary {
+    width: 100% !important;
+  }
+}
+

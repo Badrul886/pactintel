@@ -2,7 +2,6 @@ import { DocumentService } from '../../src/modules/document/document.service';
 import { DocumentRepository } from '../../src/modules/document/document.repository';
 import { DocumentOutboxService } from '../../src/modules/document/outbox/document-outbox.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
-import { HttpException, HttpStatus } from '@nestjs/common';
 import { sha256 } from '@pactintel/shared-utils';
 
 describe('RULE I18N-001: Recipient Document Viewer Access Gate (/d/:slug)', () => {
@@ -103,13 +102,11 @@ describe('RULE I18N-001: Recipient Document Viewer Access Gate (/d/:slug)', () =
       expect(result.title).toBe('Protected Contract');
     });
 
-    it('throws 401 INVALID_PASSWORD when passwordAttempt is incorrect', async () => {
-      await expect(docService.validateRecipientAccess(slug, 'WrongPassword')).rejects.toThrow(
-        new HttpException(
-          { code: 'INVALID_PASSWORD', message: 'The provided document password is incorrect.' },
-          HttpStatus.UNAUTHORIZED,
-        ),
-      );
+    it('returns PASSWORD_REQUIRED with error when passwordAttempt is incorrect', async () => {
+      const result = await docService.validateRecipientAccess(slug, 'WrongPassword');
+      expect(result.accessible).toBe(false);
+      expect(result.denialType).toBe('PASSWORD_REQUIRED');
+      expect(result.error).toBe('Incorrect password');
     });
 
     it('grants access when passwordAttempt matches passwordHash', async () => {
@@ -148,19 +145,15 @@ describe('RULE I18N-001: Recipient Document Viewer Access Gate (/d/:slug)', () =
       expect(result.allowedDomains).toEqual(['partner.com', 'subsidiary.org']);
     });
 
-    it('throws 403 DOMAIN_RESTRICTED when recipient email domain does not match allowed list', async () => {
-      await expect(
-        docService.validateRecipientAccess(slug, undefined, 'attacker@external.com'),
-      ).rejects.toThrow(
-        new HttpException(
-          {
-            code: 'DOMAIN_RESTRICTED',
-            message:
-              'Access restricted. Only recipients from [partner.com, subsidiary.org] can access this document.',
-          },
-          HttpStatus.FORBIDDEN,
-        ),
+    it('returns DOMAIN_RESTRICTED when recipient email domain does not match allowed list', async () => {
+      const result = await docService.validateRecipientAccess(
+        slug,
+        undefined,
+        'attacker@external.com',
       );
+      expect(result.accessible).toBe(false);
+      expect(result.denialType).toBe('DOMAIN_RESTRICTED');
+      expect(result.allowedDomains).toEqual(['partner.com', 'subsidiary.org']);
     });
 
     it('grants access and transitions sent document to viewed when email domain matches', async () => {

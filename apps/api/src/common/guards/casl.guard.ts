@@ -8,19 +8,13 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ClsService } from 'nestjs-cls';
 import { AbilityFactory } from '../../modules/organization/casl/ability.factory';
-import { UserRole } from '@pactintel/shared-types';
+import { UserRole, Action, Subject, RequiredPolicyRule } from '@pactintel/shared-types';
 
-export type Action = 'create' | 'read' | 'update' | 'delete' | 'manage';
-export type Subject =
-  'Document' | 'User' | 'Organization' | 'Workspace' | 'Payment' | 'Signature' | 'Billing' | 'all';
-
-export interface RequiredRule {
-  action: Action;
-  subject: Subject;
-}
+export { Action, Subject };
+export type RequiredRule = RequiredPolicyRule;
 
 export const CHECK_POLICIES_KEY = 'check_policy';
-export const CheckPolicies = (...handlers: RequiredRule[]) =>
+export const CheckPolicies = (...handlers: RequiredPolicyRule[]) =>
   SetMetadata(CHECK_POLICIES_KEY, handlers);
 
 @Injectable()

@@ -30,6 +30,7 @@
     "@pactintel/shared-types": "workspace:*",
     "@pactintel/shared-utils": "workspace:*",
     "@prisma/client": "^6.4.1",
+    "decimal.js": "^10.6.0",
     "helmet": "^8.0.0",
     "ioredis": "^5.5.0",
     "nestjs-cls": "^5.0.0",

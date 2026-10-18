@@ -4,6 +4,7 @@ import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { PricingTableExtension } from '@pactintel/ui';
 import {
   ArrowLeft,
   Save,
@@ -24,6 +25,8 @@ import {
   Undo,
   Redo,
   CheckCircle,
+  Copy,
+  Receipt,
 } from 'lucide-react';
 
 interface DocumentEditorPageProps {
@@ -42,6 +45,14 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
   const [sendSuccess, setSendSuccess] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
+  // Save as template state
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState(title + ' Template');
+  const [templateCategory, setTemplateCategory] = useState('Contracts');
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [templateSuccess, setTemplateSuccess] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
   // Send modal fields
   const [recipientEmail, setRecipientEmail] = useState('');
   const [expiryDays, setExpiryDays] = useState(14);
@@ -55,6 +66,7 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
+      PricingTableExtension,
     ],
     content: `
       <h1>Master Services Agreement</h1>
@@ -120,6 +132,24 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
         setSendSuccess(false);
       }, 1200);
     }, 800);
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (!templateName.trim()) {
+      setTemplateError('Template title is required.');
+      return;
+    }
+    setTemplateError(null);
+    setIsSavingTemplate(true);
+    // In production environment, calls POST /api/v1/documents/:id/save-as-template
+    setTimeout(() => {
+      setIsSavingTemplate(false);
+      setTemplateSuccess(true);
+      setTimeout(() => {
+        setShowSaveTemplateModal(false);
+        setTemplateSuccess(false);
+      }, 1200);
+    }, 700);
   };
 
   return (
@@ -226,6 +256,19 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
           >
             <Save size={15} />
             Save Snapshot
+          </button>
+
+          <button
+            onClick={() => {
+              setTemplateName(title + ' Template');
+              setShowSaveTemplateModal(true);
+            }}
+            disabled={isSaving}
+            className="pact-btn pact-btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Copy size={15} />
+            Save as Template
           </button>
 
           {status === 'draft' && (
@@ -486,6 +529,48 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
             >
               <Redo size={15} />
             </button>
+
+            <span
+              style={{
+                width: '1px',
+                height: '18px',
+                backgroundColor: 'var(--color-gray-300)',
+                margin: '0 4px',
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => {
+                editor
+                  .chain()
+                  .focus()
+                  .insertContent({
+                    type: 'pricingTable',
+                    attrs: {
+                      pricingTableId: 'pt-' + Date.now().toString().slice(-6),
+                      documentId,
+                    },
+                  })
+                  .run();
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '1px solid #BFDBFE',
+                background: '#EFF6FF',
+                color: '#2563EB',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 500,
+              }}
+              title="Insert Interactive CPQ Pricing Table"
+            >
+              <Receipt size={14} />+ Pricing Table
+            </button>
           </div>
         )}
 
@@ -710,6 +795,172 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
                     disabled={isSaving}
                   >
                     {isSaving ? 'Sending...' : 'Confirm & Send'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Save as Template Modal */}
+      {showSaveTemplateModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '8px',
+              width: '100%',
+              maxWidth: '480px',
+              padding: '24px',
+              boxShadow:
+                '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            }}
+          >
+            <h2
+              style={{
+                fontSize: '18px',
+                fontWeight: 600,
+                color: 'var(--color-gray-950)',
+                marginBottom: '4px',
+              }}
+            >
+              Save Document as Template
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--color-gray-600)', marginBottom: '16px' }}>
+              Create a reusable organization template from this document's content snapshot.
+            </p>
+
+            {templateError && (
+              <div
+                style={{
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '6px',
+                  padding: '10px 12px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: '#991B1B',
+                  fontSize: '13px',
+                }}
+              >
+                <AlertCircle size={16} />
+                <span>{templateError}</span>
+              </div>
+            )}
+
+            {templateSuccess ? (
+              <div
+                style={{
+                  padding: '24px 0',
+                  textAlign: 'center',
+                  color: '#15803D',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <CheckCircle size={36} color="#16A34A" />
+                <div style={{ fontWeight: 600, fontSize: '16px' }}>Template Saved!</div>
+                <div style={{ fontSize: '13px', color: 'var(--color-gray-600)' }}>
+                  Now available in your organization's template library.
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: 'var(--color-gray-800)',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    Template Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--color-gray-300)',
+                      fontSize: '14px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: 'var(--color-gray-800)',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    Category
+                  </label>
+                  <select
+                    value={templateCategory}
+                    onChange={(e) => setTemplateCategory(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--color-gray-300)',
+                      fontSize: '14px',
+                      outline: 'none',
+                      backgroundColor: '#fff',
+                    }}
+                  >
+                    <option value="Contracts">Contracts</option>
+                    <option value="Proposals">Proposals</option>
+                    <option value="Statement of Work (SOW)">Statement of Work (SOW)</option>
+                    <option value="Legal & Compliance">Legal & Compliance</option>
+                    <option value="Quotes">Quotes</option>
+                  </select>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: '8px',
+                    marginTop: '12px',
+                  }}
+                >
+                  <button
+                    onClick={() => setShowSaveTemplateModal(false)}
+                    className="pact-btn pact-btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveAsTemplate}
+                    className="pact-btn pact-btn-primary"
+                    disabled={isSavingTemplate}
+                  >
+                    {isSavingTemplate ? 'Saving...' : 'Save Template'}
                   </button>
                 </div>
               </div>

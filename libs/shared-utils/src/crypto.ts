@@ -63,3 +63,39 @@ export const generateApiKey = (
     keyHash,
   };
 };
+
+/**
+ * Encrypts plaintext using AES-256-GCM.
+ * Output format: [12 bytes IV] + [16 bytes Auth Tag] + [Ciphertext]
+ */
+export const aesGcmEncrypt = (plaintext: string | Buffer, key: Buffer): Buffer => {
+  if (key.length !== 32) {
+    throw new Error('AES-256 key must be exactly 32 bytes.');
+  }
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const bufferPlaintext =
+    typeof plaintext === 'string' ? Buffer.from(plaintext, 'utf8') : plaintext;
+  const encrypted = Buffer.concat([cipher.update(bufferPlaintext), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, encrypted]);
+};
+
+/**
+ * Decrypts ciphertext encrypted with aesGcmEncrypt using AES-256-GCM.
+ */
+export const aesGcmDecrypt = (ciphertextPayload: Buffer, key: Buffer): Buffer => {
+  if (key.length !== 32) {
+    throw new Error('AES-256 key must be exactly 32 bytes.');
+  }
+  if (ciphertextPayload.length < 28) {
+    throw new Error('Invalid ciphertext payload: insufficient length for IV and tag.');
+  }
+  const iv = ciphertextPayload.subarray(0, 12);
+  const tag = ciphertextPayload.subarray(12, 28);
+  const ciphertext = ciphertextPayload.subarray(28);
+
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+};

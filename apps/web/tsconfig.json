@@ -19,6 +19,7 @@
         "name": "next"
       }
     ],
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@pactintel/shared-types": ["../../libs/shared-types/src/index.ts"],

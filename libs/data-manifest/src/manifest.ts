@@ -10,10 +10,13 @@ export interface DataManifestEntry {
   type: 'postgresql_table' | 'clickhouse_table' | 'gcs_bucket' | 'redis_keyspace';
   tableOrResource: string;
   rls: boolean;
-  retention: 'until_org_deletion' | '7_years' | '2_years' | '90_days' | '30_days' | 'ephemeral';
+  retention:
+    'until_org_deletion' | '7_years' | '2_years' | '1_year' | '90_days' | '30_days' | 'ephemeral';
   erasure:
     | 'soft_delete'
     | 'hard_delete_cascade'
+    | 'hard_delete_on_request'
+    | 'none'
     | 'partition_drop'
     | 'crypto_shred'
     | 'ttl_expire'
@@ -292,6 +295,100 @@ export const dataManifest: DataManifest = {
       description: 'Transactional outbox for reliable asynchronous event delivery',
     },
 
+    // --- PostgreSQL: CPQ & Interactive Pricing (Phase 1) ---
+    {
+      id: 'pg-product-catalog-items',
+      type: 'postgresql_table',
+      tableOrResource: 'product_catalog_items',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'SKU and product catalog items for CPQ quote generation',
+    },
+    {
+      id: 'pg-pricing-tables',
+      type: 'postgresql_table',
+      tableOrResource: 'pricing_tables',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Interactive pricing tables attached to documents',
+    },
+    {
+      id: 'pg-line-items',
+      type: 'postgresql_table',
+      tableOrResource: 'line_items',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'hard_delete_cascade',
+      residency: 'cell_jurisdiction',
+      description: 'Line items within interactive pricing tables',
+    },
+    {
+      id: 'pg-buyer-pricing-selections',
+      type: 'postgresql_table',
+      tableOrResource: 'buyer_pricing_selections',
+      rls: true,
+      retention: '1_year',
+      erasure: 'hard_delete_on_request',
+      residency: 'cell_jurisdiction',
+      description: 'Buyer package and quantity selections in recipient view',
+    },
+
+    // --- PostgreSQL: Custom Domains, Integrations & Notifications (Phase 1) ---
+    {
+      id: 'pg-custom-domains',
+      type: 'postgresql_table',
+      tableOrResource: 'custom_domains',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Customer custom white-label hostnames and SSL verification',
+    },
+    {
+      id: 'pg-integration-connections',
+      type: 'postgresql_table',
+      tableOrResource: 'integration_connections',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Encrypted third-party CRM and software integration connections',
+    },
+    {
+      id: 'pg-crm-sync-events',
+      type: 'postgresql_table',
+      tableOrResource: 'crm_sync_events',
+      rls: true,
+      retention: '2_years',
+      erasure: 'none',
+      residency: 'cell_jurisdiction',
+      description: 'Append-only audit trail of CRM bi-directional sync events',
+    },
+    {
+      id: 'pg-notification-preferences',
+      type: 'postgresql_table',
+      tableOrResource: 'notification_preferences',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Per-user channel and event notification subscriptions',
+    },
+    {
+      id: 'pg-in-app-notifications',
+      type: 'postgresql_table',
+      tableOrResource: 'in_app_notifications',
+      rls: true,
+      retention: '1_year',
+      erasure: 'hard_delete_on_request',
+      residency: 'cell_jurisdiction',
+      description: 'In-app notification inbox feed for users',
+    },
+
     // --- ClickHouse: Analytics Store ---
     {
       id: 'ch-analytics-events',
@@ -302,6 +399,16 @@ export const dataManifest: DataManifest = {
       erasure: 'partition_drop',
       residency: 'cell_jurisdiction',
       description: 'High-volume viewer telemetry and reading duration logs',
+    },
+    {
+      id: 'ch-viewer-sessions',
+      type: 'clickhouse_table',
+      tableOrResource: 'viewer_sessions',
+      rls: false,
+      retention: '2_years',
+      erasure: 'partition_drop',
+      residency: 'cell_jurisdiction',
+      description: 'Document recipient viewer session intervals and duration telemetry',
     },
 
     // --- Cloud Storage Buckets ---

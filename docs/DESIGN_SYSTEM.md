@@ -46,12 +46,12 @@ PactIntel is a document, proposal, quoting, e-signature, and contract-lifecycle 
 
 ### Design references (what informed these choices)
 
-| Reference | What we took from it | What we deliberately did NOT take |
-|-----------|---------------------|----------------------------------|
-| **DocuSign** | The signing experience's focus on a single task with minimal chrome; the use of a single blue action color (Cobalt) against a mostly white/neutral interface; trust signals integrated into the flow rather than bolted on | Their gradient system (Pearl, Atmosphere, etc.), custom brand font, decorative color treatments |
-| **Linear** | Information density achieved through luminance hierarchy rather than decoration; strategic use of a single accent color (lavender-blue) reserved exclusively for interactive elements; consistent 4px grid | Dark-mode-first approach (we're light-mode-first for document work), their near-black canvas |
-| **Notion** | Clean workspace patterns; clear hierarchy between navigation and content; how semantic colors are used for status without overwhelming the interface; 8px corner radius for structured identity | Their pastel-tinted database card backgrounds, the "lego block" content model |
-| **Papermark** | HSL-based CSS variable architecture (shadcn/ui pattern); sidebar + content layout; status badge pattern using `color/15%` background with `color-600` text; semantic variant system for components | Their orange brand color, Tremor chart library integration, some specific animation patterns |
+| Reference     | What we took from it                                                                                                                                                                                                       | What we deliberately did NOT take                                                               |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **DocuSign**  | The signing experience's focus on a single task with minimal chrome; the use of a single blue action color (Cobalt) against a mostly white/neutral interface; trust signals integrated into the flow rather than bolted on | Their gradient system (Pearl, Atmosphere, etc.), custom brand font, decorative color treatments |
+| **Linear**    | Information density achieved through luminance hierarchy rather than decoration; strategic use of a single accent color (lavender-blue) reserved exclusively for interactive elements; consistent 4px grid                 | Dark-mode-first approach (we're light-mode-first for document work), their near-black canvas    |
+| **Notion**    | Clean workspace patterns; clear hierarchy between navigation and content; how semantic colors are used for status without overwhelming the interface; 8px corner radius for structured identity                            | Their pastel-tinted database card backgrounds, the "lego block" content model                   |
+| **Papermark** | HSL-based CSS variable architecture (shadcn/ui pattern); sidebar + content layout; status badge pattern using `color/15%` background with `color-600` text; semantic variant system for components                         | Their orange brand color, Tremor chart library integration, some specific animation patterns    |
 
 ---
 
@@ -63,28 +63,28 @@ One primary action color, used sparingly and exclusively for interactive element
 
 ### 2.1 Primary
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--color-primary` | `#2563EB` (Blue 600) | Primary buttons, active nav items, interactive links, focus rings |
-| `--color-primary-hover` | `#1D4ED8` (Blue 700) | Primary button hover state |
-| `--color-primary-subtle` | `#EFF6FF` (Blue 50) | Selected row background, active filter background |
-| `--color-primary-muted` | `#DBEAFE` (Blue 100) | Selected badge background, tag highlight |
+| Token                    | Value                | Usage                                                             |
+| ------------------------ | -------------------- | ----------------------------------------------------------------- |
+| `--color-primary`        | `#2563EB` (Blue 600) | Primary buttons, active nav items, interactive links, focus rings |
+| `--color-primary-hover`  | `#1D4ED8` (Blue 700) | Primary button hover state                                        |
+| `--color-primary-subtle` | `#EFF6FF` (Blue 50)  | Selected row background, active filter background                 |
+| `--color-primary-muted`  | `#DBEAFE` (Blue 100) | Selected badge background, tag highlight                          |
 
 **Rationale:** Blue 600 (`#2563EB`) is a clean, saturated blue that reads as "action" without reading as "brand decoration." It passes WCAG AA contrast on white backgrounds (4.6:1). It's not the same shade as DocuSign Cobalt (theirs is darker), nor is it the electric blue common in AI SaaS templates. It sits in the established "trust/action" range that legal and financial users expect.
 
 ### 2.2 Neutrals (Cool Gray)
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--color-gray-950` | `#0C0F1D` | Page titles, table headers, primary text |
-| `--color-gray-800` | `#1E293B` | Body text, emphasis secondary text |
-| `--color-gray-600` | `#475569` | Secondary labels, descriptions |
-| `--color-gray-500` | `#64748B` | Placeholder text, disabled text, meta information |
-| `--color-gray-400` | `#94A3B8` | Icons (inactive), subtle dividers |
-| `--color-gray-200` | `#E2E8F0` | Borders, dividers, table row separators |
-| `--color-gray-100` | `#F1F5F9` | Table header background, sidebar background, input backgrounds |
-| `--color-gray-50` | `#F8FAFC` | Page background (main content area), hover rows |
-| `--color-white` | `#FFFFFF` | Card/panel backgrounds, input fields, recipient page background |
+| Token              | Value     | Usage                                                           |
+| ------------------ | --------- | --------------------------------------------------------------- |
+| `--color-gray-950` | `#0C0F1D` | Page titles, table headers, primary text                        |
+| `--color-gray-800` | `#1E293B` | Body text, emphasis secondary text                              |
+| `--color-gray-600` | `#475569` | Secondary labels, descriptions                                  |
+| `--color-gray-500` | `#64748B` | Placeholder text, disabled text, meta information               |
+| `--color-gray-400` | `#94A3B8` | Icons (inactive), subtle dividers                               |
+| `--color-gray-200` | `#E2E8F0` | Borders, dividers, table row separators                         |
+| `--color-gray-100` | `#F1F5F9` | Table header background, sidebar background, input backgrounds  |
+| `--color-gray-50`  | `#F8FAFC` | Page background (main content area), hover rows                 |
+| `--color-white`    | `#FFFFFF` | Card/panel backgrounds, input fields, recipient page background |
 
 **Rationale:** Slate-based cool grays (not warm grays, not pure neutral grays) provide a professional, slightly blue-tinted backdrop that harmonizes with the blue primary without introducing visible warmth. This avoids the "cream-and-something" cliché. The gray scale has 9 stops — enough to express the luminance hierarchy that Linear uses for density without decoration.
 
@@ -92,13 +92,13 @@ One primary action color, used sparingly and exclusively for interactive element
 
 These colors communicate document and workflow states. They appear ONLY in status badges, status dots, and inline status indicators — never as decorative backgrounds.
 
-| Token | Background | Text | Dot/Icon | Meaning |
-|-------|-----------|------|----------|---------|
-| `--status-success` | `#F0FDF4` | `#15803D` | `#22C55E` | Signed, Completed, Active, Paid |
-| `--status-warning` | `#FFFBEB` | `#B45309` | `#F59E0B` | Pending, Awaiting signature, Expiring soon |
-| `--status-error` | `#FEF2F2` | `#B91C1C` | `#EF4444` | Declined, Failed, Expired, Overdue |
-| `--status-info` | `#EFF6FF` | `#1E40AF` | `#3B82F6` | Viewed, In review, Sent |
-| `--status-neutral` | `#F1F5F9` | `#475569` | `#94A3B8` | Draft, Archived, Inactive |
+| Token              | Background | Text      | Dot/Icon  | Meaning                                    |
+| ------------------ | ---------- | --------- | --------- | ------------------------------------------ |
+| `--status-success` | `#F0FDF4`  | `#15803D` | `#22C55E` | Signed, Completed, Active, Paid            |
+| `--status-warning` | `#FFFBEB`  | `#B45309` | `#F59E0B` | Pending, Awaiting signature, Expiring soon |
+| `--status-error`   | `#FEF2F2`  | `#B91C1C` | `#EF4444` | Declined, Failed, Expired, Overdue         |
+| `--status-info`    | `#EFF6FF`  | `#1E40AF` | `#3B82F6` | Viewed, In review, Sent                    |
+| `--status-neutral` | `#F1F5F9`  | `#475569` | `#94A3B8` | Draft, Archived, Inactive                  |
 
 **Badge format:** Background at `color-50` or `color/15%`, text at `color-700`, small leading dot or icon at `color-500`. No border. Font: 12px/500 weight. Padding: 2px 8px. Border-radius: 4px (not full-round pills — pills read as tags, not status indicators).
 
@@ -106,19 +106,20 @@ These colors communicate document and workflow states. They appear ONLY in statu
 
 ### 2.4 Surface Colors
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--surface-page` | `#F8FAFC` (Gray 50) | Main content background |
-| `--surface-card` | `#FFFFFF` | Cards, panels, modals, popovers |
-| `--surface-sidebar` | `#F1F5F9` (Gray 100) | Sidebar background |
-| `--surface-overlay` | `rgba(15, 23, 42, 0.5)` | Modal/dialog backdrop |
-| `--surface-input` | `#FFFFFF` | Input fields, text areas |
+| Token               | Value                   | Usage                           |
+| ------------------- | ----------------------- | ------------------------------- |
+| `--surface-page`    | `#F8FAFC` (Gray 50)     | Main content background         |
+| `--surface-card`    | `#FFFFFF`               | Cards, panels, modals, popovers |
+| `--surface-sidebar` | `#F1F5F9` (Gray 100)    | Sidebar background              |
+| `--surface-overlay` | `rgba(15, 23, 42, 0.5)` | Modal/dialog backdrop           |
+| `--surface-input`   | `#FFFFFF`               | Input fields, text areas        |
 
 ### 2.5 Dark Mode (Phase 2)
 
 Dark mode is not in Phase 0-1. When implemented, it follows the Papermark pattern: invert semantic tokens via `.dark` class on the root element. Key principle: dark mode is NOT "near-black canvas with neon accent" (the Linear aesthetic). It is "dark gray canvas with muted colors" — appropriate for a document platform where the document itself should be the brightest element on screen.
 
 Dark mode base values (for planning, not immediate implementation):
+
 - Background: `#0F172A` (Slate 900), not `#000000`
 - Card surface: `#1E293B` (Slate 800)
 - Text: `#F1F5F9` (Slate 100)
@@ -142,6 +143,7 @@ One typeface family, two weights for body, one for headings. Real hierarchy come
 ```
 
 **Why Inter:**
+
 - Designed specifically for computer screens with taller x-height and open apertures.
 - Industry standard across enterprise SaaS (Linear, Notion, Vercel, Supabase).
 - Variable font allows precise weight control.
@@ -149,23 +151,24 @@ One typeface family, two weights for body, one for headings. Real hierarchy come
 - Free, no licensing cost, no custom font hosting.
 
 **Why not a second font:**
+
 - A single typeface family enforces consistency across 30+ screens built by multiple agents.
 - Two fonts create decisions (which font where?) that agents will answer inconsistently.
 - Inter covers the full range from 12px table cells to 30px page titles without needing a display font.
 
 ### 3.2 Type Scale
 
-| Token | Size | Weight | Line Height | Tracking | Usage |
-|-------|------|--------|-------------|----------|-------|
-| `--text-page-title` | 24px | 600 | 32px (1.33) | -0.01em | Page titles: "Documents Hub", "Home Dashboard" |
-| `--text-section-title` | 18px | 600 | 28px (1.56) | -0.005em | Section headings within a page |
-| `--text-card-title` | 16px | 600 | 24px (1.5) | normal | Card/panel headers, modal titles |
-| `--text-body` | 14px | 400 | 20px (1.43) | normal | Body text, descriptions, paragraph content |
-| `--text-body-medium` | 14px | 500 | 20px (1.43) | normal | Emphasized body text, table cell values, nav items |
-| `--text-small` | 13px | 400 | 18px (1.38) | normal | Table cells, metadata, timestamps |
-| `--text-caption` | 12px | 500 | 16px (1.33) | 0.01em | Table headers, status badges, labels, helper text |
-| `--text-overline` | 11px | 500 | 16px (1.45) | 0.03em | Section labels within sidebars (e.g., "WORKSPACE", "SETTINGS") — used sparingly, see anti-patterns |
-| `--text-metric` | 30px | 600 | 36px (1.2) | -0.02em | Dashboard KPI values (total documents sent, total signed) |
+| Token                  | Size | Weight | Line Height | Tracking | Usage                                                                                              |
+| ---------------------- | ---- | ------ | ----------- | -------- | -------------------------------------------------------------------------------------------------- |
+| `--text-page-title`    | 24px | 600    | 32px (1.33) | -0.01em  | Page titles: "Documents Hub", "Home Dashboard"                                                     |
+| `--text-section-title` | 18px | 600    | 28px (1.56) | -0.005em | Section headings within a page                                                                     |
+| `--text-card-title`    | 16px | 600    | 24px (1.5)  | normal   | Card/panel headers, modal titles                                                                   |
+| `--text-body`          | 14px | 400    | 20px (1.43) | normal   | Body text, descriptions, paragraph content                                                         |
+| `--text-body-medium`   | 14px | 500    | 20px (1.43) | normal   | Emphasized body text, table cell values, nav items                                                 |
+| `--text-small`         | 13px | 400    | 18px (1.38) | normal   | Table cells, metadata, timestamps                                                                  |
+| `--text-caption`       | 12px | 500    | 16px (1.33) | 0.01em   | Table headers, status badges, labels, helper text                                                  |
+| `--text-overline`      | 11px | 500    | 16px (1.45) | 0.03em   | Section labels within sidebars (e.g., "WORKSPACE", "SETTINGS") — used sparingly, see anti-patterns |
+| `--text-metric`        | 30px | 600    | 36px (1.2)  | -0.02em  | Dashboard KPI values (total documents sent, total signed)                                          |
 
 **What "overline" means here vs. what it does NOT mean:**
 The `--text-overline` token is used ONLY for sidebar section labels (the gray all-caps "DOCUMENTS", "SETTINGS" grouping headers in the sidebar nav). It is NOT used as an "eyebrow" above page titles. Page titles stand on their own — there is no "OVERVIEW" label above "Home Dashboard." See anti-patterns section.
@@ -188,38 +191,38 @@ A 4px base grid. Every padding, margin, and gap is a multiple of 4px. This creat
 
 ### 4.1 Spacing Scale
 
-| Token | Value | Common Usage |
-|-------|-------|--------------|
-| `--space-1` | 4px | Inline spacing between icon and label, gap within tight groups |
-| `--space-2` | 8px | Padding inside badges, gap between small elements, inner input padding |
-| `--space-3` | 12px | Table cell padding, gap between related items |
-| `--space-4` | 16px | Card padding, section gap within a panel |
-| `--space-5` | 20px | Gap between cards, sidebar item padding-left |
-| `--space-6` | 24px | Page margin (horizontal), gap between major sections |
-| `--space-8` | 32px | Large section separator, padding within spacious panels |
-| `--space-10` | 40px | Page margin (top), vertical gap between page-level sections |
-| `--space-12` | 48px | Only for the largest vertical separators (e.g., between page header and content) |
+| Token        | Value | Common Usage                                                                     |
+| ------------ | ----- | -------------------------------------------------------------------------------- |
+| `--space-1`  | 4px   | Inline spacing between icon and label, gap within tight groups                   |
+| `--space-2`  | 8px   | Padding inside badges, gap between small elements, inner input padding           |
+| `--space-3`  | 12px  | Table cell padding, gap between related items                                    |
+| `--space-4`  | 16px  | Card padding, section gap within a panel                                         |
+| `--space-5`  | 20px  | Gap between cards, sidebar item padding-left                                     |
+| `--space-6`  | 24px  | Page margin (horizontal), gap between major sections                             |
+| `--space-8`  | 32px  | Large section separator, padding within spacious panels                          |
+| `--space-10` | 40px  | Page margin (top), vertical gap between page-level sections                      |
+| `--space-12` | 48px  | Only for the largest vertical separators (e.g., between page header and content) |
 
 ### 4.2 Layout Zones
 
-| Zone | Width | Context |
-|------|-------|---------|
-| Sidebar | 240px (collapsed: 64px, icon-only) | Persistent left sidebar for logged-in app |
-| Content area | Fluid, max-width 1280px, centered | Main content region |
-| Table max-width | 100% of content area | Tables fill the content area, horizontal scroll on overflow |
-| Recipient page | max-width 720px, centered | Signing flow, recipient viewing page (narrower for focused reading) |
-| Modal (standard) | max-width 480px | Confirmation dialogs, simple forms |
-| Modal (wide) | max-width 640px | Document preview, settings panels |
-| Modal (full) | max-width 960px | Complex forms, multi-column settings |
+| Zone             | Width                              | Context                                                             |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------------- |
+| Sidebar          | 240px (collapsed: 64px, icon-only) | Persistent left sidebar for logged-in app                           |
+| Content area     | Fluid, max-width 1280px, centered  | Main content region                                                 |
+| Table max-width  | 100% of content area               | Tables fill the content area, horizontal scroll on overflow         |
+| Recipient page   | max-width 720px, centered          | Signing flow, recipient viewing page (narrower for focused reading) |
+| Modal (standard) | max-width 480px                    | Confirmation dialogs, simple forms                                  |
+| Modal (wide)     | max-width 640px                    | Document preview, settings panels                                   |
+| Modal (full)     | max-width 960px                    | Complex forms, multi-column settings                                |
 
 ### 4.3 Density Guidance
 
-| Screen type | Density | Row height | Cell padding |
-|-------------|---------|------------|-------------|
-| **Data tables** (Documents Hub, Contracts, Payments) | Dense | 44px | 12px vertical, 16px horizontal |
-| **Dashboard cards** | Medium | N/A | 16px all sides |
-| **Settings forms** | Comfortable | N/A | 24px between fields |
-| **Recipient page** | Spacious | N/A | 24-32px between sections |
+| Screen type                                          | Density     | Row height | Cell padding                   |
+| ---------------------------------------------------- | ----------- | ---------- | ------------------------------ |
+| **Data tables** (Documents Hub, Contracts, Payments) | Dense       | 44px       | 12px vertical, 16px horizontal |
+| **Dashboard cards**                                  | Medium      | N/A        | 16px all sides                 |
+| **Settings forms**                                   | Comfortable | N/A        | 24px between fields            |
+| **Recipient page**                                   | Spacious    | N/A        | 24-32px between sections       |
 
 ---
 
@@ -231,20 +234,20 @@ Structure is defined by borders, not shadows. Shadows are reserved for elements 
 
 ### 5.1 Borders
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--border-default` | 1px solid `#E2E8F0` (Gray 200) | Card edges, table row separators, input borders, sidebar edge |
-| `--border-subtle` | 1px solid `#F1F5F9` (Gray 100) | Internal dividers within a card, section separators |
-| `--border-input-focus` | 2px solid `#2563EB` (Primary) | Focused input border — replaces the default border, does not add to it |
-| `--border-error` | 1px solid `#EF4444` (Red 500) | Invalid input border |
+| Token                  | Value                          | Usage                                                                  |
+| ---------------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| `--border-default`     | 1px solid `#E2E8F0` (Gray 200) | Card edges, table row separators, input borders, sidebar edge          |
+| `--border-subtle`      | 1px solid `#F1F5F9` (Gray 100) | Internal dividers within a card, section separators                    |
+| `--border-input-focus` | 2px solid `#2563EB` (Primary)  | Focused input border — replaces the default border, does not add to it |
+| `--border-error`       | 1px solid `#EF4444` (Red 500)  | Invalid input border                                                   |
 
 ### 5.2 Shadows
 
-| Token | Value | Usage |
-|-------|-------|-------|
+| Token              | Value                                                                 | Usage                              |
+| ------------------ | --------------------------------------------------------------------- | ---------------------------------- |
 | `--shadow-popover` | `0 4px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06)` | Dropdown menus, popovers, tooltips |
-| `--shadow-modal` | `0 8px 24px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.06)` | Modal dialogs |
-| `--shadow-toast` | `0 4px 12px rgba(15, 23, 42, 0.1)` | Toast notifications |
+| `--shadow-modal`   | `0 8px 24px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.06)` | Modal dialogs                      |
+| `--shadow-toast`   | `0 4px 12px rgba(15, 23, 42, 0.1)`                                    | Toast notifications                |
 
 **That's it. Three shadow values.** Cards, panels, sections, sidebar — these have borders, not shadows. Tables have no shadow. The page itself has no shadow. If you're about to add `box-shadow` to a non-floating element, you're violating this system.
 
@@ -256,14 +259,15 @@ Structure is defined by borders, not shadows. Shadows are reserved for elements 
 
 One radius value for interactive and container elements. Not zero (too harsh), not 12px+ (too soft, reads as consumer app).
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--radius-default` | 6px | Buttons, inputs, cards, panels, modals, dropdown items |
-| `--radius-badge` | 4px | Status badges (not full-round pills) |
-| `--radius-avatar` | 9999px (full circle) | User avatars, org logos |
-| `--radius-none` | 0px | Table cells, full-width sections |
+| Token              | Value                | Usage                                                  |
+| ------------------ | -------------------- | ------------------------------------------------------ |
+| `--radius-default` | 6px                  | Buttons, inputs, cards, panels, modals, dropdown items |
+| `--radius-badge`   | 4px                  | Status badges (not full-round pills)                   |
+| `--radius-avatar`  | 9999px (full circle) | User avatars, org logos                                |
+| `--radius-none`    | 0px                  | Table cells, full-width sections                       |
 
 **Why 6px specifically:**
+
 - 4px reads as slightly too mechanical (government forms).
 - 8px is where "friendly consumer app" starts.
 - 6px is the middle ground: structured but not rigid. It matches what Papermark uses (`--radius: 0.5rem` → 8px) but we deliberately go slightly tighter because our content (contracts, legal terms) benefits from a more structured feel.
@@ -275,6 +279,7 @@ One radius value for interactive and container elements. Not zero (too harsh), n
 ### Chosen library: Lucide
 
 **Why Lucide:**
+
 - Open source, MIT licensed, no cost.
 - 1,500+ icons covering all our use cases (document states, payment methods, signature types, navigation).
 - Consistent stroke weight (1.5px default) across the entire set.
@@ -283,11 +288,11 @@ One radius value for interactive and container elements. Not zero (too harsh), n
 
 ### Icon sizing
 
-| Size | Value | Usage |
-|------|-------|-------|
-| `--icon-sm` | 16px | Inline with small text (12-13px), inside badges, table row actions |
-| `--icon-md` | 20px | Inline with body text (14px), sidebar nav items, button icons |
-| `--icon-lg` | 24px | Page-level actions, empty state illustrations |
+| Size        | Value | Usage                                                              |
+| ----------- | ----- | ------------------------------------------------------------------ |
+| `--icon-sm` | 16px  | Inline with small text (12-13px), inside badges, table row actions |
+| `--icon-md` | 20px  | Inline with body text (14px), sidebar nav items, button icons      |
+| `--icon-lg` | 24px  | Page-level actions, empty state illustrations                      |
 
 ### Icon usage rules
 
@@ -302,20 +307,22 @@ One radius value for interactive and container elements. Not zero (too harsh), n
 
 ### 8.1 Buttons
 
-| Variant | Background | Text | Border | Usage |
-|---------|-----------|------|--------|-------|
-| **Primary** | `--color-primary` | White | None | Primary page action: "Send for signature", "Create document" |
-| **Secondary** | White | `--color-gray-800` | `--border-default` | Secondary actions: "Cancel", "Save draft", "Export" |
-| **Ghost** | Transparent | `--color-gray-600` | None | Tertiary actions, icon-only buttons, toolbar actions |
-| **Destructive** | `--status-error` text color, transparent bg | `#B91C1C` | None (or `1px solid #FCA5A5` for emphasis) | "Delete", "Void", "Revoke" — always requires confirmation dialog |
+| Variant         | Background                                  | Text               | Border                                     | Usage                                                            |
+| --------------- | ------------------------------------------- | ------------------ | ------------------------------------------ | ---------------------------------------------------------------- |
+| **Primary**     | `--color-primary`                           | White              | None                                       | Primary page action: "Send for signature", "Create document"     |
+| **Secondary**   | White                                       | `--color-gray-800` | `--border-default`                         | Secondary actions: "Cancel", "Save draft", "Export"              |
+| **Ghost**       | Transparent                                 | `--color-gray-600` | None                                       | Tertiary actions, icon-only buttons, toolbar actions             |
+| **Destructive** | `--status-error` text color, transparent bg | `#B91C1C`          | None (or `1px solid #FCA5A5` for emphasis) | "Delete", "Void", "Revoke" — always requires confirmation dialog |
 
 **Button text rules:**
+
 - Sentence case, never ALL CAPS: "Send for signature" not "SEND FOR SIGNATURE"
 - No trailing arrows (→, ›, →) on button text. The button itself is the call to action.
 - Verb-first, specific: "Create document" not "New" or "+" with no label
 - Consistent verbs: "Send" (not "Submit" or "Dispatch"), "Create" (not "Add" or "New"), "Delete" (not "Remove" or "Discard")
 
 **Button sizes:**
+
 - Default: height 36px, padding 0 16px, 14px text
 - Small: height 32px, padding 0 12px, 13px text
 - Large: height 40px, padding 0 20px, 14px text
@@ -338,16 +345,16 @@ One radius value for interactive and container elements. Not zero (too harsh), n
 
 **Status badge values for document lifecycle:**
 
-| Status | Dot | Background | Text |
-|--------|-----|-----------|------|
-| Draft | `#94A3B8` | `#F1F5F9` | `#475569` |
-| Sent | `#3B82F6` | `#EFF6FF` | `#1E40AF` |
-| Viewed | `#3B82F6` | `#EFF6FF` | `#1E40AF` |
-| Signed | `#22C55E` | `#F0FDF4` | `#15803D` |
-| Declined | `#EF4444` | `#FEF2F2` | `#B91C1C` |
-| Expired | `#EF4444` | `#FEF2F2` | `#B91C1C` |
-| Voided | `#94A3B8` | `#F1F5F9` | `#475569` |
-| Awaiting signature | `#F59E0B` | `#FFFBEB` | `#B45309` |
+| Status             | Dot       | Background | Text      |
+| ------------------ | --------- | ---------- | --------- |
+| Draft              | `#94A3B8` | `#F1F5F9`  | `#475569` |
+| Sent               | `#3B82F6` | `#EFF6FF`  | `#1E40AF` |
+| Viewed             | `#3B82F6` | `#EFF6FF`  | `#1E40AF` |
+| Signed             | `#22C55E` | `#F0FDF4`  | `#15803D` |
+| Declined           | `#EF4444` | `#FEF2F2`  | `#B91C1C` |
+| Expired            | `#EF4444` | `#FEF2F2`  | `#B91C1C` |
+| Voided             | `#94A3B8` | `#F1F5F9`  | `#475569` |
+| Awaiting signature | `#F59E0B` | `#FFFBEB`  | `#B45309` |
 
 ### 8.3 Tables
 
@@ -367,6 +374,7 @@ Tables are the primary data pattern for the logged-in app. They are real HTML `<
 ```
 
 **Table specifications:**
+
 - Header row: background `--color-gray-100`, text `--text-caption` style (12px, 500 weight, `--color-gray-600`). NOT uppercase. NOT bold.
 - Data rows: background white, border-bottom `--border-default`
 - Row hover: `--color-gray-50` background
@@ -379,6 +387,7 @@ Tables are the primary data pattern for the logged-in app. They are real HTML `<
 ### 8.4 Navigation
 
 **Sidebar (logged-in app):**
+
 - Width: 240px, collapsible to 64px (icon-only)
 - Background: `--surface-sidebar` (Gray 100)
 - Right border: `--border-default`
@@ -390,6 +399,7 @@ Tables are the primary data pattern for the logged-in app. They are real HTML `<
 - Sidebar footer: usage progress bar (seat count, document count)
 
 **Top bar:**
+
 - Not a full navigation bar — the sidebar handles primary nav
 - Contains: breadcrumb trail (current location), global search, notification bell, help menu
 - Height: 48px
@@ -397,6 +407,7 @@ Tables are the primary data pattern for the logged-in app. They are real HTML `<
 - Breadcrumbs: 13px, `--color-gray-500` for parent levels, `--color-gray-950` for current level, `/` separator (not `>` or `›`)
 
 **Tab navigation (within a page):**
+
 - For sub-sections within a screen (e.g., Document detail → Overview | Activity | Analytics)
 - Style: underline tabs, not pill tabs. Active tab has 2px bottom border in `--color-primary`.
 - Text: 14px/500, `--color-gray-500` inactive, `--color-gray-950` active
@@ -533,6 +544,7 @@ Optional description text in gray-600
 ### 11.1 Empty States
 
 **Structure:**
+
 ```
 ┌─────────────────────────────────────────────┐
 │                                             │
@@ -550,6 +562,7 @@ Optional description text in gray-600
 ```
 
 **Copy rules for empty states:**
+
 - State what's absent in plain language: "No documents yet", "No signatures pending", "No team members"
 - Explain what the user should do, specifically: "Create your first document to start sending proposals and collecting signatures." NOT "Get started by adding your first item."
 - Include the primary action that resolves the empty state
@@ -566,10 +579,12 @@ Optional description text in gray-600
 ### 11.3 Error States
 
 **Inline errors (form validation):**
+
 - Red border on the field, red helper text below: "Email address is required" or "Must be a valid email address."
 - Specific, actionable error messages. NOT "Invalid input" or "Error."
 
 **Page-level errors (API failure):**
+
 ```
 ┌─────────────────────────────────────────────┐
 │                                             │
@@ -586,6 +601,7 @@ Optional description text in gray-600
 ```
 
 **Error copy rules:**
+
 - State what failed: "We couldn't load your documents" not "An error occurred"
 - Suggest what to do: "Try again" or "Check your connection and try again" or "Contact support if this continues"
 - No blame: "Something went wrong" not "You did something wrong" or "Bad request"
@@ -601,24 +617,26 @@ Animation serves function (feedback, orientation, state transitions). It does no
 
 ### 12.1 Allowed Animations
 
-| Animation | Duration | Easing | Usage |
-|-----------|----------|--------|-------|
-| **Hover background** | 150ms | `ease` | Table rows, nav items, buttons |
-| **Focus ring** | 0ms (instant) | N/A | Input focus, button focus — instant, not animated |
-| **Dropdown open** | 150ms | `ease-out` | Popovers, dropdown menus, select options |
-| **Modal enter** | 200ms | `ease-out` | Modal/dialog fade-in + slight scale (0.98 → 1.0) |
-| **Modal exit** | 150ms | `ease-in` | Modal/dialog fade-out |
-| **Toast enter** | 200ms | `ease-out` | Toast notification slide-in from top-right |
-| **Toast exit** | 300ms | `ease-in` | Toast notification fade-out |
-| **Skeleton pulse** | 1500ms | `ease-in-out` | Loading skeleton background oscillation |
-| **Accordion expand** | 200ms | `ease-out` | Sidebar sub-menu expand, collapsible sections |
-| **Progress bar** | 300ms | `ease-out` | Upload progress, step completion |
+| Animation            | Duration      | Easing        | Usage                                             |
+| -------------------- | ------------- | ------------- | ------------------------------------------------- |
+| **Hover background** | 150ms         | `ease`        | Table rows, nav items, buttons                    |
+| **Focus ring**       | 0ms (instant) | N/A           | Input focus, button focus — instant, not animated |
+| **Dropdown open**    | 150ms         | `ease-out`    | Popovers, dropdown menus, select options          |
+| **Modal enter**      | 200ms         | `ease-out`    | Modal/dialog fade-in + slight scale (0.98 → 1.0)  |
+| **Modal exit**       | 150ms         | `ease-in`     | Modal/dialog fade-out                             |
+| **Toast enter**      | 200ms         | `ease-out`    | Toast notification slide-in from top-right        |
+| **Toast exit**       | 300ms         | `ease-in`     | Toast notification fade-out                       |
+| **Skeleton pulse**   | 1500ms        | `ease-in-out` | Loading skeleton background oscillation           |
+| **Accordion expand** | 200ms         | `ease-out`    | Sidebar sub-menu expand, collapsible sections     |
+| **Progress bar**     | 300ms         | `ease-out`    | Upload progress, step completion                  |
 
 ### 12.2 Reduced Motion
 
 ```css
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -670,18 +688,18 @@ These are non-negotiable. Enterprise procurement checks for them, and they're pa
 
 Use these exact verbs for these exact actions — every time, everywhere, across all screens:
 
-| Action | Verb | NOT |
-|--------|------|----|
-| Create a new document | "Create document" | "New", "Add", "Start" |
+| Action                      | Verb                 | NOT                                       |
+| --------------------------- | -------------------- | ----------------------------------------- |
+| Create a new document       | "Create document"    | "New", "Add", "Start"                     |
 | Send a document for signing | "Send for signature" | "Submit", "Dispatch", "Request signature" |
-| Download a file | "Download" | "Export", "Get", "Save" |
-| Remove permanently | "Delete" | "Remove", "Discard", "Trash" |
-| Cancel a signature request | "Void" | "Cancel", "Revoke", "Withdraw" |
-| Add a team member | "Invite" | "Add", "Create user" |
-| Edit document content | "Edit" | "Modify", "Update", "Change" |
-| View document analytics | "Analytics" | "Stats", "Metrics", "Insights" |
-| Copy a shareable link | "Copy link" | "Share", "Get link" |
-| Save without sending | "Save draft" | "Save", "Store" |
+| Download a file             | "Download"           | "Export", "Get", "Save"                   |
+| Remove permanently          | "Delete"             | "Remove", "Discard", "Trash"              |
+| Cancel a signature request  | "Void"               | "Cancel", "Revoke", "Withdraw"            |
+| Add a team member           | "Invite"             | "Add", "Create user"                      |
+| Edit document content       | "Edit"               | "Modify", "Update", "Change"              |
+| View document analytics     | "Analytics"          | "Stats", "Metrics", "Insights"            |
+| Copy a shareable link       | "Copy link"          | "Share", "Get link"                       |
+| Save without sending        | "Save draft"         | "Save", "Store"                           |
 
 ### 14.3 Meta Information Format
 
@@ -703,27 +721,27 @@ Display metadata as `key: value` pairs or in structured table cells. NOT as dot-
 
 ### 15.1 Visual Anti-Patterns
 
-| Banned Pattern | Why it's banned | What to do instead |
-|---------------|----------------|-------------------|
-| **Gradient backgrounds or blobs as decoration** | Reads as "marketing site template," not as enterprise software. Our content is more interesting than decorative blurs. | Use flat, solid surface colors (`--surface-page`, `--surface-card`) |
-| **Identical cards with one shadow style for every kind of content** | Masks the hierarchy of information. A KPI summary and a document row are not the same thing. | Use the specific component for the specific purpose: tables for lists, metric cards for KPIs, forms for input |
-| **ALL-CAPS "eyebrow" labels above page titles** | Redundant — the page title already tells the user where they are. Adds visual noise without information. | Page titles stand alone. Sidebar section labels use `--text-overline` sparingly. |
-| **Middle-dot (·) or em-dash (—) joined meta strings** | Reduces scannable information to an unparseable run-on sentence. | Display each metadata value in its own labeled field, column, or structured layout |
-| **Arrows (→, ›, >) appended to button text or links** | The button itself signals interactivity. Adding an arrow is redundant and creates visual inconsistency when some buttons have arrows and others don't. | Button text alone. No arrows. |
-| **Scattered fade-in animation on every card or element** | Creates a "cascading reveal" effect that slows down perceived performance and distracts from content. | No entrance animations on content. Only animate state transitions (dropdown open, modal enter). |
-| **Cream-and-terracotta color palette** | An immediately recognizable cliché from AI-generated SaaS templates. Reads as "template" not "product." | Use the cool gray and blue palette defined in this document. |
-| **Near-black canvas with single acid-accent color** | Another recognizable cliché. Also poor for a document platform where the document should be the brightest element. | Light-mode-first with `--surface-page` (Gray 50) as the base. |
-| **Glassmorphism (frosted glass effect)** | Inappropriate for a document/contract platform. Reduces legibility and reads as consumer tech. | Solid backgrounds with borders for structure. |
-| **Full-round pill badges for status indicators** | Pills read as tags or categories, not as status. They also waste horizontal space. | 4px border-radius status badges with leading dot and text. |
+| Banned Pattern                                                      | Why it's banned                                                                                                                                        | What to do instead                                                                                            |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| **Gradient backgrounds or blobs as decoration**                     | Reads as "marketing site template," not as enterprise software. Our content is more interesting than decorative blurs.                                 | Use flat, solid surface colors (`--surface-page`, `--surface-card`)                                           |
+| **Identical cards with one shadow style for every kind of content** | Masks the hierarchy of information. A KPI summary and a document row are not the same thing.                                                           | Use the specific component for the specific purpose: tables for lists, metric cards for KPIs, forms for input |
+| **ALL-CAPS "eyebrow" labels above page titles**                     | Redundant — the page title already tells the user where they are. Adds visual noise without information.                                               | Page titles stand alone. Sidebar section labels use `--text-overline` sparingly.                              |
+| **Middle-dot (·) or em-dash (—) joined meta strings**               | Reduces scannable information to an unparseable run-on sentence.                                                                                       | Display each metadata value in its own labeled field, column, or structured layout                            |
+| **Arrows (→, ›, >) appended to button text or links**               | The button itself signals interactivity. Adding an arrow is redundant and creates visual inconsistency when some buttons have arrows and others don't. | Button text alone. No arrows.                                                                                 |
+| **Scattered fade-in animation on every card or element**            | Creates a "cascading reveal" effect that slows down perceived performance and distracts from content.                                                  | No entrance animations on content. Only animate state transitions (dropdown open, modal enter).               |
+| **Cream-and-terracotta color palette**                              | An immediately recognizable cliché from AI-generated SaaS templates. Reads as "template" not "product."                                                | Use the cool gray and blue palette defined in this document.                                                  |
+| **Near-black canvas with single acid-accent color**                 | Another recognizable cliché. Also poor for a document platform where the document should be the brightest element.                                     | Light-mode-first with `--surface-page` (Gray 50) as the base.                                                 |
+| **Glassmorphism (frosted glass effect)**                            | Inappropriate for a document/contract platform. Reduces legibility and reads as consumer tech.                                                         | Solid backgrounds with borders for structure.                                                                 |
+| **Full-round pill badges for status indicators**                    | Pills read as tags or categories, not as status. They also waste horizontal space.                                                                     | 4px border-radius status badges with leading dot and text.                                                    |
 
 ### 15.2 Structural Anti-Patterns
 
-| Banned Pattern | Why it's banned | What to do instead |
-|---------------|----------------|-------------------|
-| **Card grids instead of tables for list data** | Documents, contracts, payments — these are tabular data with sortable columns. Card grids can't sort, can't show column headers, and waste space. | `<table>` with sortable column headers, row selection, pagination |
-| **Marketing-site navigation (hamburger menu, centered logo, CTA button)** | This is a logged-in app, not a landing page. Users need persistent, always-visible navigation. | Persistent sidebar + top bar |
-| **Generic error messages ("An error occurred")** | Tells the user nothing. Generates support tickets. | Specific messages: "We couldn't load your documents. Try again." |
-| **Placeholder content ("Lorem ipsum", "Jane Doe", "Acme Corp")** in screenshots or demos | If showing demo data, use realistic but clearly fictional data. | "Northwind Traders", "Proposal for Website Redesign", "$24,500" |
+| Banned Pattern                                                                           | Why it's banned                                                                                                                                   | What to do instead                                                |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **Card grids instead of tables for list data**                                           | Documents, contracts, payments — these are tabular data with sortable columns. Card grids can't sort, can't show column headers, and waste space. | `<table>` with sortable column headers, row selection, pagination |
+| **Marketing-site navigation (hamburger menu, centered logo, CTA button)**                | This is a logged-in app, not a landing page. Users need persistent, always-visible navigation.                                                    | Persistent sidebar + top bar                                      |
+| **Generic error messages ("An error occurred")**                                         | Tells the user nothing. Generates support tickets.                                                                                                | Specific messages: "We couldn't load your documents. Try again."  |
+| **Placeholder content ("Lorem ipsum", "Jane Doe", "Acme Corp")** in screenshots or demos | If showing demo data, use realistic but clearly fictional data.                                                                                   | "Northwind Traders", "Proposal for Website Redesign", "$24,500"   |
 
 ---
 

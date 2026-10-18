@@ -49,6 +49,9 @@ jobs:
       - name: Enforce Data Manifest Adherence (Invariant I-10)
         run: pnpm run check:manifest
 
+      - name: Inspect Forbidden Architectural Patterns (Invariants I-01..I-15)
+        run: pnpm run check:forbidden-patterns
+
       - name: Run Linter
         run: pnpm run lint
 

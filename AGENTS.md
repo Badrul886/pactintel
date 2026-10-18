@@ -57,28 +57,28 @@ These invariants were established in Blueprint v2.0.0 (GCP migration). Every age
 
 The following patterns are explicitly prohibited. If you encounter them in existing code or are tempted to introduce them, **stop, flag them, and do not proceed**:
 
-| Forbidden | Reason / Blueprint Reference |
-|---|---|
-| Any AWS service reference (ECS, Fargate, S3, Aurora, RDS, ElastiCache, SES, Kinesis, Lambda, CloudTrail, etc.) | Cloud is GCP-only (ADR-0001, §15) |
-| Fly.io, Supabase, Upstash, EKS, Kubernetes (except GKE if ADR-0036 requires it) | Explicitly out of scope (§0, §8) |
-| `@Cron` or `@nestjs/schedule` in application code | All schedules via BullMQ job schedulers or Cloud Scheduler (D-07, JOB-001) |
-| `EventEmitter2` as a cross-module mechanism | Outbox events only; `EventEmitter2` only for non-critical in-transaction hooks (D-07) |
-| Vendor SDK imports outside adapter packages | ADP-001 lint-enforced; SDKs only inside `libs/ai/adapters/`, `libs/ports/adapters/` |
-| Direct cross-module database access (bypassing the repository/port layer) | Module boundaries enforced via Nx tags (§11) |
-| Console-created GCP resources | Everything must be IaC (I-04) |
-| Per-event inserts to ClickHouse | Batched ingestion via Pub/Sub buffer only (D-10) |
-| Per-organization Cloud KMS CMKs by default | Key hierarchy with per-cell CMKs and per-tenant data keys (D-09, I-11) |
-| Mutable `is_signed` / `is_current` columns on `document_versions` | INSERT-only versions; `documents.current_version_id` pointer (X-05) |
-| Offset pagination | Cursor (keyset) pagination with opaque cursors (D-21, X-49) |
-| `gen_random_uuid()` as a primary-key default | UUIDv7 for all internal PKs; CSPRNG tokens for public identifiers (D-05) |
-| `organization_id::text = current_setting(...)` in RLS | Index-unfriendly; use `organization_id = (SELECT current_setting(...)::uuid)` (X-01) |
-| `x-no-training` header or `safetySettings` as a training opt-out | Fictional; use DPAs and verified provider data-use terms (X-23, D-17) |
-| `minio/minio` Docker image | Discontinued; use SeaweedFS/Garage or a verified alternative (X-55, §8.4) |
-| Inline prompts in application code | All prompts in the prompt registry (`libs/ai/prompts/`) (A6.7) |
-| Provider/model names in feature/rule code | Task IDs only through `AiGateway`; model names only in adapters, registry, and ADRs (AI-004) |
-| Unregistered tables or stores (no data-manifest entry) | CI fails on any unregistered store (I-10, DATA-001) |
-| `bcrypt`/`Argon2` for API key hashing (per-request) | SHA-256 or peppered HMAC for indexed lookup (D-13, X-21) |
-| Cross-tenant retrieval or cache sharing in AI | Tenant isolation is absolute (A6.8, AI-014) |
+| Forbidden                                                                                                      | Reason / Blueprint Reference                                                                 |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Any AWS service reference (ECS, Fargate, S3, Aurora, RDS, ElastiCache, SES, Kinesis, Lambda, CloudTrail, etc.) | Cloud is GCP-only (ADR-0001, §15)                                                            |
+| Fly.io, Supabase, Upstash, EKS, Kubernetes (except GKE if ADR-0036 requires it)                                | Explicitly out of scope (§0, §8)                                                             |
+| `@Cron` or `@nestjs/schedule` in application code                                                              | All schedules via BullMQ job schedulers or Cloud Scheduler (D-07, JOB-001)                   |
+| `EventEmitter2` as a cross-module mechanism                                                                    | Outbox events only; `EventEmitter2` only for non-critical in-transaction hooks (D-07)        |
+| Vendor SDK imports outside adapter packages                                                                    | ADP-001 lint-enforced; SDKs only inside `libs/ai/adapters/`, `libs/ports/adapters/`          |
+| Direct cross-module database access (bypassing the repository/port layer)                                      | Module boundaries enforced via Nx tags (§11)                                                 |
+| Console-created GCP resources                                                                                  | Everything must be IaC (I-04)                                                                |
+| Per-event inserts to ClickHouse                                                                                | Batched ingestion via Pub/Sub buffer only (D-10)                                             |
+| Per-organization Cloud KMS CMKs by default                                                                     | Key hierarchy with per-cell CMKs and per-tenant data keys (D-09, I-11)                       |
+| Mutable `is_signed` / `is_current` columns on `document_versions`                                              | INSERT-only versions; `documents.current_version_id` pointer (X-05)                          |
+| Offset pagination                                                                                              | Cursor (keyset) pagination with opaque cursors (D-21, X-49)                                  |
+| `gen_random_uuid()` as a primary-key default                                                                   | UUIDv7 for all internal PKs; CSPRNG tokens for public identifiers (D-05)                     |
+| `organization_id::text = current_setting(...)` in RLS                                                          | Index-unfriendly; use `organization_id = (SELECT current_setting(...)::uuid)` (X-01)         |
+| `x-no-training` header or `safetySettings` as a training opt-out                                               | Fictional; use DPAs and verified provider data-use terms (X-23, D-17)                        |
+| `minio/minio` Docker image                                                                                     | Discontinued; use SeaweedFS/Garage or a verified alternative (X-55, §8.4)                    |
+| Inline prompts in application code                                                                             | All prompts in the prompt registry (`libs/ai/prompts/`) (A6.7)                               |
+| Provider/model names in feature/rule code                                                                      | Task IDs only through `AiGateway`; model names only in adapters, registry, and ADRs (AI-004) |
+| Unregistered tables or stores (no data-manifest entry)                                                         | CI fails on any unregistered store (I-10, DATA-001)                                          |
+| `bcrypt`/`Argon2` for API key hashing (per-request)                                                            | SHA-256 or peppered HMAC for indexed lookup (D-13, X-21)                                     |
+| Cross-tenant retrieval or cache sharing in AI                                                                  | Tenant isolation is absolute (A6.8, AI-014)                                                  |
 
 ---
 
@@ -96,31 +96,31 @@ The following patterns are explicitly prohibited. If you encounter them in exist
 
 ## Architecture Quick Reference
 
-| Layer | Technology |
-|---|---|
-| **Monorepo** | Nx + pnpm. Apps in `apps/`, shared libs in `libs/`. |
-| **Backend** | NestJS 11, Prisma 6, PostgreSQL 17 (Cloud SQL). |
-| **Frontend** | Next.js 15, React 19, TypeScript. |
-| **Editor** | Tiptap 3 (ProseMirror) with custom block extensions. |
-| **Real-time collab** | Yjs + Hocuspocus (self-hosted; Redis extension for scale-out). |
-| **Auth** | WorkOS AuthKit (`AuthPort`). |
-| **E-Signature** | BoldSign API (`SigningProviderPort`). |
-| **Platform Billing** | Paddle (`BillingPort`). |
-| **Compute** | Cloud Run (services, worker pools, jobs). |
-| **Database** | Cloud SQL for PostgreSQL (HA, private connectivity, PITR). |
-| **Cache / Queues** | Memorystore (Valkey/Redis) — role-separated instances; BullMQ. |
-| **Object Storage** | Cloud Storage (evidence: Object Retention Lock Locked mode; uploads; exports; public-media). |
-| **Analytics** | ClickHouse Cloud (GCP region); Pub/Sub ingestion buffer. |
-| **Search / Vectors** | PostgreSQL FTS + pgvector (`SearchPort`, `VectorPort`). |
-| **KMS / Secrets** | Cloud KMS (multi-region keys); Secret Manager. |
-| **AI** | `AiGateway` → `LlmPort` → Claude via Vertex AI (primary) / Anthropic direct (second). Gemini/OpenAI in chain per task evals. |
-| **Embeddings** | `EmbeddingPort` → Vertex AI embeddings (or Voyage AI per ADR-0031). |
-| **Edge / CDN** | Cloudflare (WAF, Workers routing, Turnstile, custom hostnames). |
-| **Load Balancer / WAF** | External Application Load Balancer + Cloud Armor. |
-| **IaC** | Terraform/OpenTofu (`google`/`google-beta` providers + Cloudflare, ClickHouse, Grafana, GitHub). |
-| **CI/CD** | GitHub Actions → Workload Identity Federation → Artifact Registry → Cloud Run deploy. |
-| **Observability** | Cloud Logging/Monitoring/Trace + Grafana Cloud (via Grafana Alloy/OTel); Sentry. |
-| **Compliance tooling** | Vanta (Phase 3, GCP integration). |
+| Layer                   | Technology                                                                                                                   |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Monorepo**            | Nx + pnpm. Apps in `apps/`, shared libs in `libs/`.                                                                          |
+| **Backend**             | NestJS 11, Prisma 6, PostgreSQL 17 (Cloud SQL).                                                                              |
+| **Frontend**            | Next.js 15, React 19, TypeScript.                                                                                            |
+| **Editor**              | Tiptap 3 (ProseMirror) with custom block extensions.                                                                         |
+| **Real-time collab**    | Yjs + Hocuspocus (self-hosted; Redis extension for scale-out).                                                               |
+| **Auth**                | WorkOS AuthKit (`AuthPort`).                                                                                                 |
+| **E-Signature**         | BoldSign API (`SigningProviderPort`).                                                                                        |
+| **Platform Billing**    | Paddle (`BillingPort`).                                                                                                      |
+| **Compute**             | Cloud Run (services, worker pools, jobs).                                                                                    |
+| **Database**            | Cloud SQL for PostgreSQL (HA, private connectivity, PITR).                                                                   |
+| **Cache / Queues**      | Memorystore (Valkey/Redis) — role-separated instances; BullMQ.                                                               |
+| **Object Storage**      | Cloud Storage (evidence: Object Retention Lock Locked mode; uploads; exports; public-media).                                 |
+| **Analytics**           | ClickHouse Cloud (GCP region); Pub/Sub ingestion buffer.                                                                     |
+| **Search / Vectors**    | PostgreSQL FTS + pgvector (`SearchPort`, `VectorPort`).                                                                      |
+| **KMS / Secrets**       | Cloud KMS (multi-region keys); Secret Manager.                                                                               |
+| **AI**                  | `AiGateway` → `LlmPort` → Claude via Vertex AI (primary) / Anthropic direct (second). Gemini/OpenAI in chain per task evals. |
+| **Embeddings**          | `EmbeddingPort` → Vertex AI embeddings (or Voyage AI per ADR-0031).                                                          |
+| **Edge / CDN**          | Cloudflare (WAF, Workers routing, Turnstile, custom hostnames).                                                              |
+| **Load Balancer / WAF** | External Application Load Balancer + Cloud Armor.                                                                            |
+| **IaC**                 | Terraform/OpenTofu (`google`/`google-beta` providers + Cloudflare, ClickHouse, Grafana, GitHub).                             |
+| **CI/CD**               | GitHub Actions → Workload Identity Federation → Artifact Registry → Cloud Run deploy.                                        |
+| **Observability**       | Cloud Logging/Monitoring/Trace + Grafana Cloud (via Grafana Alloy/OTel); Sentry.                                             |
+| **Compliance tooling**  | Vanta (Phase 3, GCP integration).                                                                                            |
 
 ---
 
@@ -157,16 +157,16 @@ We are building in phases (0a → 0b → 1 → 2 → 3 → 4). Check Blueprint �
 
 ## Key Document Pointers
 
-| Document | Purpose |
-|---|---|
-| [`docs/MASTER_IMPLEMENTATION_BLUEPRINT.md`](docs/MASTER_IMPLEMENTATION_BLUEPRINT.md) | Authoritative engineering reference (v2.0.0, GCP) |
-| [`docs/PRODUCT_BLUEPRINT.md`](docs/PRODUCT_BLUEPRINT.md) | Product and feature specification (do not edit) |
-| [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | Visual identity and UI specification |
-| [`docs/ARCHITECTURE_REVISION_BRIEF.md`](docs/ARCHITECTURE_REVISION_BRIEF.md) | The "Build Once, Scale Forever" revision brief (reference) |
-| [`docs/ARCHITECTURE_REVISION_BRIEF_ADDENDUM_A.md`](docs/ARCHITECTURE_REVISION_BRIEF_ADDENDUM_A.md) | GCP + AI platform addendum (overrides the brief) |
-| `docs/adr/` | ADR index — one ADR per architectural decision (ADR-0001 … ADR-0039+) |
-| `docs/revision/` | Revision artefacts: inventory, open verifications, progress log, change report, owner questions |
-| `libs/data-manifest` | Machine-readable data manifest (CI-enforced) |
+| Document                                                                                           | Purpose                                                                                         |
+| -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [`docs/MASTER_IMPLEMENTATION_BLUEPRINT.md`](docs/MASTER_IMPLEMENTATION_BLUEPRINT.md)               | Authoritative engineering reference (v2.0.0, GCP)                                               |
+| [`docs/PRODUCT_BLUEPRINT.md`](docs/PRODUCT_BLUEPRINT.md)                                           | Product and feature specification (do not edit)                                                 |
+| [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)                                                   | Visual identity and UI specification                                                            |
+| [`docs/ARCHITECTURE_REVISION_BRIEF.md`](docs/ARCHITECTURE_REVISION_BRIEF.md)                       | The "Build Once, Scale Forever" revision brief (reference)                                      |
+| [`docs/ARCHITECTURE_REVISION_BRIEF_ADDENDUM_A.md`](docs/ARCHITECTURE_REVISION_BRIEF_ADDENDUM_A.md) | GCP + AI platform addendum (overrides the brief)                                                |
+| `docs/adr/`                                                                                        | ADR index — one ADR per architectural decision (ADR-0001 … ADR-0039+)                           |
+| `docs/revision/`                                                                                   | Revision artefacts: inventory, open verifications, progress log, change report, owner questions |
+| `libs/data-manifest`                                                                               | Machine-readable data manifest (CI-enforced)                                                    |
 
 ---
 

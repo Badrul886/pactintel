@@ -51,6 +51,15 @@ model Organization {
   auditLogEntries             AuditLogEntry[]
   brandKits                   BrandKit[]
   outboxEvents                OutboxEvent[]
+  customDomains               CustomDomain[]
+  integrationConnections      IntegrationConnection[]
+  crmSyncEvents               CrmSyncEvent[]
+  notificationPreferences     NotificationPreference[]
+  inAppNotifications          InAppNotification[]
+  productCatalogItems         ProductCatalogItem[]
+  pricingTables               PricingTable[]
+  lineItems                   LineItem[]
+  buyerPricingSelections      BuyerPricingSelection[]
 
   @@map("organizations")
 }
@@ -113,8 +122,10 @@ model User {
   documentVersions     DocumentVersion[]
   comments             Comment[]
   signers              Signer[]
-  apiKeysCreated       ApiKey[]
-  auditLogs            AuditLogEntry[]
+  apiKeysCreated          ApiKey[]
+  auditLogs               AuditLogEntry[]
+  notificationPreferences NotificationPreference[]
+  inAppNotifications      InAppNotification[]
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -193,8 +204,10 @@ model Document {
   versions          DocumentVersion[]
   comments          Comment[]
   signatureRequests SignatureRequest[]
-  signatureEvents   SignatureEvent[]
-  payments          Payment[]
+  signatureEvents        SignatureEvent[]
+  payments               Payment[]
+  pricingTables          PricingTable[]
+  buyerPricingSelections BuyerPricingSelection[]
 
   @@unique([organizationId, slug])
   @@index([workspaceId, status])
@@ -237,6 +250,7 @@ model Template {
   variableFields  Json      @default("[]") @map("variable_fields")
   signerRoles     Json      @default("[]") @map("signer_roles")
   isSystem        Boolean   @default(false) @map("is_system")
+  usageCount      Int       @default(0) @map("usage_count")
   folderId        String?   @map("folder_id")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
@@ -620,3 +634,198 @@ model OutboxEvent {
   @@index([organizationId, createdAt])
   @@map("outbox_events")
 }
+
+// -----------------------------------------------------------------------------
+// 7. CPQ & Interactive Pricing (Phase 1)
+// -----------------------------------------------------------------------------
+
+model ProductCatalogItem {
+  id               String    @id // UUIDv7
+  organizationId   String    @map("organization_id")
+  sku              String?
+  name             String
+  description      String?
+  unitPrice        Decimal   @map("unit_price") @db.Decimal(15, 4)
+  currency         String    @default("USD")
+  billingFrequency String?   @default("one_time") @map("billing_frequency")
+  isActive         Boolean   @default(true) @map("is_active")
+  metadata         Json      @default("{}")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lineItems    LineItem[]
+
+  @@index([organizationId])
+  @@map("product_catalog_items")
+}
+
+model PricingTable {
+  id             String   @id // UUIDv7
+  documentId     String   @map("document_id")
+  organizationId String   @map("organization_id")
+  displayFormat  String   @default("line_items") @map("display_format")
+  discountRules  Json     @default("[]") @map("discount_rules")
+  taxConfig      Json     @default("{}") @map("tax_config")
+  settings       Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  document               Document                @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lineItems              LineItem[]
+  buyerPricingSelections BuyerPricingSelection[]
+
+  @@index([documentId])
+  @@map("pricing_tables")
+}
+
+model LineItem {
+  id               String   @id // UUIDv7
+  pricingTableId   String   @map("pricing_table_id")
+  organizationId   String   @map("organization_id")
+  productItemId    String?  @map("product_item_id")
+  name             String
+  description      String?
+  quantity         Decimal  @default(1) @db.Decimal(15, 4)
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(15, 4)
+  discountPercent  Decimal? @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount   Decimal? @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  subtotal         Decimal  @db.Decimal(15, 2)
+  billingFrequency String?  @default("one_time") @map("billing_frequency")
+  isOptional       Boolean  @default(false) @map("is_optional")
+  isSelected       Boolean  @default(true) @map("is_selected")
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  pricingTable PricingTable        @relation(fields: [pricingTableId], references: [id], onDelete: Cascade)
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productItem  ProductCatalogItem? @relation(fields: [productItemId], references: [id])
+
+  @@index([pricingTableId])
+  @@map("line_items")
+}
+
+model BuyerPricingSelection {
+  id              String   @id // UUIDv7
+  organizationId  String   @map("organization_id")
+  documentId      String   @map("document_id")
+  pricingTableId  String   @map("pricing_table_id")
+  viewerSessionId String   @map("viewer_session_id")
+  selections      Json     @default("[]")
+  calculatedTotal Decimal? @map("calculated_total") @db.Decimal(15, 2)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  pricingTable PricingTable @relation(fields: [pricingTableId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, viewerSessionId])
+  @@map("buyer_pricing_selections")
+}
+
+// -----------------------------------------------------------------------------
+// 8. Custom Domains, Integrations & Notifications (Phase 1)
+// -----------------------------------------------------------------------------
+
+model CustomDomain {
+  id                   String    @id // UUIDv7
+  organizationId       String    @map("organization_id")
+  domain               String
+  cloudflareHostnameId String?   @map("cloudflare_hostname_id")
+  sslStatus            String    @default("pending") @map("ssl_status")
+  verifiedAt           DateTime? @map("verified_at")
+  lastHealthCheck      DateTime? @map("last_health_check")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  deletedAt            DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, domain])
+  @@map("custom_domains")
+}
+
+model IntegrationConnection {
+  id                  String    @id // UUIDv7
+  organizationId      String    @map("organization_id")
+  provider            String // hubspot, salesforce, pipedrive
+  status              String    @default("active") // active, revoked, error
+  encryptedOauthToken Bytes?    @map("encrypted_oauth_token")
+  dekCiphertext       Bytes?    @map("dek_ciphertext")
+  kmsKeyId            String?   @map("kms_key_id")
+  tokenExpiresAt      DateTime? @map("token_expires_at")
+  scopes              String[]  @default([])
+  externalPortalId    String?   @map("external_portal_id")
+  syncCursor          Json      @default("{}") @map("sync_cursor")
+  settings            Json      @default("{}")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  deletedAt           DateTime? @map("deleted_at")
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  crmSyncEvents CrmSyncEvent[]
+
+  @@map("integration_connections")
+}
+
+model CrmSyncEvent {
+  id               String   @id // UUIDv7
+  organizationId   String   @map("organization_id")
+  connectionId     String   @map("connection_id")
+  entityType       String   @map("entity_type") // contact, deal, company
+  entityIdLocal    String?  @map("entity_id_local")
+  entityIdExternal String?  @map("entity_id_external")
+  direction        String // push, pull
+  status           String // success, error, skipped
+  changes          Json     @default("{}")
+  errorMessage     String?  @map("error_message")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connection   IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, createdAt])
+  @@map("crm_sync_events")
+}
+
+model NotificationPreference {
+  id             String   @id // UUIDv7
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  channel        String // email, in_app, push
+  eventType      String   @map("event_type")
+  isEnabled      Boolean  @default(true) @map("is_enabled")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel, eventType])
+  @@map("notification_preferences")
+}
+
+model InAppNotification {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  userId         String    @map("user_id")
+  eventType      String    @map("event_type")
+  title          String
+  body           String
+  resourceType   String?   @map("resource_type")
+  resourceId     String?   @map("resource_id")
+  isRead         Boolean   @default(false) @map("is_read")
+  readAt         DateTime? @map("read_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@map("in_app_notifications")
+}
+

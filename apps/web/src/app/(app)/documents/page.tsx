@@ -79,7 +79,7 @@ export default function DocumentsPage() {
           </p>
         </div>
         <Link
-          href="/documents/new/edit"
+          href="/documents/new"
           className="pact-btn pact-btn-primary"
           style={{
             display: 'inline-flex',
@@ -207,7 +207,7 @@ export default function DocumentsPage() {
             </div>
             {!search && (
               <Link
-                href="/documents/new/edit"
+                href="/documents/new"
                 className="pact-btn pact-btn-secondary"
                 style={{ marginTop: '8px', textDecoration: 'none' }}
               >

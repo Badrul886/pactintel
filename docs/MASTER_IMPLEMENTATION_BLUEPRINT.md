@@ -15,7 +15,7 @@
 
 ## Table of Contents
 
-0. [Architecture Invariants & Scale Model](#0-architecture-invariants--scale-model) *(new in v2.0.0)*
+0. [Architecture Invariants & Scale Model](#0-architecture-invariants--scale-model) _(new in v2.0.0)_
 1. [System Architecture Overview](#1-system-architecture-overview)
 2. [Tech Stack & Rationale](#2-tech-stack--rationale)
 3. [Data Architecture](#3-data-architecture)
@@ -30,14 +30,15 @@
 12. [Build Sequencing](#12-build-sequencing)
 13. [Edge Cases & Mandatory Implementation Rules](#13-edge-cases--mandatory-implementation-rules)
 14. [Change Log](#14-change-log)
-15. [Cloud Foundation (Google Cloud)](#15-cloud-foundation-google-cloud) *(new in v2.0.0)*
-16. [Async, Eventing & Scheduling Architecture](#16-async-eventing--scheduling-architecture) *(new in v2.0.0)*
-17. [Data Governance & Tenant Lifecycle](#17-data-governance--tenant-lifecycle) *(new in v2.0.0)*
-18. [Resilience, Capacity & Scale Levers](#18-resilience-capacity--scale-levers) *(new in v2.0.0)*
-19. [Vendor & Dependency Strategy](#19-vendor--dependency-strategy) *(new in v2.0.0)*
-20. [AI Platform Architecture](#20-ai-platform-architecture) *(new in v2.0.0)*
+15. [Cloud Foundation (Google Cloud)](#15-cloud-foundation-google-cloud) _(new in v2.0.0)_
+16. [Async, Eventing & Scheduling Architecture](#16-async-eventing--scheduling-architecture) _(new in v2.0.0)_
+17. [Data Governance & Tenant Lifecycle](#17-data-governance--tenant-lifecycle) _(new in v2.0.0)_
+18. [Resilience, Capacity & Scale Levers](#18-resilience-capacity--scale-levers) _(new in v2.0.0)_
+19. [Vendor & Dependency Strategy](#19-vendor--dependency-strategy) _(new in v2.0.0)_
+20. [AI Platform Architecture](#20-ai-platform-architecture) _(new in v2.0.0)_
 
 **Appendices:**
+
 - [Appendix A — Ambiguities & Flags in the Product Spec](#appendix-a-ambiguities--flags-in-the-product-spec)
 - [Appendix B — ADR Index](#appendix-b-adr-index)
 - [Appendix C — Verification Log](#appendix-c-verification-log)
@@ -48,7 +49,7 @@
 
 ## 0. Architecture Invariants & Scale Model
 
-*(Revised v2.0.0 — Google Cloud target; see Architecture Revision Brief §B2 and Addendum A §A0)*
+_(Revised v2.0.0 — Google Cloud target; see Architecture Revision Brief §B2 and Addendum A §A0)_
 
 ### 0.1 The No-Migration Principle
 
@@ -66,23 +67,23 @@ PactIntel is built **once**, on its permanent architecture, and **never needs a 
 
 ### 0.2 Architecture Invariants (I-01 … I-15)
 
-| ID | Invariant |
-|---|---|
-| **I-01** | Defer capacity, never structure (§0.1). |
-| **I-02** | One cell = one failure and data domain. No cross-cell DB access, joins, or foreign keys. Cells exchange only signed events via the control plane. |
-| **I-03** | Every tenant-owned datum lives in exactly one cell (its home cell, in its jurisdiction). The tenant directory is the only global tenant metadata. |
-| **I-04** | Everything is infrastructure-as-code. No console-created GCP resources. Any cell can be recreated from IaC plus data. |
-| **I-05** | Every external dependency sits behind a port with at least one tested adapter. Provider-specific IDs live in mapping tables. Legal evidence and artifacts are duplicated into our own storage. |
-| **I-06** | Every side-effect goes through the transactional outbox; consumers are idempotent. |
-| **I-07** | Process types are separated from Day 1. No in-process `@Cron`. No in-memory-only state. |
-| **I-08** | Identifiers, public URLs, token formats, hostnames, API/webhook/event contracts are permanent and versioned. |
-| **I-09** | Sealed (signed) content is never migrated. Only read-time upcasting. Canonical bytes are stored. |
+| ID       | Invariant                                                                                                                                                                                             |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **I-01** | Defer capacity, never structure (§0.1).                                                                                                                                                               |
+| **I-02** | One cell = one failure and data domain. No cross-cell DB access, joins, or foreign keys. Cells exchange only signed events via the control plane.                                                     |
+| **I-03** | Every tenant-owned datum lives in exactly one cell (its home cell, in its jurisdiction). The tenant directory is the only global tenant metadata.                                                     |
+| **I-04** | Everything is infrastructure-as-code. No console-created GCP resources. Any cell can be recreated from IaC plus data.                                                                                 |
+| **I-05** | Every external dependency sits behind a port with at least one tested adapter. Provider-specific IDs live in mapping tables. Legal evidence and artifacts are duplicated into our own storage.        |
+| **I-06** | Every side-effect goes through the transactional outbox; consumers are idempotent.                                                                                                                    |
+| **I-07** | Process types are separated from Day 1. No in-process `@Cron`. No in-memory-only state.                                                                                                               |
+| **I-08** | Identifiers, public URLs, token formats, hostnames, API/webhook/event contracts are permanent and versioned.                                                                                          |
+| **I-09** | Sealed (signed) content is never migrated. Only read-time upcasting. Canonical bytes are stored.                                                                                                      |
 | **I-10** | Every datastore, table, bucket prefix, ClickHouse table, Redis keyspace, index, and vector collection is registered in the data manifest; CI enforces RLS, retention, erasure, export, and residency. |
-| **I-11** | Key hierarchy is fixed. Multi-region Cloud KMS key locations wherever ciphertext replicates across regions. No per-tenant CMK by default. |
-| **I-12** | Non-critical dependencies degrade gracefully. Readiness reflects only critical dependencies. |
-| **I-13** | Noisy-neighbor controls (per-tenant quotas, fair queues) exist from Day 1. |
-| **I-14** | Everything is region-aware: telemetry, email, AI, analytics, backups, and replication all stay in-jurisdiction. |
-| **I-15** | Every scale trigger maps to a documented lever, and every lever is a configuration change. |
+| **I-11** | Key hierarchy is fixed. Multi-region Cloud KMS key locations wherever ciphertext replicates across regions. No per-tenant CMK by default.                                                             |
+| **I-12** | Non-critical dependencies degrade gracefully. Readiness reflects only critical dependencies.                                                                                                          |
+| **I-13** | Noisy-neighbor controls (per-tenant quotas, fair queues) exist from Day 1.                                                                                                                            |
+| **I-14** | Everything is region-aware: telemetry, email, AI, analytics, backups, and replication all stay in-jurisdiction.                                                                                       |
+| **I-15** | Every scale trigger maps to a documented lever, and every lever is a configuration change.                                                                                                            |
 
 ### 0.3 Cell Architecture
 
@@ -95,30 +96,30 @@ PactIntel deploys as a **cell-based** system:
 
 ### 0.4 Design Envelope (Per Cell)
 
-| Dimension | Per pooled cell | Platform |
-|---|---|---|
-| Organizations | 5,000 | 250,000+ by adding cells |
-| Users | 100,000 | 5,000,000+ |
-| Documents / versions | 50 M / 150 M | linear in cells |
-| Signature events per month | 20 M | linear |
-| Recipient page peak | 5,000 req/s | linear |
-| API sustained | 1,000 req/s | linear |
-| Concurrent WebSockets | 5,000 collaboration + 20,000 notification | linear |
-| Background jobs per day | 5 M | linear |
-| Analytics events per year | 5 B | linear |
-| Jurisdictions | US and EU from Day 1; extensible by adding cells | — |
+| Dimension                  | Per pooled cell                                  | Platform                 |
+| -------------------------- | ------------------------------------------------ | ------------------------ |
+| Organizations              | 5,000                                            | 250,000+ by adding cells |
+| Users                      | 100,000                                          | 5,000,000+               |
+| Documents / versions       | 50 M / 150 M                                     | linear in cells          |
+| Signature events per month | 20 M                                             | linear                   |
+| Recipient page peak        | 5,000 req/s                                      | linear                   |
+| API sustained              | 1,000 req/s                                      | linear                   |
+| Concurrent WebSockets      | 5,000 collaboration + 20,000 notification        | linear                   |
+| Background jobs per day    | 5 M                                              | linear                   |
+| Analytics events per year  | 5 B                                              | linear                   |
+| Jurisdictions              | US and EU from Day 1; extensible by adding cells | —                        |
 
 ---
 
 ## 1. System Architecture Overview
 
-*(Revised v2.0.0 — modular-monolith codebase, multi-process runtime, cell-based deployment on Google Cloud)*
+_(Revised v2.0.0 — modular-monolith codebase, multi-process runtime, cell-based deployment on Google Cloud)_
 
 PactIntel is a **modular-monolith codebase** that runs as **multiple process types** from Day 1, deployed as a **cell-based system** on Google Cloud. There is no single-process phase and no planned extraction migration — modules are separated by process type from the start; code boundaries are enforced by Nx module tags.
 
 ### 1.1 High-Level Architecture Diagram
 
-*(Revised v2.0.0 — Google Cloud; cell `gcp-us1` shown; EU cell `gcp-eu1` added in Phase 2)*
+_(Revised v2.0.0 — Google Cloud; cell `gcp-us1` shown; EU cell `gcp-eu1` added in Phase 2)_
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -195,27 +196,27 @@ Each module is a self-contained NestJS module with its own controllers, services
 > [!IMPORTANT]
 > `EventEmitter2` is **not** the cross-module mechanism. It is allowed only for non-critical in-transaction hooks. All business side-effects go through the outbox. See §16 and rule EVT-001.
 
-| Module | Responsibility | Key Dependencies |
-|--------|---------------|-----------------|
-| **Auth** | Authentication, session management, WorkOS integration, API key validation | WorkOS SDK, Redis |
-| **Organization** | Org/Workspace/Team/User CRUD, seat management, role assignment | Auth |
-| **Document** | Document lifecycle, editor content storage, version management, status transitions | Template, Organization |
-| **Template** | Template CRUD, content library, copy-on-create semantics | Organization |
-| **Signing** | Signature request orchestration, BoldSign API integration, audit trail | Document, Notification |
-| **Payments** | BYOK payment credential management, payment collection orchestration | Document, Signing, Secret Manager (GCP) |
-| **Billing** | Paddle subscription management, seat counting, plan enforcement | Organization, Paddle SDK |
-| **CPQ** | Product catalog, pricing tables, discount rules, approval thresholds | Document, Organization |
-| **Analytics** | Event ingestion, ClickHouse writes, report generation | ClickHouse client |
-| **Workflow** | Automation rules engine, approval chains, post-signature onboarding | Document, Notification |
-| **Integration** | CRM sync, third-party OAuth connections, Zapier webhooks | Organization |
-| **AI** | LLM-powered drafting, content generation, data extraction | LLM API client, pgvector |
-| **Notification** | Email, push, in-app, real-time (WebSocket) notifications | Redis, email provider |
-| **DealRoom** | Multi-party workspace aggregating documents and parties | Document, Organization |
-| **Collaboration** | Real-time co-editing via Yjs/Hocuspocus, comments, content locking | Document, Hocuspocus |
+| Module            | Responsibility                                                                     | Key Dependencies                        |
+| ----------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
+| **Auth**          | Authentication, session management, WorkOS integration, API key validation         | WorkOS SDK, Redis                       |
+| **Organization**  | Org/Workspace/Team/User CRUD, seat management, role assignment                     | Auth                                    |
+| **Document**      | Document lifecycle, editor content storage, version management, status transitions | Template, Organization                  |
+| **Template**      | Template CRUD, content library, copy-on-create semantics                           | Organization                            |
+| **Signing**       | Signature request orchestration, BoldSign API integration, audit trail             | Document, Notification                  |
+| **Payments**      | BYOK payment credential management, payment collection orchestration               | Document, Signing, Secret Manager (GCP) |
+| **Billing**       | Paddle subscription management, seat counting, plan enforcement                    | Organization, Paddle SDK                |
+| **CPQ**           | Product catalog, pricing tables, discount rules, approval thresholds               | Document, Organization                  |
+| **Analytics**     | Event ingestion, ClickHouse writes, report generation                              | ClickHouse client                       |
+| **Workflow**      | Automation rules engine, approval chains, post-signature onboarding                | Document, Notification                  |
+| **Integration**   | CRM sync, third-party OAuth connections, Zapier webhooks                           | Organization                            |
+| **AI**            | LLM-powered drafting, content generation, data extraction                          | LLM API client, pgvector                |
+| **Notification**  | Email, push, in-app, real-time (WebSocket) notifications                           | Redis, email provider                   |
+| **DealRoom**      | Multi-party workspace aggregating documents and parties                            | Document, Organization                  |
+| **Collaboration** | Real-time co-editing via Yjs/Hocuspocus, comments, content locking                 | Document, Hocuspocus                    |
 
 ### 1.3 Why Modular Monolith Codebase, Multi-Process Runtime
 
-*(Revised v2.0.0 — "extraction when scale demands" removed; process separation is Day-1 structure)*
+_(Revised v2.0.0 — "extraction when scale demands" removed; process separation is Day-1 structure)_
 
 - **Team size**: A solo/small team cannot afford the operational overhead of independent deploy pipelines and cross-service transactions for 15+ services on day one.
 - **Shared transactional boundaries**: Document creation touches templates, pricing tables, signing setup, and permissions in a single user action. Distributed transactions add fragility with zero user benefit at this scale.
@@ -224,6 +225,7 @@ Each module is a self-contained NestJS module with its own controllers, services
 ### 1.4 Module Extraction Path (No Migration)
 
 When a module becomes a bottleneck, it is extracted by:
+
 1. Moving it to a dedicated Cloud Run service (new IaC variable set, nothing else).
 2. Replacing in-process port calls with internal HTTP/gRPC calls (adapter swap behind the existing port).
 3. Keeping event contracts, schema ownership, and DB foreign keys unchanged.
@@ -236,65 +238,65 @@ What does **not** change: public API contracts, event schemas, table ownership, 
 
 ### 2.1 Decisions Table
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| **Frontend** | Next.js 15 (App Router) + React 19 + TypeScript | Server-side rendering for recipient viewing pages (SEO, performance); App Router for the logged-in SPA; single codebase for marketing site + app shell. React 19 for concurrent features and server components. |
-| **Document Editor** | Tiptap 3 (ProseMirror) + custom block extensions | Tiptap provides a production-grade rich-text editor with an extension architecture. Custom extensions for pricing tables, signature blocks, smart content, and interactive blocks. Building from raw `contentEditable` is a multi-year trap; Tiptap compresses that to weeks. |
-| **Real-time Collaboration** | Yjs (CRDT) + Hocuspocus server | CRDTs solve simultaneous-edit conflicts correctly without a central authority. Hocuspocus is the Tiptap team's purpose-built Yjs backend with built-in persistence, authentication, and presence. Self-hosted for data control; avoids Liveblocks vendor lock-in at this stage. |
-| **Backend** | NestJS 11 + TypeScript | TypeScript end-to-end eliminates a language boundary. NestJS provides dependency injection, module system, guards/interceptors/pipes, and a mature ecosystem. Chosen over raw Express for its opinionated structure (critical for a large codebase) and over Rails because the team's primary language is TypeScript. |
-| **ORM** | Prisma 6 | Type-safe database client with schema-as-code, migrations, and excellent TypeScript integration. Prisma Client Extensions enable RLS tenant-context injection. Chosen over TypeORM (less type-safe, more maintenance churn) and Drizzle (less mature migration tooling). |
-| **Primary Database** | **Cloud SQL for PostgreSQL 17** (HA, private connectivity, PITR) | Relational integrity for accounts, billing, signatures. JSONB for flexible document content blocks. `pgvector` extension for AI embedding search. Row-Level Security for multi-tenant isolation. Enterprise edition at launch; Enterprise Plus as an in-place capacity switch. `[VERIFY]` extension list per ADR-0037. |
-| **Analytics Store** | **ClickHouse Cloud** (GCP region, same jurisdiction as cell) | Section-level engagement events will be the highest-volume data by 10–100x. Columnar storage for sub-100ms analytical queries over billions of rows. Ingestion via Pub/Sub buffer → batcher → ClickHouse (never per-event inserts). |
-| **Cache / Queues** | **Memorystore** (Valkey/Redis) — role-separated instances + BullMQ | Role-split instances: `queue` (BullMQ, noeviction), `session` (TTL), `cache+ratelimit` (allkeys-lru), `realtime` (pub/sub for collab). BullMQ for reliable job queues (PDF generation, email, webhooks, AI calls). See ADR-0007. |
-| **Object Storage** | **Cloud Storage** (evidence: Object Retention Lock Locked mode; uploads; exports; public-media) | Evidence class uses per-object retention locks (permanently prevents shortening — WORM equivalent). Public-media behind Cloudflare CDN; R2 only if egress-cost analysis justifies it (ADR-0010). No S3. |
-| **Search** | PostgreSQL FTS (`tsvector`/GIN, `pg_trgm`) + **pgvector** — permanent baseline behind `SearchPort` / `VectorPort` | The external engine (Meilisearch / OpenSearch) decision is made now and indexed from Phase 0 if portfolio intelligence requires it (ADR-0013). "Migrate in Phase 3" is forbidden. |
-| **PDF Rendering** | Playwright (headless Chromium) in **`worker-pdf` Cloud Run worker pool** | Isolated process with no internet access except the viewer origin. Generate-once at completion; stored in the evidence class. No re-rendering of signed documents. |
-| **E-Signature Infrastructure** | BoldSign API (`SigningProviderPort`) | API-first e-signature provider. Port/adapter design means any compliant provider can be added without data migration. Evidence: provider final PDF + audit certificate copied to Cloud Storage evidence class. See ADR-0017. |
-| **Platform Billing** | **Paddle** (merchant of record) — `BillingPort` | **Non-negotiable constraint.** Stripe is unavailable in the operating region. Provider-specific columns removed from core tables; internal plan/entitlement catalog drives enforcement. See ADR-0016. |
-| **End-User Payment Collection** | **Bring Your Own Key (BYOK)** | **Non-negotiable constraint.** Stripe Connect is unavailable. Customers connect their own payment processor credentials. See §6. |
-| **Auth / SSO / SAML / SCIM** | WorkOS AuthKit (`AuthPort`) | Split identity from membership: a global WorkOS identity can belong to multiple organizations in different cells. Token model designed for web (cookie session), mobile/OAuth/MCP (PKCE access+refresh), API keys (SHA-256 hashed), collab tokens (short-lived, audience-bound). See ADR-0015. |
-| **AI / LLM** | `AiGateway` → `LlmPort` → **Claude** (Anthropic) via Vertex AI (primary) / Anthropic direct (second) | Provider-neutral gateway with task IDs. Gemini, OpenAI sit later in each chain per eval approval. No provider or model name in application code. `EmbeddingPort` → Vertex AI embeddings or Voyage AI (ADR-0031). See §20 and ADR-0028–0035. |
-| **Email** | **Resend** (primary, `EmailPort`) + secondary provider (ADR-0038) | Two adapters warmed from Phase 0. Dedicated sending subdomain from Day 1. No Amazon SES. Bounce/complaint events → `email_events` (partitioned) + per-org suppression list. |
-| **CDN / Edge** | **Cloudflare** (WAF, Bot/Turnstile, Workers routing, custom hostnames via Cloudflare for SaaS) | Origin lockdown: External ALB accepts traffic only from Cloudflare (IP allowlist + optional mTLS). Recipient documents on a separate registrable domain (not the app domain). |
-| **Load Balancer / WAF** | **External Application Load Balancer** + **Cloud Armor** | Serverless NEGs for Cloud Run. Cloud Armor for DDoS and WAF rules at origin. |
-| **Compute / Orchestrator** | **Cloud Run** (services for HTTP; worker pools for BullMQ consumers; jobs for migrator/one-offs) | Permanent orchestrator. GKE Autopilot only on a verified WebSocket blocker (ADR-0036). No ECS, Fargate, or EKS. |
-| **IaC** | **Terraform / OpenTofu** (`google`/`google-beta` + Cloudflare, ClickHouse, Grafana, GitHub providers) | State in a versioned GCS bucket in the `shared-services` project. Modules: `foundation`, `control-plane`, `cell`, `edge`, `observability`. New cell = new variable set only. |
-| **Secrets / KMS** | **Cloud KMS** (per-cell, per-purpose key rings; multi-region key locations for DR) + **Secret Manager** | Per-cell, per-purpose CMKs → per-tenant wrapped data key (TK) → per-record DEKs. Crypto-shredding = destroy the wrapped TK. No per-tenant CMK by default. See ADR-0011. |
-| **Event Pipeline** | **Pub/Sub** (analytics event buffer) + transactional outbox (business events) | Pub/Sub for high-volume non-business-critical streams. Postgres outbox is the source of truth for all business events. |
-| **Observability** | **Cloud Logging / Monitoring / Trace** + **Grafana Cloud** (via Grafana Alloy/OTel) + **Sentry** | Telemetry stays in-jurisdiction (EU cells → EU Grafana/Sentry regions). Cloud Audit Logs (Admin Activity + Data Access) → org-level sink to locked-retention bucket in `security` project. |
-| **CI/CD** | **GitHub Actions** → Workload Identity Federation → **Artifact Registry** → Cloud Run deploy | No service-account JSON keys. Build per process type (BuildKit cache). Immutable image tags = git SHA. One-off migration job before deploy. |
-| **Monorepo Tooling** | Nx + pnpm | Nx for dependency graph, computation caching, module-boundary enforcement (tags/lint). pnpm for fast, strict dependency management. |
-| **Compliance Tooling** | Vanta (Phase 3, GCP integration) + Security Command Center | Audit-log architecture designed from Phase 0a. GCP-native security services: Security Command Center, Cloud Asset Inventory, Artifact Analysis. |
+| Layer                           | Choice                                                                                                            | Rationale                                                                                                                                                                                                                                                                                                              |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend**                    | Next.js 15 (App Router) + React 19 + TypeScript                                                                   | Server-side rendering for recipient viewing pages (SEO, performance); App Router for the logged-in SPA; single codebase for marketing site + app shell. React 19 for concurrent features and server components.                                                                                                        |
+| **Document Editor**             | Tiptap 3 (ProseMirror) + custom block extensions                                                                  | Tiptap provides a production-grade rich-text editor with an extension architecture. Custom extensions for pricing tables, signature blocks, smart content, and interactive blocks. Building from raw `contentEditable` is a multi-year trap; Tiptap compresses that to weeks.                                          |
+| **Real-time Collaboration**     | Yjs (CRDT) + Hocuspocus server                                                                                    | CRDTs solve simultaneous-edit conflicts correctly without a central authority. Hocuspocus is the Tiptap team's purpose-built Yjs backend with built-in persistence, authentication, and presence. Self-hosted for data control; avoids Liveblocks vendor lock-in at this stage.                                        |
+| **Backend**                     | NestJS 11 + TypeScript                                                                                            | TypeScript end-to-end eliminates a language boundary. NestJS provides dependency injection, module system, guards/interceptors/pipes, and a mature ecosystem. Chosen over raw Express for its opinionated structure (critical for a large codebase) and over Rails because the team's primary language is TypeScript.  |
+| **ORM**                         | Prisma 6                                                                                                          | Type-safe database client with schema-as-code, migrations, and excellent TypeScript integration. Prisma Client Extensions enable RLS tenant-context injection. Chosen over TypeORM (less type-safe, more maintenance churn) and Drizzle (less mature migration tooling).                                               |
+| **Primary Database**            | **Cloud SQL for PostgreSQL 17** (HA, private connectivity, PITR)                                                  | Relational integrity for accounts, billing, signatures. JSONB for flexible document content blocks. `pgvector` extension for AI embedding search. Row-Level Security for multi-tenant isolation. Enterprise edition at launch; Enterprise Plus as an in-place capacity switch. `[VERIFY]` extension list per ADR-0037. |
+| **Analytics Store**             | **ClickHouse Cloud** (GCP region, same jurisdiction as cell)                                                      | Section-level engagement events will be the highest-volume data by 10–100x. Columnar storage for sub-100ms analytical queries over billions of rows. Ingestion via Pub/Sub buffer → batcher → ClickHouse (never per-event inserts).                                                                                    |
+| **Cache / Queues**              | **Memorystore** (Valkey/Redis) — role-separated instances + BullMQ                                                | Role-split instances: `queue` (BullMQ, noeviction), `session` (TTL), `cache+ratelimit` (allkeys-lru), `realtime` (pub/sub for collab). BullMQ for reliable job queues (PDF generation, email, webhooks, AI calls). See ADR-0007.                                                                                       |
+| **Object Storage**              | **Cloud Storage** (evidence: Object Retention Lock Locked mode; uploads; exports; public-media)                   | Evidence class uses per-object retention locks (permanently prevents shortening — WORM equivalent). Public-media behind Cloudflare CDN; R2 only if egress-cost analysis justifies it (ADR-0010). No S3.                                                                                                                |
+| **Search**                      | PostgreSQL FTS (`tsvector`/GIN, `pg_trgm`) + **pgvector** — permanent baseline behind `SearchPort` / `VectorPort` | The external engine (Meilisearch / OpenSearch) decision is made now and indexed from Phase 0 if portfolio intelligence requires it (ADR-0013). "Migrate in Phase 3" is forbidden.                                                                                                                                      |
+| **PDF Rendering**               | Playwright (headless Chromium) in **`worker-pdf` Cloud Run worker pool**                                          | Isolated process with no internet access except the viewer origin. Generate-once at completion; stored in the evidence class. No re-rendering of signed documents.                                                                                                                                                     |
+| **E-Signature Infrastructure**  | BoldSign API (`SigningProviderPort`)                                                                              | API-first e-signature provider. Port/adapter design means any compliant provider can be added without data migration. Evidence: provider final PDF + audit certificate copied to Cloud Storage evidence class. See ADR-0017.                                                                                           |
+| **Platform Billing**            | **Paddle** (merchant of record) — `BillingPort`                                                                   | **Non-negotiable constraint.** Stripe is unavailable in the operating region. Provider-specific columns removed from core tables; internal plan/entitlement catalog drives enforcement. See ADR-0016.                                                                                                                  |
+| **End-User Payment Collection** | **Bring Your Own Key (BYOK)**                                                                                     | **Non-negotiable constraint.** Stripe Connect is unavailable. Customers connect their own payment processor credentials. See §6.                                                                                                                                                                                       |
+| **Auth / SSO / SAML / SCIM**    | WorkOS AuthKit (`AuthPort`)                                                                                       | Split identity from membership: a global WorkOS identity can belong to multiple organizations in different cells. Token model designed for web (cookie session), mobile/OAuth/MCP (PKCE access+refresh), API keys (SHA-256 hashed), collab tokens (short-lived, audience-bound). See ADR-0015.                         |
+| **AI / LLM**                    | `AiGateway` → `LlmPort` → **Claude** (Anthropic) via Vertex AI (primary) / Anthropic direct (second)              | Provider-neutral gateway with task IDs. Gemini, OpenAI sit later in each chain per eval approval. No provider or model name in application code. `EmbeddingPort` → Vertex AI embeddings or Voyage AI (ADR-0031). See §20 and ADR-0028–0035.                                                                            |
+| **Email**                       | **Resend** (primary, `EmailPort`) + secondary provider (ADR-0038)                                                 | Two adapters warmed from Phase 0. Dedicated sending subdomain from Day 1. No Amazon SES. Bounce/complaint events → `email_events` (partitioned) + per-org suppression list.                                                                                                                                            |
+| **CDN / Edge**                  | **Cloudflare** (WAF, Bot/Turnstile, Workers routing, custom hostnames via Cloudflare for SaaS)                    | Origin lockdown: External ALB accepts traffic only from Cloudflare (IP allowlist + optional mTLS). Recipient documents on a separate registrable domain (not the app domain).                                                                                                                                          |
+| **Load Balancer / WAF**         | **External Application Load Balancer** + **Cloud Armor**                                                          | Serverless NEGs for Cloud Run. Cloud Armor for DDoS and WAF rules at origin.                                                                                                                                                                                                                                           |
+| **Compute / Orchestrator**      | **Cloud Run** (services for HTTP; worker pools for BullMQ consumers; jobs for migrator/one-offs)                  | Permanent orchestrator. GKE Autopilot only on a verified WebSocket blocker (ADR-0036). No ECS, Fargate, or EKS.                                                                                                                                                                                                        |
+| **IaC**                         | **Terraform / OpenTofu** (`google`/`google-beta` + Cloudflare, ClickHouse, Grafana, GitHub providers)             | State in a versioned GCS bucket in the `shared-services` project. Modules: `foundation`, `control-plane`, `cell`, `edge`, `observability`. New cell = new variable set only.                                                                                                                                           |
+| **Secrets / KMS**               | **Cloud KMS** (per-cell, per-purpose key rings; multi-region key locations for DR) + **Secret Manager**           | Per-cell, per-purpose CMKs → per-tenant wrapped data key (TK) → per-record DEKs. Crypto-shredding = destroy the wrapped TK. No per-tenant CMK by default. See ADR-0011.                                                                                                                                                |
+| **Event Pipeline**              | **Pub/Sub** (analytics event buffer) + transactional outbox (business events)                                     | Pub/Sub for high-volume non-business-critical streams. Postgres outbox is the source of truth for all business events.                                                                                                                                                                                                 |
+| **Observability**               | **Cloud Logging / Monitoring / Trace** + **Grafana Cloud** (via Grafana Alloy/OTel) + **Sentry**                  | Telemetry stays in-jurisdiction (EU cells → EU Grafana/Sentry regions). Cloud Audit Logs (Admin Activity + Data Access) → org-level sink to locked-retention bucket in `security` project.                                                                                                                             |
+| **CI/CD**                       | **GitHub Actions** → Workload Identity Federation → **Artifact Registry** → Cloud Run deploy                      | No service-account JSON keys. Build per process type (BuildKit cache). Immutable image tags = git SHA. One-off migration job before deploy.                                                                                                                                                                            |
+| **Monorepo Tooling**            | Nx + pnpm                                                                                                         | Nx for dependency graph, computation caching, module-boundary enforcement (tags/lint). pnpm for fast, strict dependency management.                                                                                                                                                                                    |
+| **Compliance Tooling**          | Vanta (Phase 3, GCP integration) + Security Command Center                                                        | Audit-log architecture designed from Phase 0a. GCP-native security services: Security Command Center, Cloud Asset Inventory, Artifact Analysis.                                                                                                                                                                        |
 
 ### 2.2 Deviations from Product Spec Section 8
 
-| Spec Suggestion | Our Choice | Why |
-|----------------|-----------|-----|
-| "Stripe, using Connect for the platform model" (Payments row) | **Paddle** (platform billing) + **BYOK** (end-user payments) | Stripe unavailable in operating region. See non-negotiable constraints. |
-| "Node.js/TypeScript (NestJS), or Rails" | NestJS only | TypeScript end-to-end is the decisive advantage; Rails adds a language boundary and eliminates shared DTO/validation packages with the Next.js frontend. |
-| "Liveblocks/Hocuspocus" for collab | Hocuspocus (self-hosted) | Data sovereignty — customer document content should not flow through a third-party SaaS (Liveblocks) during editing. Hocuspocus is open-source and purpose-built for Tiptap. |
-| "Sentry + Grafana/Datadog" | Sentry + Grafana Cloud (no Datadog) | Grafana Cloud provides metrics + logs + traces in one platform at significantly lower cost than Datadog. |
-| "Buy via an API-first e-signature provider" (no specific pick) | **BoldSign** (`SigningProviderPort`) | Transparent per-envelope pricing, full white-label, strong API, compliant. Port/adapter design means provider can be changed without data migration. |
-| Spec §8 suggests "a PaaS before Kubernetes" | **Google Cloud Run from Day 1** | Cloud Run (services + worker pools + jobs) is the permanent orchestrator. No PaaS interim and no migration to Kubernetes needed. See ADR-0001, ADR-0036. |
+| Spec Suggestion                                                | Our Choice                                                   | Why                                                                                                                                                                          |
+| -------------------------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Stripe, using Connect for the platform model" (Payments row)  | **Paddle** (platform billing) + **BYOK** (end-user payments) | Stripe unavailable in operating region. See non-negotiable constraints.                                                                                                      |
+| "Node.js/TypeScript (NestJS), or Rails"                        | NestJS only                                                  | TypeScript end-to-end is the decisive advantage; Rails adds a language boundary and eliminates shared DTO/validation packages with the Next.js frontend.                     |
+| "Liveblocks/Hocuspocus" for collab                             | Hocuspocus (self-hosted)                                     | Data sovereignty — customer document content should not flow through a third-party SaaS (Liveblocks) during editing. Hocuspocus is open-source and purpose-built for Tiptap. |
+| "Sentry + Grafana/Datadog"                                     | Sentry + Grafana Cloud (no Datadog)                          | Grafana Cloud provides metrics + logs + traces in one platform at significantly lower cost than Datadog.                                                                     |
+| "Buy via an API-first e-signature provider" (no specific pick) | **BoldSign** (`SigningProviderPort`)                         | Transparent per-envelope pricing, full white-label, strong API, compliant. Port/adapter design means provider can be changed without data migration.                         |
+| Spec §8 suggests "a PaaS before Kubernetes"                    | **Google Cloud Run from Day 1**                              | Cloud Run (services + worker pools + jobs) is the permanent orchestrator. No PaaS interim and no migration to Kubernetes needed. See ADR-0001, ADR-0036.                     |
 
 ### 2.3 Deviations from Blueprint v1.1.0 (Eliminated Migrations)
 
-*(Revised v2.0.0 — every item below was a scheduled migration in v1.1.0; all are eliminated)*
+_(Revised v2.0.0 — every item below was a scheduled migration in v1.1.0; all are eliminated)_
 
-| v1.1.0 Migration | How Eliminated |
-|---|---|
-| Fly.io → AWS ECS/EKS (Phase 3+) | Google Cloud Run from Day 1. No Fly.io ever. |
-| "Fly Postgres, backed by Supabase" | Cloud SQL for PostgreSQL from Day 1. |
-| PostgreSQL FTS → Meilisearch (Phase 3) | SearchPort decided now; external engine indexed from Phase 0 if needed (ADR-0013). |
-| Raw JSONB content → Yjs-compatible format (Phase 2) | Canonical content model with schema_version from Day 1; read-time upcasting (ADR-0023). |
-| "Extract modules into independent services when scale demands" | Process types separated from Day 1; extraction is a capacity switch, not a migration. |
-| One KMS key per org → re-keying at quota/cost | Per-cell, per-purpose CMKs; per-tenant data keys; no per-org CMK by default (ADR-0011). |
-| Provider columns in core tables | BillingPort, internal entitlement catalog; provider refs in mapping tables only (ADR-0016). |
-| UUIDv4 PKs → UUIDv7 rewrite | UUIDv7 internal PKs from Day 1 (X-14). |
-| Offset pagination → cursor pagination (breaking change) | Cursor pagination from Day 1 (D-21, X-49). |
-| English-only → i18n retrofit | i18n foundations from Phase 0a (D-21). |
-| Cookie-only auth → OAuth/mobile retrofit | Full token model designed and built from Phase 0a (ADR-0015). |
-| Single Postgres → regional split | Cell architecture with jurisdiction-local Cloud SQL from Day 1 (ADR-0002). |
+| v1.1.0 Migration                                               | How Eliminated                                                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Fly.io → AWS ECS/EKS (Phase 3+)                                | Google Cloud Run from Day 1. No Fly.io ever.                                                |
+| "Fly Postgres, backed by Supabase"                             | Cloud SQL for PostgreSQL from Day 1.                                                        |
+| PostgreSQL FTS → Meilisearch (Phase 3)                         | SearchPort decided now; external engine indexed from Phase 0 if needed (ADR-0013).          |
+| Raw JSONB content → Yjs-compatible format (Phase 2)            | Canonical content model with schema_version from Day 1; read-time upcasting (ADR-0023).     |
+| "Extract modules into independent services when scale demands" | Process types separated from Day 1; extraction is a capacity switch, not a migration.       |
+| One KMS key per org → re-keying at quota/cost                  | Per-cell, per-purpose CMKs; per-tenant data keys; no per-org CMK by default (ADR-0011).     |
+| Provider columns in core tables                                | BillingPort, internal entitlement catalog; provider refs in mapping tables only (ADR-0016). |
+| UUIDv4 PKs → UUIDv7 rewrite                                    | UUIDv7 internal PKs from Day 1 (X-14).                                                      |
+| Offset pagination → cursor pagination (breaking change)        | Cursor pagination from Day 1 (D-21, X-49).                                                  |
+| English-only → i18n retrofit                                   | i18n foundations from Phase 0a (D-21).                                                      |
+| Cookie-only auth → OAuth/mobile retrofit                       | Full token model designed and built from Phase 0a (ADR-0015).                               |
+| Single Postgres → regional split                               | Cell architecture with jurisdiction-local Cloud SQL from Day 1 (ADR-0002).                  |
 
 ### 2.4 Port / Adapter Matrix
 
@@ -1188,60 +1190,60 @@ CREATE POLICY tenant_isolation ON documents
 
 #### Documents
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/api/v1/documents` | Create document (optionally from template) |
-| `GET` | `/api/v1/documents` | List documents (filtered, paginated) |
-| `GET` | `/api/v1/documents/:id` | Get document detail |
-| `PATCH` | `/api/v1/documents/:id` | Update document metadata / status |
-| `DELETE` | `/api/v1/documents/:id` | Soft-delete document |
-| `POST` | `/api/v1/documents/:id/send` | Send document to recipients |
-| `POST` | `/api/v1/documents/:id/versions` | Create new version snapshot |
-| `GET` | `/api/v1/documents/:id/versions` | List versions |
-| `GET` | `/api/v1/documents/:id/analytics` | Document-level analytics summary |
-| `GET` | `/api/v1/documents/:id/audit-trail` | Full audit trail |
-| `POST` | `/api/v1/documents/:id/pdf` | Generate PDF export |
+| Method   | Path                                | Purpose                                    |
+| -------- | ----------------------------------- | ------------------------------------------ |
+| `POST`   | `/api/v1/documents`                 | Create document (optionally from template) |
+| `GET`    | `/api/v1/documents`                 | List documents (filtered, paginated)       |
+| `GET`    | `/api/v1/documents/:id`             | Get document detail                        |
+| `PATCH`  | `/api/v1/documents/:id`             | Update document metadata / status          |
+| `DELETE` | `/api/v1/documents/:id`             | Soft-delete document                       |
+| `POST`   | `/api/v1/documents/:id/send`        | Send document to recipients                |
+| `POST`   | `/api/v1/documents/:id/versions`    | Create new version snapshot                |
+| `GET`    | `/api/v1/documents/:id/versions`    | List versions                              |
+| `GET`    | `/api/v1/documents/:id/analytics`   | Document-level analytics summary           |
+| `GET`    | `/api/v1/documents/:id/audit-trail` | Full audit trail                           |
+| `POST`   | `/api/v1/documents/:id/pdf`         | Generate PDF export                        |
 
 #### Templates
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/api/v1/templates` | Create template |
-| `GET` | `/api/v1/templates` | List templates |
-| `GET` | `/api/v1/templates/:id` | Get template |
-| `PATCH` | `/api/v1/templates/:id` | Update template |
-| `DELETE` | `/api/v1/templates/:id` | Soft-delete template |
-| `POST` | `/api/v1/templates/:id/duplicate` | Duplicate template |
+| Method   | Path                              | Purpose              |
+| -------- | --------------------------------- | -------------------- |
+| `POST`   | `/api/v1/templates`               | Create template      |
+| `GET`    | `/api/v1/templates`               | List templates       |
+| `GET`    | `/api/v1/templates/:id`           | Get template         |
+| `PATCH`  | `/api/v1/templates/:id`           | Update template      |
+| `DELETE` | `/api/v1/templates/:id`           | Soft-delete template |
+| `POST`   | `/api/v1/templates/:id/duplicate` | Duplicate template   |
 
 #### Signing
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/api/v1/documents/:id/signature-requests` | Create signature request |
-| `GET` | `/api/v1/signature-requests` | List all signature requests |
-| `POST` | `/api/v1/signature-requests/:id/void` | Void a signature request |
-| `POST` | `/api/v1/signature-requests/:id/remind` | Send reminder to pending signers |
+| Method | Path                                       | Purpose                          |
+| ------ | ------------------------------------------ | -------------------------------- |
+| `POST` | `/api/v1/documents/:id/signature-requests` | Create signature request         |
+| `GET`  | `/api/v1/signature-requests`               | List all signature requests      |
+| `POST` | `/api/v1/signature-requests/:id/void`      | Void a signature request         |
+| `POST` | `/api/v1/signature-requests/:id/remind`    | Send reminder to pending signers |
 
 #### Organizations & Users
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `GET` | `/api/v1/organization` | Get current org |
-| `PATCH` | `/api/v1/organization` | Update org settings |
-| `GET` | `/api/v1/users` | List org users |
-| `POST` | `/api/v1/users/invite` | Invite user |
-| `PATCH` | `/api/v1/users/:id` | Update user role/status |
-| `DELETE` | `/api/v1/users/:id` | Deactivate user |
-| `GET` | `/api/v1/workspaces` | List workspaces |
-| `POST` | `/api/v1/workspaces` | Create workspace |
+| Method   | Path                   | Purpose                 |
+| -------- | ---------------------- | ----------------------- |
+| `GET`    | `/api/v1/organization` | Get current org         |
+| `PATCH`  | `/api/v1/organization` | Update org settings     |
+| `GET`    | `/api/v1/users`        | List org users          |
+| `POST`   | `/api/v1/users/invite` | Invite user             |
+| `PATCH`  | `/api/v1/users/:id`    | Update user role/status |
+| `DELETE` | `/api/v1/users/:id`    | Deactivate user         |
+| `GET`    | `/api/v1/workspaces`   | List workspaces         |
+| `POST`   | `/api/v1/workspaces`   | Create workspace        |
 
 #### Webhooks (outbound, from PactIntel to customer systems)
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/api/v1/webhooks` | Register webhook endpoint |
-| `GET` | `/api/v1/webhooks` | List webhooks |
-| `DELETE` | `/api/v1/webhooks/:id` | Delete webhook |
+| Method   | Path                   | Purpose                   |
+| -------- | ---------------------- | ------------------------- |
+| `POST`   | `/api/v1/webhooks`     | Register webhook endpoint |
+| `GET`    | `/api/v1/webhooks`     | List webhooks             |
+| `DELETE` | `/api/v1/webhooks/:id` | Delete webhook            |
 
 ### 4.4 Webhook Event Types (Outbound)
 
@@ -1286,6 +1288,7 @@ automation.triggered
 Endpoint: `POST /api/v1/webhooks/paddle`
 
 Events handled:
+
 - `subscription.created` → provision plan
 - `subscription.updated` → update plan/seats/status
 - `subscription.cancelled` → downgrade to free
@@ -1299,6 +1302,7 @@ All Paddle webhooks verified via signature verification using the Paddle webhook
 Endpoint: `POST /api/v1/webhooks/boldsign`
 
 Events handled:
+
 - `Sent` → update signer status
 - `Viewed` → record view event
 - `Signed` → lock version, update signer, emit `document.signed`
@@ -1312,14 +1316,14 @@ Events handled:
 
 ### 5.1 Compliance Targets
 
-| Standard | Implementation Path | Phase |
-|----------|-------------------|-------|
-| **SOC 2 Type II** | Audit-log architecture from Phase 0; Vanta for continuous monitoring from Phase 3; formal audit in Phase 3 | 3 |
-| **GDPR** | Data Processing Addendum, data-residency selection, right-to-erasure with legal-hold carve-out, consent management | 0 (architecture), 2 (DPA) |
-| **PCI-DSS** | Achieved via Paddle (MoR) and the customer's own processor (BYOK). PactIntel never stores, processes, or transmits cardholder data directly. | 0 |
-| **HIPAA / BAA** | Enterprise add-on: dedicated cell with Google Cloud BAA, covered-products list verified `[VERIFY]`, Assured Workloads where needed, encryption at rest verified, access logging | 4 |
-| **AES-256** | All data encrypted at rest via Cloud KMS CMEK (Cloud SQL, Cloud Storage, Memorystore), all transit via TLS 1.3 | 0 |
-| **ESIGN Act / UETA / eIDAS** | Achieved via BoldSign's compliance (bought infrastructure) | 0 |
+| Standard                     | Implementation Path                                                                                                                                                             | Phase                     |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| **SOC 2 Type II**            | Audit-log architecture from Phase 0; Vanta for continuous monitoring from Phase 3; formal audit in Phase 3                                                                      | 3                         |
+| **GDPR**                     | Data Processing Addendum, data-residency selection, right-to-erasure with legal-hold carve-out, consent management                                                              | 0 (architecture), 2 (DPA) |
+| **PCI-DSS**                  | Achieved via Paddle (MoR) and the customer's own processor (BYOK). PactIntel never stores, processes, or transmits cardholder data directly.                                    | 0                         |
+| **HIPAA / BAA**              | Enterprise add-on: dedicated cell with Google Cloud BAA, covered-products list verified `[VERIFY]`, Assured Workloads where needed, encryption at rest verified, access logging | 4                         |
+| **AES-256**                  | All data encrypted at rest via Cloud KMS CMEK (Cloud SQL, Cloud Storage, Memorystore), all transit via TLS 1.3                                                                  | 0                         |
+| **ESIGN Act / UETA / eIDAS** | Achieved via BoldSign's compliance (bought infrastructure)                                                                                                                      | 0                         |
 
 ### 5.2 Authentication & Authorization Flow
 
@@ -1380,7 +1384,7 @@ Events handled:
 
 #### 5.3.2 Implementation Rules
 
-*(Revised v2.0.0 — Cloud KMS replaces AWS KMS; no per-org CMK by default; TK-based crypto-shredding; multi-region keys for DR)*
+_(Revised v2.0.0 — Cloud KMS replaces AWS KMS; no per-org CMK by default; TK-based crypto-shredding; multi-region keys for DR)_
 
 1. **Cloud KMS CMKs**: Per-cell, per-purpose key rings and keys created in Cloud KMS. Multi-region key locations (e.g., `us`, `europe`) for any key whose ciphertext replicates across regions within a jurisdiction `[VERIFY]`. Software protection by default; HSM for `cred-vault` and `integration-tokens` if cost-justified. Keys never leave the Cloud KMS boundary.
 2. **No per-tenant CMK by default**: A shared per-cell CEK wraps per-tenant data keys (TKs). An enterprise customer-managed key is an optional `key_provider` value on the tenant record (ADR-0011).
@@ -1393,7 +1397,7 @@ Events handled:
 
 #### 5.3.3 Network & Access Controls
 
-*(Revised v2.0.0 — GCP IAM replaces AWS IAM; Cloud KMS IAM conditions replace `kms:ViaService`)*
+_(Revised v2.0.0 — GCP IAM replaces AWS IAM; Cloud KMS IAM conditions replace `kms:ViaService`)_
 
 - The `CredentialVaultService` is architecturally isolated (NestJS module with no exported providers except `PaymentService`).
 - Cloud KMS calls are authenticated via service accounts with least-privilege IAM: `cloudkms.cryptoKeyVersions.useToEncrypt` and `cloudkms.cryptoKeyVersions.useToDecrypt` on the specific key resource, with IAM conditions for service account scoping and AAD validation.
@@ -1401,7 +1405,7 @@ Events handled:
 
 ### 5.4 Additional Security Measures
 
-*(Revised v2.0.0 — Fly.io Secrets replaced with Secret Manager; WAF and SSRF controls added)*
+_(Revised v2.0.0 — Fly.io Secrets replaced with Secret Manager; WAF and SSRF controls added)_
 
 - **Rate limiting**: Per-IP and per-organization, using Memorystore-backed sliding window. Tighter limits on auth endpoints. Edge rate limits via Cloudflare Workers.
 - **CORS**: Strict allowlist of frontend origins.
@@ -1419,6 +1423,7 @@ Events handled:
 ### 5.5 GDPR Right-to-Erasure Policy
 
 Per product spec Section 9 (Edge Cases):
+
 - **Signed documents and their audit trails**: Retained per legal obligation, even after an erasure request. These records serve as evidence of the agreement.
 - **Non-essential personal data**: Marketing preferences, unused drafts, analytics events not tied to signed documents — purged on erasure request.
 - **Implementation**: An `erasure_requests` table tracks requests. A background job processes erasure within 30 days, logging what was purged and what was retained (with legal justification) to the `audit_log_entries` table.
@@ -1432,6 +1437,7 @@ Per product spec Section 9 (Edge Cases):
 #### 6.1.1 Integration Model
 
 Paddle operates as Merchant of Record (MoR). PactIntel never directly processes subscription payments — Paddle handles:
+
 - Payment collection (credit card, PayPal, Apple Pay)
 - Global tax compliance (VAT, sales tax)
 - Invoicing
@@ -1476,10 +1482,10 @@ Under the BYOK model, each PactIntel customer connects their **own** payment pro
 
 Two integration tiers:
 
-| Tier | How It Works | Supported Providers | Complexity |
-|------|-------------|-------------------|-----------|
-| **Payment Link** | Customer provides a URL template with `{{amount}}`, `{{currency}}`, `{{reference}}` placeholders. PactIntel generates the link and embeds it in the signing flow. Customer's processor handles everything. | Any provider with hosted checkout (Stripe Payment Links, PayPal.me, Square, custom) | Low — no API keys stored |
-| **API Integration** | Customer provides their own API credentials (e.g., their Stripe secret key). PactIntel creates a charge/payment intent on the customer's behalf using their key. | Stripe, PayPal, Square, Razorpay, Mollie (initially Stripe + PayPal, expand by demand) | High — encrypted credential storage required |
+| Tier                | How It Works                                                                                                                                                                                               | Supported Providers                                                                    | Complexity                                   |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **Payment Link**    | Customer provides a URL template with `{{amount}}`, `{{currency}}`, `{{reference}}` placeholders. PactIntel generates the link and embeds it in the signing flow. Customer's processor handles everything. | Any provider with hosted checkout (Stripe Payment Links, PayPal.me, Square, custom)    | Low — no API keys stored                     |
+| **API Integration** | Customer provides their own API credentials (e.g., their Stripe secret key). PactIntel creates a charge/payment intent on the customer's behalf using their key.                                           | Stripe, PayPal, Square, Razorpay, Mollie (initially Stripe + PayPal, expand by demand) | High — encrypted credential storage required |
 
 #### 6.2.2 Payment Flow (API Integration Tier)
 
@@ -1600,13 +1606,13 @@ export function defineAbilitiesFor(user: AuthenticatedUser): AppAbility {
       can('manage', 'Template');
       can('manage', 'ContentBlock');
       can('manage', 'User');
-      can('read', 'Billing');           // view only
+      can('read', 'Billing'); // view only
       cannot('delete', 'Organization'); // only owner
-      cannot('transfer', 'Ownership');  // only owner
+      cannot('transfer', 'Ownership'); // only owner
       can('manage', 'Integration');
       can('manage', 'Security');
       can('manage', 'ApiKey');
-      can('manage', 'Analytics');       // company-wide
+      can('manage', 'Analytics'); // company-wide
       break;
 
     case 'manager':
@@ -1614,7 +1620,7 @@ export function defineAbilitiesFor(user: AuthenticatedUser): AppAbility {
       can('manage', 'Document', { ownerId: user.id });
       can('read', 'Analytics', { scope: 'team' });
       can('manage', 'Template', { workspaceId: { $in: user.managedWorkspaceIds } });
-      can('approve', 'Document');       // if in approval chain
+      can('approve', 'Document'); // if in approval chain
       can('invite', 'User', { teamId: { $in: user.managedTeamIds } });
       if (user.hasContentAdmin) {
         can('lock', 'ContentSection');
@@ -1653,21 +1659,21 @@ export function defineAbilitiesFor(user: AuthenticatedUser): AppAbility {
 
 ### 7.4 Permission Enforcement Points
 
-| Layer | Mechanism | Purpose |
-|-------|----------|---------|
-| **Route guard** | `@UseGuards(CaslGuard)` decorator on controllers | Block unauthorized requests at the HTTP boundary |
-| **Service layer** | `ability.throwUnlessCan(action, subject)` calls | Enforce within business logic (especially for complex conditional permissions) |
-| **Database** | RLS policies | Last line of defense; catches any bypass of application-layer checks |
+| Layer             | Mechanism                                        | Purpose                                                                        |
+| ----------------- | ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| **Route guard**   | `@UseGuards(CaslGuard)` decorator on controllers | Block unauthorized requests at the HTTP boundary                               |
+| **Service layer** | `ability.throwUnlessCan(action, subject)` calls  | Enforce within business logic (especially for complex conditional permissions) |
+| **Database**      | RLS policies                                     | Last line of defense; catches any bypass of application-layer checks           |
 
 ### 7.5 Rate Limiting by Plan
 
 ```typescript
 const RATE_LIMITS: Record<PlanTier, RateLimitConfig> = {
-  free:         { windowMs: 60_000, max: 30 },
-  starter:      { windowMs: 60_000, max: 120 },
+  free: { windowMs: 60_000, max: 30 },
+  starter: { windowMs: 60_000, max: 120 },
   professional: { windowMs: 60_000, max: 300 },
-  business:     { windowMs: 60_000, max: 600 },
-  enterprise:   { windowMs: 60_000, max: 1200 },
+  business: { windowMs: 60_000, max: 600 },
+  enterprise: { windowMs: 60_000, max: 1200 },
 };
 ```
 
@@ -1677,7 +1683,7 @@ Applied via a NestJS guard that reads the org's plan tier from the cached subscr
 
 ## 8. Infrastructure, Deployment & Environments
 
-*(Revised v2.0.0 — Google Cloud only; all Fly.io, AWS, Supabase, MinIO references removed)*
+_(Revised v2.0.0 — Google Cloud only; all Fly.io, AWS, Supabase, MinIO references removed)_
 
 ### 8.1 Hosting Platform
 
@@ -1685,17 +1691,17 @@ Applied via a NestJS guard that reads the org's plan tier from the cached subscr
 
 **Compute architecture:**
 
-| Process Type | Cloud Run Resource | Scaling Signal |
-|---|---|---|
-| `web-app` | Service (HTTP) | Concurrency / request count |
-| `web-viewer` | Service (HTTP) — separate from `web-app` for blast radius isolation | Concurrency / request count |
-| `api` | Service (HTTP) | Concurrency / request count |
-| `collab` | Service (HTTP/WebSocket) | Active WebSocket connections `[VERIFY]` |
-| `worker-core` | Worker Pool (BullMQ pull-based) | Queue depth/age via external metrics |
-| `worker-bulk` | Worker Pool | Queue depth/age |
-| `worker-ai` | Worker Pool | Queue depth/age |
-| `worker-pdf` | Worker Pool — isolated; no metadata/VPC egress | Queue depth/age |
-| `migrator` | Job (one-off, runs before deploy) | N/A |
+| Process Type  | Cloud Run Resource                                                  | Scaling Signal                          |
+| ------------- | ------------------------------------------------------------------- | --------------------------------------- |
+| `web-app`     | Service (HTTP)                                                      | Concurrency / request count             |
+| `web-viewer`  | Service (HTTP) — separate from `web-app` for blast radius isolation | Concurrency / request count             |
+| `api`         | Service (HTTP)                                                      | Concurrency / request count             |
+| `collab`      | Service (HTTP/WebSocket)                                            | Active WebSocket connections `[VERIFY]` |
+| `worker-core` | Worker Pool (BullMQ pull-based)                                     | Queue depth/age via external metrics    |
+| `worker-bulk` | Worker Pool                                                         | Queue depth/age                         |
+| `worker-ai`   | Worker Pool                                                         | Queue depth/age                         |
+| `worker-pdf`  | Worker Pool — isolated; no metadata/VPC egress                      | Queue depth/age                         |
+| `migrator`    | Job (one-off, runs before deploy)                                   | N/A                                     |
 
 **Cell layout (GCP projects):**
 
@@ -1721,14 +1727,14 @@ Organization
 
 ### 8.2 Environment Strategy
 
-*(Revised v2.0.0 — all Fly.io references removed; GCP-native environments)*
+_(Revised v2.0.0 — all Fly.io references removed; GCP-native environments)_
 
-| Environment | Purpose | Infrastructure |
-|------------|---------|---------------|
-| **local** | Developer workstation | Docker Compose (PostgreSQL+pgvector, Redis role-split, ClickHouse, Hocuspocus, **SeaweedFS or Garage** for Cloud Storage-compatible local emulation — NOT MinIO `[VERIFY]` replacement), Mailpit for email, local `KeyProvider` adapter |
-| **dev** | Isolated sandbox | Separate GCP project `pactintel-dev`; Cloud Run; Cloud SQL (scale-to-zero if available, else smallest Enterprise); Paddle sandbox; BoldSign sandbox |
-| **staging** | Pre-production integration testing | GCP project `pactintel-staging`; full production-like config; Paddle sandbox; BoldSign sandbox |
-| **production** | Live customer traffic | Cell projects (`pactintel-prod-us1`, etc.); Cloudflare CDN; Cloud SQL HA; Memorystore; ClickHouse Cloud; Cloud Storage with Object Retention Lock |
+| Environment    | Purpose                            | Infrastructure                                                                                                                                                                                                                          |
+| -------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **local**      | Developer workstation              | Docker Compose (PostgreSQL+pgvector, Redis role-split, ClickHouse, Hocuspocus, **SeaweedFS or Garage** for Cloud Storage-compatible local emulation — NOT MinIO `[VERIFY]` replacement), Mailpit for email, local `KeyProvider` adapter |
+| **dev**        | Isolated sandbox                   | Separate GCP project `pactintel-dev`; Cloud Run; Cloud SQL (scale-to-zero if available, else smallest Enterprise); Paddle sandbox; BoldSign sandbox                                                                                     |
+| **staging**    | Pre-production integration testing | GCP project `pactintel-staging`; full production-like config; Paddle sandbox; BoldSign sandbox                                                                                                                                          |
+| **production** | Live customer traffic              | Cell projects (`pactintel-prod-us1`, etc.); Cloudflare CDN; Cloud SQL HA; Memorystore; ClickHouse Cloud; Cloud Storage with Object Retention Lock                                                                                       |
 
 **Local environment caveat:** Object Retention Lock behavior is only proven against real Cloud Storage in a throwaway bucket with the shortest allowed retention period `[VERIFY]`. Local compose proves structural plumbing only, not retention semantics.
 
@@ -1736,7 +1742,7 @@ Organization
 
 ### 8.3 CI/CD Pipeline (GitHub Actions + Workload Identity Federation)
 
-*(Revised v2.0.0 — GitHub OIDC → Workload Identity Federation → Artifact Registry → Cloud Run)*
+_(Revised v2.0.0 — GitHub OIDC → Workload Identity Federation → Artifact Registry → Cloud Run)_
 
 ```yaml
 # .github/workflows/ci.yml (illustrative)
@@ -1750,7 +1756,7 @@ jobs:
   # Step 1: Nx affected targets
   lint-test-build:
     permissions:
-      id-token: write   # for Workload Identity Federation
+      id-token: write # for Workload Identity Federation
       contents: read
     steps:
       - uses: google-github-actions/auth@v2
@@ -1793,14 +1799,14 @@ No service-account JSON keys anywhere. No `fly deploy`. No `aws ecr` or `aws ecs
 
 ### 8.4 Docker Compose (Local Development)
 
-*(Revised v2.0.0 — MinIO removed; Cloud Storage-compatible emulator used for structural tests only; Redis role-split; Mailpit added)*
+_(Revised v2.0.0 — MinIO removed; Cloud Storage-compatible emulator used for structural tests only; Redis role-split; Mailpit added)_
 
 ```yaml
 # docker-compose.yml
 services:
   postgres:
     image: pgvector/pgvector:pg17
-    ports: ["5432:5432"]
+    ports: ['5432:5432']
     environment:
       POSTGRES_PASSWORD: local
     volumes: [pgdata:/var/lib/postgresql/data]
@@ -1808,42 +1814,42 @@ services:
   # Redis — role-split: separate instances for structural accuracy
   redis-queue:
     image: redis:7-alpine
-    command: redis-server --save "" --appendonly no  # noeviction for BullMQ
-    ports: ["6379:6379"]
+    command: redis-server --save "" --appendonly no # noeviction for BullMQ
+    ports: ['6379:6379']
 
   redis-session:
     image: redis:7-alpine
-    ports: ["6380:6379"]
+    ports: ['6380:6379']
 
   redis-cache:
     image: redis:7-alpine
-    ports: ["6381:6379"]
+    ports: ['6381:6379']
 
   redis-realtime:
     image: redis:7-alpine
-    ports: ["6382:6379"]
+    ports: ['6382:6379']
 
   clickhouse:
     image: clickhouse/clickhouse-server:24
-    ports: ["8123:8123", "9000:9000"]
+    ports: ['8123:8123', '9000:9000']
 
   # Cloud Storage-compatible local emulator (NOT minio/minio — discontinued Oct 2025)
   # [VERIFY] SeaweedFS or Garage as replacement; Object Retention Lock NOT proven locally
   # Use a real GCS dev bucket for retention-lock tests
   object-store:
-    image: chrislusf/seaweedfs:latest  # [VERIFY] — re-verify before committing
-    ports: ["8333:8333"]
+    image: chrislusf/seaweedfs:latest # [VERIFY] — re-verify before committing
+    ports: ['8333:8333']
     command: server -s3
 
   hocuspocus:
     build: ./apps/collab-server
-    ports: ["1234:1234"]
+    ports: ['1234:1234']
     depends_on: [redis-realtime, postgres]
 
   # Mailpit for local email testing (replaces any SES-local mock)
   mailpit:
     image: axllent/mailpit:latest
-    ports: ["1025:1025", "8025:8025"]
+    ports: ['1025:1025', '8025:8025']
 ```
 
 **What local compose proves:** application logic, RLS, BullMQ queuing, Hocuspocus collab, event flow.
@@ -1851,7 +1857,7 @@ services:
 
 ### 8.5 Database Backup & Recovery
 
-*(Revised v2.0.0 — WAL/pg_dump removed; Cloud SQL native backup; in-jurisdiction replication only)*
+_(Revised v2.0.0 — WAL/pg_dump removed; Cloud SQL native backup; in-jurisdiction replication only)_
 
 - **Cloud SQL (PostgreSQL)**: Automated backups with Point-in-Time Recovery (PITR). On-demand backups before migrations. Cross-region replica in the same jurisdiction as the DR pilot-light. `[VERIFY]` immutability options for Cloud SQL backups (Backup and DR Service vault lock).
 - **Cloud Storage evidence class**: Dual-/multi-region bucket within the jurisdiction. Object Retention Lock (Locked) on every evidence object. A bucket with retained objects cannot be deleted until objects expire.
@@ -1882,17 +1888,17 @@ New cell = add a new directory under `prod/` with the cell variable set. No code
 
 ### 8.7 Runbook Index
 
-| Runbook | Location |
-|---|---|
-| Deploy (standard) | `docs/runbooks/deploy.md` |
-| Rollback (traffic shift) | `docs/runbooks/rollback.md` |
-| Database migration | `docs/runbooks/db-migration.md` |
-| Region failover (DR) | `docs/runbooks/region-failover.md` |
-| Restore drill | `docs/runbooks/restore-drill.md` |
-| Add a new cell | `docs/runbooks/add-cell.md` |
-| Tenant relocation | `docs/runbooks/tenant-relocation.md` |
-| Key rotation | `docs/runbooks/key-rotation.md` |
-| Quota increase | `docs/runbooks/quota-increase.md` |
+| Runbook                  | Location                             |
+| ------------------------ | ------------------------------------ |
+| Deploy (standard)        | `docs/runbooks/deploy.md`            |
+| Rollback (traffic shift) | `docs/runbooks/rollback.md`          |
+| Database migration       | `docs/runbooks/db-migration.md`      |
+| Region failover (DR)     | `docs/runbooks/region-failover.md`   |
+| Restore drill            | `docs/runbooks/restore-drill.md`     |
+| Add a new cell           | `docs/runbooks/add-cell.md`          |
+| Tenant relocation        | `docs/runbooks/tenant-relocation.md` |
+| Key rotation             | `docs/runbooks/key-rotation.md`      |
+| Quota increase           | `docs/runbooks/quota-increase.md`    |
 
 ---
 
@@ -1916,14 +1922,14 @@ New cell = add a new directory under `prod/` with the cell variable set. No code
 
 ### 9.2 Test Tooling
 
-| Tool | Purpose |
-|------|---------|
-| **Vitest** | Unit tests. Chosen over Jest for native ESM support and faster execution. Compatible with the Nx + TypeScript stack. |
-| **Supertest** | HTTP-level integration tests against the NestJS application. |
+| Tool               | Purpose                                                                                                                            |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Vitest**         | Unit tests. Chosen over Jest for native ESM support and faster execution. Compatible with the Nx + TypeScript stack.               |
+| **Supertest**      | HTTP-level integration tests against the NestJS application.                                                                       |
 | **TestContainers** | Ephemeral PostgreSQL, Redis, and ClickHouse containers for integration tests. Ensures tests run against real databases, not mocks. |
-| **Playwright** | End-to-end browser tests. Also used for PDF rendering, so it's already a dependency. |
-| **Faker.js** | Test data generation. |
-| **MSW** | Mock Service Worker for intercepting external API calls (Paddle, BoldSign, WorkOS) in tests without hitting live services. |
+| **Playwright**     | End-to-end browser tests. Also used for PDF rendering, so it's already a dependency.                                               |
+| **Faker.js**       | Test data generation.                                                                                                              |
+| **MSW**            | Mock Service Worker for intercepting external API calls (Paddle, BoldSign, WorkOS) in tests without hitting live services.         |
 
 ### 9.3 Critical Test Scenarios
 
@@ -2116,18 +2122,18 @@ modules/document/
 
 ### 11.3 Naming Conventions
 
-| Item | Convention | Example |
-|------|-----------|---------|
-| Files | `kebab-case` | `document-version.service.ts` |
-| Classes | `PascalCase` | `DocumentVersionService` |
-| Interfaces | `PascalCase`, no `I` prefix | `DocumentVersion` (not `IDocumentVersion`) |
-| Functions/methods | `camelCase` | `createDocumentVersion()` |
-| Constants | `SCREAMING_SNAKE_CASE` | `MAX_DOCUMENT_SIZE` |
-| Database tables | `snake_case`, plural | `document_versions` |
-| Database columns | `snake_case` | `organization_id` |
-| API routes | `kebab-case`, plural | `/api/v1/document-versions` |
-| Environment variables | `SCREAMING_SNAKE_CASE` | `DATABASE_URL` |
-| Event types | `dot.separated` | `document.signed` |
+| Item                  | Convention                  | Example                                    |
+| --------------------- | --------------------------- | ------------------------------------------ |
+| Files                 | `kebab-case`                | `document-version.service.ts`              |
+| Classes               | `PascalCase`                | `DocumentVersionService`                   |
+| Interfaces            | `PascalCase`, no `I` prefix | `DocumentVersion` (not `IDocumentVersion`) |
+| Functions/methods     | `camelCase`                 | `createDocumentVersion()`                  |
+| Constants             | `SCREAMING_SNAKE_CASE`      | `MAX_DOCUMENT_SIZE`                        |
+| Database tables       | `snake_case`, plural        | `document_versions`                        |
+| Database columns      | `snake_case`                | `organization_id`                          |
+| API routes            | `kebab-case`, plural        | `/api/v1/document-versions`                |
+| Environment variables | `SCREAMING_SNAKE_CASE`      | `DATABASE_URL`                             |
+| Event types           | `dot.separated`             | `document.signed`                          |
 
 ### 11.4 Code Quality Tools
 
@@ -2184,32 +2190,34 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 
 #### What Gets Built
 
-| Component | Details |
-|-----------|---------|
-| **Repo scaffold** | Nx monorepo, pnpm, Docker Compose, CI pipeline, ESLint/Prettier/Husky config |
-| **Data layer** | PostgreSQL schema (Sections 3.2.1–3.2.6), Prisma setup, migrations, RLS policies, immutability triggers |
-| **Auth** | WorkOS integration (email/password + Google OAuth + MFA), session management, API key infrastructure |
-| **Organization model** | Org → Workspace → Team → User CRUD, seat counting, invitation lifecycle |
-| **Billing** | Paddle checkout integration, webhook handler, subscription lifecycle, seat-quantity sync, plan enforcement middleware |
-| **Basic editor** | Tiptap setup with text, image, heading, and list blocks. No collaboration yet. Content stored as JSONB in `document_versions`. |
-| **Document lifecycle** | Create → Edit → Version snapshot → Send → Track status (draft/sent/viewed/signed/expired) |
-| **PDF export** | Playwright-based rendering of document pages to PDF |
-| **E-signature** | BoldSign integration: create signature request, embed signing UI, webhook handler, audit trail |
-| **Payment collection** | BYOK Payment Link tier only (no API key storage yet). Redirect to customer's checkout URL after signature. |
-| **Documents Hub** | Filterable, searchable document list with status badges and bulk actions |
-| **Home Dashboard** | Recent documents, pending actions, quick-create |
-| **Recipient viewing page** | Server-rendered document page, responsive, branded |
-| **Notification** | Email notifications (sent, viewed, signed, declined) via Resend |
-| **Audit trail** | `signature_events` table, append-only, downloadable per document |
-| **ClickHouse setup** | Schema deployed, event ingestion pipeline from the API (basic view events only) |
-| **Observability** | Sentry, Pino structured logging, health check endpoint |
+| Component                  | Details                                                                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Repo scaffold**          | Nx monorepo, pnpm, Docker Compose, CI pipeline, ESLint/Prettier/Husky config                                                   |
+| **Data layer**             | PostgreSQL schema (Sections 3.2.1–3.2.6), Prisma setup, migrations, RLS policies, immutability triggers                        |
+| **Auth**                   | WorkOS integration (email/password + Google OAuth + MFA), session management, API key infrastructure                           |
+| **Organization model**     | Org → Workspace → Team → User CRUD, seat counting, invitation lifecycle                                                        |
+| **Billing**                | Paddle checkout integration, webhook handler, subscription lifecycle, seat-quantity sync, plan enforcement middleware          |
+| **Basic editor**           | Tiptap setup with text, image, heading, and list blocks. No collaboration yet. Content stored as JSONB in `document_versions`. |
+| **Document lifecycle**     | Create → Edit → Version snapshot → Send → Track status (draft/sent/viewed/signed/expired)                                      |
+| **PDF export**             | Playwright-based rendering of document pages to PDF                                                                            |
+| **E-signature**            | BoldSign integration: create signature request, embed signing UI, webhook handler, audit trail                                 |
+| **Payment collection**     | BYOK Payment Link tier only (no API key storage yet). Redirect to customer's checkout URL after signature.                     |
+| **Documents Hub**          | Filterable, searchable document list with status badges and bulk actions                                                       |
+| **Home Dashboard**         | Recent documents, pending actions, quick-create                                                                                |
+| **Recipient viewing page** | Server-rendered document page, responsive, branded                                                                             |
+| **Notification**           | Email notifications (sent, viewed, signed, declined) via Resend                                                                |
+| **Audit trail**            | `signature_events` table, append-only, downloadable per document                                                               |
+| **ClickHouse setup**       | Schema deployed, event ingestion pipeline from the API (basic view events only)                                                |
+| **Observability**          | Sentry, Pino structured logging, health check endpoint                                                                         |
 
 #### Architectural Dependencies
+
 - Everything depends on the repo scaffold and data layer
 - Auth must be complete before any authenticated feature
 - Billing must be complete before plan-gated features
 
 #### Definition of Done
+
 - A new user can: sign up → create an org → invite a teammate → create a document from blank → add text/images → generate PDF → send for signature → signer receives email → signer views and signs → sender sees completion → payment link shown post-signature
 - Paddle subscription can be created, upgraded, downgraded, cancelled
 - RLS tests pass for cross-tenant isolation
@@ -2223,19 +2231,20 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 
 #### What Gets Built
 
-| Component | Details |
-|-----------|---------|
-| **Templates + Content Library** | Template CRUD, category/industry tags, copy-on-create, content block library, "save document as template" |
-| **Interactive pricing tables** | PricingTable + LineItem entities, buyer-selectable optional items, quantity changes, discount display, totals recalculation |
-| **Basic tracking** | Open tracking (via tracking pixel + ClickHouse events), time-on-page, notification on first view |
-| **Notifications expansion** | Real-time in-app notifications (WebSocket), email digest options |
-| **Custom domain** | Cloudflare for SaaS integration for custom recipient-page domains, SSL provisioning |
-| **Brand kits** | Multiple brand profiles per org, logo/color/font application to documents and emails |
-| **Multi-user roles** | Full permission matrix enforcement (CASL), Manager/Member/Collaborator distinctions |
-| **CRM integration** | Salesforce or HubSpot (pick one — HubSpot first due to simpler API) — two-way sync of contacts and deal metadata |
-| **Mobile-responsive viewing** | Ensure all recipient-facing pages render correctly on mobile browsers |
+| Component                       | Details                                                                                                                     |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Templates + Content Library** | Template CRUD, category/industry tags, copy-on-create, content block library, "save document as template"                   |
+| **Interactive pricing tables**  | PricingTable + LineItem entities, buyer-selectable optional items, quantity changes, discount display, totals recalculation |
+| **Basic tracking**              | Open tracking (via tracking pixel + ClickHouse events), time-on-page, notification on first view                            |
+| **Notifications expansion**     | Real-time in-app notifications (WebSocket), email digest options                                                            |
+| **Custom domain**               | Cloudflare for SaaS integration for custom recipient-page domains, SSL provisioning                                         |
+| **Brand kits**                  | Multiple brand profiles per org, logo/color/font application to documents and emails                                        |
+| **Multi-user roles**            | Full permission matrix enforcement (CASL), Manager/Member/Collaborator distinctions                                         |
+| **CRM integration**             | Salesforce or HubSpot (pick one — HubSpot first due to simpler API) — two-way sync of contacts and deal metadata            |
+| **Mobile-responsive viewing**   | Ensure all recipient-facing pages render correctly on mobile browsers                                                       |
 
 #### Depends On
+
 - Phase 0 complete (document lifecycle, auth, billing)
 - Pricing tables depend on Document module
 - CRM integration depends on Integration module scaffold + OAuth token encryption
@@ -2248,21 +2257,22 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 
 #### What Gets Built
 
-| Component | Details |
-|-----------|---------|
-| **Section-level analytics** | ClickHouse schema for `section_view` events, time-per-section tracking, analytics dashboard |
-| **Real-time co-editing** | Hocuspocus server deployment, Yjs integration with Tiptap, live cursors, presence |
-| **Comments + content locking** | Threaded comments on blocks, suggest-edits mode, content-locking by Content/Legal Admin |
-| **Simple approval workflows** | Approval chain creation, conditional triggers (deal value > X), email/in-app approval, escalation on deactivated approver |
-| **Document expiry + reminders** | Auto-expire after configurable period, automated inactivity reminders, expiry notifications |
-| **Nudge-style follow-up** | Semi-automated follow-up emails surfaced in a daily queue for rep review |
-| **In-editor AI drafting** | LLM integration for writing, refining, grammar-fixing, condensing. Gemini API with provider abstraction. |
-| **Zapier integration** | Webhook-based triggers/actions published to Zapier |
-| **Basic CPQ** | Product catalog CRUD, line-item discounting, fee library |
-| **Clickwrap / Consent Capture** | `ClickwrapAgreement`, `ClickwrapVersion`, `ClickwrapAcceptance` tables; embeddable widget; version tracking; dedicated API |
-| **BYOK API Integration tier** | Encrypted credential storage (envelope encryption via KMS), Stripe + PayPal API integration, payment intent creation on customer's behalf |
+| Component                       | Details                                                                                                                                   |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Section-level analytics**     | ClickHouse schema for `section_view` events, time-per-section tracking, analytics dashboard                                               |
+| **Real-time co-editing**        | Hocuspocus server deployment, Yjs integration with Tiptap, live cursors, presence                                                         |
+| **Comments + content locking**  | Threaded comments on blocks, suggest-edits mode, content-locking by Content/Legal Admin                                                   |
+| **Simple approval workflows**   | Approval chain creation, conditional triggers (deal value > X), email/in-app approval, escalation on deactivated approver                 |
+| **Document expiry + reminders** | Auto-expire after configurable period, automated inactivity reminders, expiry notifications                                               |
+| **Nudge-style follow-up**       | Semi-automated follow-up emails surfaced in a daily queue for rep review                                                                  |
+| **In-editor AI drafting**       | LLM integration for writing, refining, grammar-fixing, condensing. Gemini API with provider abstraction.                                  |
+| **Zapier integration**          | Webhook-based triggers/actions published to Zapier                                                                                        |
+| **Basic CPQ**                   | Product catalog CRUD, line-item discounting, fee library                                                                                  |
+| **Clickwrap / Consent Capture** | `ClickwrapAgreement`, `ClickwrapVersion`, `ClickwrapAcceptance` tables; embeddable widget; version tracking; dedicated API                |
+| **BYOK API Integration tier**   | Encrypted credential storage (envelope encryption via KMS), Stripe + PayPal API integration, payment intent creation on customer's behalf |
 
 #### Depends On
+
 - Phase 1 complete
 - Co-editing depends on document content being stored in Yjs-compatible format (migration from Phase 0's raw JSONB)
 - AI drafting depends on `pgvector` extension setup
@@ -2276,26 +2286,27 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 
 #### What Gets Built
 
-| Component | Details |
-|-----------|---------|
-| **Full CPQ** | Bundles, pricing/discount rules engine, guided-selling playbooks, approval thresholds, native CRM-embedded CPQ |
-| **Workflow orchestration (5.19)** | Visual no-code workflow builder, cross-system integration (CRM/ERP triggers), capped flow count per plan |
-| **Deal Rooms** | Multi-party workspace, document feed, messaging, mutual action plan tracker |
-| **Guided AI proposal builder** | Form-based document assembly, CRM data pull at build time |
-| **AI data extraction** | Document type detection, structured field extraction (dates, value, parties), multi-language OCR |
-| **ID-verification signing** | KBA, government ID document verification, QES via BoldSign |
-| **Portfolio Agreement Intelligence (5.18)** | Cross-document search, counterparty tracking, obligation management, AI-generated reports |
-| **Risk-adaptive identity verification (5.20)** | Third-party risk-scoring vendor integration, dynamic verification method selection |
-| **Multi-workspace** | Full workspace isolation, cross-workspace asset sharing, parent-account oversight |
-| **SAML SSO** | WorkOS SAML configuration, organization-level SSO enforcement |
-| **SOC 2 audit** | Vanta integration, audit-log completeness verification, formal audit engagement |
-| **Advanced analytics** | Custom report builder, scheduled reports, extended data retention |
-| **Standalone Forms** | Form builder, submission inbox, routing rules, embed/share |
-| **Full API + webhooks** | Complete REST API coverage, SDKs, Postman collection, OpenAPI spec |
-| **Mobile apps** | React Native / Expo: dashboard, document tracking, signing, push notifications |
-| **Meilisearch migration** | Replace PostgreSQL full-text search for document/template/portfolio search |
+| Component                                      | Details                                                                                                        |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Full CPQ**                                   | Bundles, pricing/discount rules engine, guided-selling playbooks, approval thresholds, native CRM-embedded CPQ |
+| **Workflow orchestration (5.19)**              | Visual no-code workflow builder, cross-system integration (CRM/ERP triggers), capped flow count per plan       |
+| **Deal Rooms**                                 | Multi-party workspace, document feed, messaging, mutual action plan tracker                                    |
+| **Guided AI proposal builder**                 | Form-based document assembly, CRM data pull at build time                                                      |
+| **AI data extraction**                         | Document type detection, structured field extraction (dates, value, parties), multi-language OCR               |
+| **ID-verification signing**                    | KBA, government ID document verification, QES via BoldSign                                                     |
+| **Portfolio Agreement Intelligence (5.18)**    | Cross-document search, counterparty tracking, obligation management, AI-generated reports                      |
+| **Risk-adaptive identity verification (5.20)** | Third-party risk-scoring vendor integration, dynamic verification method selection                             |
+| **Multi-workspace**                            | Full workspace isolation, cross-workspace asset sharing, parent-account oversight                              |
+| **SAML SSO**                                   | WorkOS SAML configuration, organization-level SSO enforcement                                                  |
+| **SOC 2 audit**                                | Vanta integration, audit-log completeness verification, formal audit engagement                                |
+| **Advanced analytics**                         | Custom report builder, scheduled reports, extended data retention                                              |
+| **Standalone Forms**                           | Form builder, submission inbox, routing rules, embed/share                                                     |
+| **Full API + webhooks**                        | Complete REST API coverage, SDKs, Postman collection, OpenAPI spec                                             |
+| **Mobile apps**                                | React Native / Expo: dashboard, document tracking, signing, push notifications                                 |
+| **Meilisearch migration**                      | Replace PostgreSQL full-text search for document/template/portfolio search                                     |
 
 #### Depends On
+
 - Phase 2 complete
 - Portfolio intelligence depends on AI extraction pipeline
 - Risk-adaptive verification depends on ID-verification methods
@@ -2307,16 +2318,16 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 
 **Goal**: Only built when there is clear, specific customer demand pulling for it.
 
-| Component | Trigger |
-|-----------|---------|
-| **Notary / RON** | Enterprise customer requests + regulatory research |
-| **HIPAA / FERPA / 21 CFR Part 11 workspaces** | Healthcare/education/pharma customer pipeline |
-| **Account-level security monitoring (5.21)** | Enterprise security team requests |
-| **Conversational AI Assistant** | Usage data shows AI adoption; LLM capabilities mature |
-| **MCP / Agent connector** | AI-agent ecosystem matures; customer demand |
-| **SCIM provisioning** | Enterprise customers with >100 seats |
-| **Full document-content translation** | International expansion |
-| **White-glove professional services** | Revenue justifies dedicated team |
+| Component                                     | Trigger                                               |
+| --------------------------------------------- | ----------------------------------------------------- |
+| **Notary / RON**                              | Enterprise customer requests + regulatory research    |
+| **HIPAA / FERPA / 21 CFR Part 11 workspaces** | Healthcare/education/pharma customer pipeline         |
+| **Account-level security monitoring (5.21)**  | Enterprise security team requests                     |
+| **Conversational AI Assistant**               | Usage data shows AI adoption; LLM capabilities mature |
+| **MCP / Agent connector**                     | AI-agent ecosystem matures; customer demand           |
+| **SCIM provisioning**                         | Enterprise customers with >100 seats                  |
+| **Full document-content translation**         | International expansion                               |
+| **White-glove professional services**         | Revenue justifies dedicated team                      |
 
 ---
 
@@ -2334,6 +2345,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 > These rules protect the legal validity of every signed document. A single violation can make every signature PactIntel has ever collected legally worthless.
 
 **RULE SIG-001: Signed DocumentVersions are immutable.**
+
 - **Scenario:** A sender tries to edit a document after one or more signatures have been captured.
 - **Risk:** If the content changes after signing, the signature no longer proves the signer agreed to the displayed content. Every signature collected by the platform becomes legally indefensible.
 - **Implementation:**
@@ -2346,6 +2358,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Test:** Attempt to `UPDATE document_versions SET content_snapshot = '{}' WHERE is_signed = true` via raw SQL → must fail with exception.
 
 **RULE SIG-002: Content hash must be computed and verified.**
+
 - **Scenario:** Content is modified between the time the signer views it and the time the signature is recorded.
 - **Risk:** Signature is bound to different content than what the signer saw.
 - **Implementation:**
@@ -2357,6 +2370,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE SIG-003: Partial signing locks the entire document.**
+
 - **Scenario:** A document has 3 signers. Signer 1 signs. The sender now tries to edit the document before signers 2 and 3 have signed.
 - **Risk:** Signer 1's signature is bound to version N, but signers 2 and 3 see version N+1. The signatures are on different documents.
 - **Implementation:**
@@ -2367,6 +2381,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE SIG-004: Terminal states are distinct and irreversible.**
+
 - **Scenario:** A document is declined by a signer. A different code path later sets the status to "expired" because the expiry timer fired.
 - **Risk:** Status confusion. Support tickets. Incorrect notifications. Audit trail incoherence.
 - **Implementation:**
@@ -2386,6 +2401,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE SIG-005: Signer substitution preserves the full audit trail.**
+
 - **Scenario:** Signer A is assigned to sign, but the sender needs to replace them with Signer B (the original person left the company, wrong email, etc.).
 - **Risk:** If the system simply deletes Signer A and creates Signer B, the audit trail shows no record of Signer A ever being involved.
 - **Implementation:**
@@ -2400,6 +2416,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE SIG-006: Template-to-document is copy-on-create, never live.**
+
 - **Scenario:** An admin updates a template. A document was created from that template last week and is currently with a signer.
 - **Risk:** If the template change flows through to the live document, the signer now sees different content than what the sender intended.
 - **Implementation:**
@@ -2415,6 +2432,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.2 Authentication & Session Security
 
 **RULE AUTH-001: Session tokens are server-side only.**
+
 - **Scenario:** An attacker obtains a user's session cookie via XSS.
 - **Risk:** Full account takeover.
 - **Implementation:**
@@ -2427,6 +2445,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE AUTH-002: API keys are never stored in plaintext.**
+
 - **Scenario:** Database is compromised. Attacker obtains API key table.
 - **Risk:** Attacker can impersonate any API integration.
 - **Implementation:**
@@ -2439,6 +2458,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE AUTH-003: Rate limiting on auth endpoints is aggressive.**
+
 - **Scenario:** Brute-force login attempts or API key enumeration.
 - **Risk:** Account compromise.
 - **Implementation:**
@@ -2451,6 +2471,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE AUTH-004: WorkOS webhook verification is mandatory.**
+
 - **Scenario:** An attacker sends a forged WorkOS webhook to create a fake user session.
 - **Risk:** Authentication bypass.
 - **Implementation:**
@@ -2461,6 +2482,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE AUTH-005: External signer identity is established per-document.**
+
 - **Scenario:** An external signer (not a PactIntel user) receives a signing link. They click it from a different email than the one it was sent to.
 - **Risk:** Wrong person signs the document.
 - **Implementation:**
@@ -2480,6 +2502,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 > A single multi-tenancy leak — one customer seeing another's data — is an extinction-level event for a SaaS company handling legal documents. These rules are non-negotiable.
 
 **RULE MT-001: Every tenant-scoped table has `organization_id` and RLS.**
+
 - **Scenario:** A new table is added to the schema without `organization_id` or without an RLS policy.
 - **Risk:** Cross-tenant data leak.
 - **Implementation:**
@@ -2494,6 +2517,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE MT-002: Tenant context MUST be set before every database query.**
+
 - **Scenario:** A background job (BullMQ) runs a query without setting the tenant context.
 - **Risk:** The query either sees ALL tenants' data (if RLS bypasses for the default role) or sees NO data (if RLS correctly blocks), causing silent data loss.
 - **Implementation:**
@@ -2515,6 +2539,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE MT-003: Never expose database IDs across tenant boundaries.**
+
 - **Scenario:** A user crafts a request with another org's document ID: `GET /api/v1/documents/<other_org_document_id>`.
 - **Risk:** Information disclosure or unauthorized access.
 - **Implementation:**
@@ -2526,6 +2551,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE MT-004: Soft deletes never expose data across tenants.**
+
 - **Scenario:** A document is soft-deleted in Org A. An admin in Org B somehow references the same ID.
 - **Risk:** Deleted data from Org A becomes visible in Org B's context.
 - **Implementation:**
@@ -2536,6 +2562,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE MT-005: Background jobs never leak data between tenants.**
+
 - **Scenario:** A BullMQ worker processes Job A (Org X), then processes Job B (Org Y). The tenant context from Job A leaks into Job B.
 - **Risk:** Job B reads or writes data belonging to Org X.
 - **Implementation:**
@@ -2551,6 +2578,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.4 Billing & Seat Management
 
 **RULE BILL-001: Pending invites reserve seats immediately.**
+
 - **Scenario:** An org has 5/5 seats used. Admin invites a 6th user. The invite sits "pending" for days.
 - **Risk:** If pending invites don't count against the seat cap, users can game the system by keeping invites unaccepted.
 - **Implementation:**
@@ -2564,6 +2592,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE BILL-002: Document/send cap is a hard block.**
+
 - **Scenario:** A user on the Starter plan has sent 50/50 documents this billing period. They try to send document #51.
 - **Risk:** If we silently allow it or charge overage without consent, it creates a trust violation per the product spec's Edge Cases section.
 - **Implementation:**
@@ -2576,6 +2605,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE BILL-003: Proration is handled by Paddle, not by us.**
+
 - **Scenario:** A user upgrades mid-cycle from Starter to Professional.
 - **Risk:** If we try to calculate proration ourselves, we'll get it wrong (different billing dates, tax jurisdictions, currencies).
 - **Implementation:**
@@ -2586,6 +2616,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE BILL-004: Collaborator temporary upgrade is NOT supported in v1.**
+
 - **Scenario:** A collaborator needs to send a single document. The admin wants to temporarily upgrade them.
 - **Risk:** Undefined billing behavior, edge cases around reverting the upgrade.
 - **Implementation:**
@@ -2597,6 +2628,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE BILL-005: Account-wide seat counting, not per-workspace.**
+
 - **Scenario:** User X is a member of Workspace A and Workspace B.
 - **Risk:** If counted per-workspace, the same person uses 2 seats, which is confusing and expensive for customers.
 - **Implementation:**
@@ -2614,6 +2646,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 > These rules govern the highest-sensitivity data PactIntel handles. A breach of stored payment credentials is a catastrophic, company-ending event.
 
 **RULE PAY-001: Never log plaintext credentials.**
+
 - **Scenario:** A debug log statement accidentally includes the decrypted API key.
 - **Risk:** Credentials appear in log files, error tracking (Sentry), or monitoring dashboards.
 - **Implementation:**
@@ -2625,6 +2658,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2 (BYOK API tier)
 
 **RULE PAY-002: Plaintext credentials exist only in volatile memory.**
+
 - **Scenario:** A server crash occurs while a credential is decrypted.
 - **Risk:** Credential appears in a core dump or swap file.
 - **Implementation:**
@@ -2636,6 +2670,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE PAY-003: Every credential access is audit-logged.**
+
 - **Scenario:** An insider or compromised service reads a customer's payment credentials.
 - **Risk:** Without an audit log, the breach is undetectable and unattributable.
 - **Implementation:**
@@ -2651,6 +2686,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE PAY-004: Validate currency before send, not at payment time.**
+
 - **Scenario:** A sender creates a document priced in JPY. Their connected Stripe account only supports USD.
 - **Risk:** The signer signs the document, then the payment fails. The document is now signed but unpaid, creating a messy manual resolution.
 - **Implementation:**
@@ -2662,6 +2698,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0 (Payment Link), 2 (API tier)
 
 **RULE PAY-005: Deauthorized payment accounts trigger dunning.**
+
 - **Scenario:** A customer's connected Stripe account is deauthorized (OAuth revoked), but they have active recurring charges tied to signed documents.
 - **Risk:** Silent payment failures. The sender thinks they're getting paid; the payer's subscription quietly stops.
 - **Implementation:**
@@ -2677,6 +2714,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE PAY-006: Chargeback/dispute handling is between parties, not platform-mediated.**
+
 - **Scenario:** A payer disputes a charge made via the sender's Stripe account.
 - **Risk:** If PactIntel mediates, we take on financial and legal liability we can't afford under BYOK.
 - **Implementation:**
@@ -2694,6 +2732,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.6 Data Retention & Compliance
 
 **RULE GDPR-001: Right-to-erasure respects legal-hold carve-outs.**
+
 - **Scenario:** A user requests GDPR erasure. They are a party to 5 signed contracts.
 - **Risk:** If we delete the signed contracts, we destroy legal evidence. If we refuse to delete anything, we violate GDPR.
 - **Implementation:**
@@ -2708,6 +2747,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE GDPR-002: Data residency is enforced across ALL services.**
+
 - **Scenario:** An EU customer selects "EU" data residency. Their document content is stored in an EU database. But the AI drafting feature sends their content to a US-based LLM API.
 - **Risk:** One US-region third-party call breaks the entire "EU data stays in the EU" promise.
 - **Implementation:**
@@ -2727,6 +2767,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.7 Access Control & Recipient Experience
 
 **RULE ACC-001: View counting is session-based, not per-page-load.**
+
 - **Scenario:** A recipient opens a document, refreshes the page 3 times. The document has a 5-view limit.
 - **Risk:** If counting raw page loads, the recipient burns through their view limit by refreshing.
 - **Implementation:**
@@ -2738,6 +2779,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0 (basic), 1 (view limits)
 
 **RULE ACC-002: Access denied shows a "request access" flow, not a raw error.**
+
 - **Scenario:** A recipient forwards the document link to a colleague. The colleague's email domain doesn't match the `domain_restriction` on the document.
 - **Risk:** A raw 403 page confuses the colleague and generates a support ticket.
 - **Implementation:**
@@ -2751,6 +2793,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 1
 
 **RULE ACC-003: Custom domain fallback on SSL/DNS misconfiguration.**
+
 - **Scenario:** A customer configures `docs.theircompany.com` as their custom domain. Their DNS CNAME expires or their SSL certificate is misconfigured.
 - **Risk:** Recipients clicking document links see a browser SSL error and cannot access their documents.
 - **Implementation:**
@@ -2764,6 +2807,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 1
 
 **RULE ACC-004: Password + domain restriction + view limits interact correctly.**
+
 - **Scenario:** A document has all three: password protection, domain restriction (`@client.com` only), and a 10-view limit.
 - **Risk:** The order of checks matters. If you check the password first, a wrong-domain user gets a "wrong password" error instead of a "wrong domain" error. If you check views first, a valid user sees "access expired" before they can even enter their password.
 - **Implementation:**
@@ -2781,6 +2825,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.8 Approval Workflows & Automation
 
 **RULE WF-001: Deactivated approvers trigger automatic escalation.**
+
 - **Scenario:** An approval chain has 3 steps. The approver at step 2 is deactivated (left the company). A document hits step 2 and stalls forever.
 - **Risk:** Indefinitely stalled documents with no notification to anyone.
 - **Implementation:**
@@ -2798,6 +2843,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE WF-002: Automation rules have loop detection.**
+
 - **Scenario:** Rule A: "When document status = signed → create a new document from template." Rule B: "When document is created → set status to signed." Loop.
 - **Risk:** Infinite loop crashes the worker, fills the database, or exhausts API rate limits.
 - **Implementation:**
@@ -2810,6 +2856,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE WF-003: Approval decisions are immutable once made.**
+
 - **Scenario:** An approver approves a document at step 2. The admin later wants to "undo" the approval.
 - **Risk:** If approvals can be retroactively changed, the audit trail is unreliable.
 - **Implementation:**
@@ -2824,6 +2871,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.9 Webhooks & Integration Reliability
 
 **RULE WH-001: Every outbound webhook has an idempotency key.**
+
 - **Scenario:** PactIntel sends a `document.signed` webhook. The recipient's server processes it (creates a deal in their CRM). PactIntel retries the webhook (because it didn't receive a 200 in time). The recipient creates a DUPLICATE deal.
 - **Risk:** Duplicate records in customer CRM, double invoices, duplicate notifications.
 - **Implementation:**
@@ -2836,6 +2884,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0 (basic), 3 (full)
 
 **RULE WH-002: Inbound webhook verification is mandatory.**
+
 - **Scenario:** An attacker sends a forged Paddle webhook claiming a subscription was created.
 - **Risk:** Free access to a paid plan.
 - **Implementation:**
@@ -2852,6 +2901,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE WH-003: CRM sync has per-field conflict resolution.**
+
 - **Scenario:** A rep updates a deal value to $50,000 in PactIntel. The same rep's colleague updates it to $55,000 in HubSpot. Both systems sync.
 - **Risk:** If it's last-write-wins globally, one update is silently lost. If it's flag-for-review globally, every sync produces noise.
 - **Implementation:**
@@ -2870,6 +2920,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.10 Real-Time Collaboration
 
 **RULE COLLAB-001: Hocuspocus authenticates at the WebSocket handshake.**
+
 - **Scenario:** An unauthenticated user connects to the Hocuspocus WebSocket server and joins a document room.
 - **Risk:** Unauthorized users can read and edit documents in real time.
 - **Implementation:**
@@ -2882,7 +2933,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
       const canAccess = await checkDocumentAccess(session.userId, documentId);
       if (!canAccess) throw new Error('Forbidden');
       return { userId: session.userId, organizationId: session.organizationId };
-    }
+    };
     ```
   - The `token` is the same session cookie used for HTTP requests, passed as a query parameter on the WebSocket URL.
   - Document access is verified against CASL abilities at connection time AND on each update (using Hocuspocus's `onUpdate` hook for content-lock enforcement).
@@ -2891,6 +2942,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE COLLAB-002: Content locking prevents locked-section edits via CRDT.**
+
 - **Scenario:** A Content/Legal Admin locks section 3 of a document. A collaborator uses a modified client that ignores the lock and edits section 3 via the Yjs CRDT.
 - **Risk:** Content locks are only enforced client-side, so a modified client bypasses them.
 - **Implementation:**
@@ -2904,6 +2956,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE COLLAB-003: Collaboration server garbage collects idle documents.**
+
 - **Scenario:** A document was being co-edited 3 days ago. No one is connected to it now. The Yjs document is still in memory on the Hocuspocus server.
 - **Risk:** Memory leak. With thousands of documents, the server runs out of memory.
 - **Implementation:**
@@ -2921,6 +2974,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.11 Internationalization & Time Zones
 
 **RULE I18N-001: All timestamps are stored as UTC, displayed in the viewer's local zone.**
+
 - **Scenario:** A document expires at "midnight" — but midnight in which timezone? The sender is in New York, the signer is in Tokyo.
 - **Risk:** A signer thinks they have until midnight Tokyo time, but the document expired at midnight New York time (13 hours earlier).
 - **Implementation:**
@@ -2934,6 +2988,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE I18N-002: Translation scope is explicitly defined per feature.**
+
 - **Scenario:** A customer asks "does PactIntel support Japanese?" — but do they mean the app UI, or the document content, or the outbound emails?
 - **Risk:** Promising "internationalization" without defining scope creates support chaos.
 - **Implementation:**
@@ -2957,6 +3012,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.12 PDF Generation & Document Rendering
 
 **RULE PDF-001: PDFs must exactly match the live web version.**
+
 - **Scenario:** The live web version of a document uses custom fonts, interactive pricing tables, and embedded videos. The PDF doesn't render any of them.
 - **Risk:** The PDF and web version show different content. Signers argue they signed a different document.
 - **Implementation:**
@@ -2971,6 +3027,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE PDF-002: Signed PDFs include the audit trail.**
+
 - **Scenario:** A signer downloads the signed PDF. It doesn't include the audit trail.
 - **Risk:** The PDF alone doesn't prove who signed, when, or from where.
 - **Implementation:**
@@ -2989,6 +3046,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.13 AI Feature Safety
 
 **RULE AI-001: Customer content is never used for model training.**
+
 - **Scenario:** A customer's confidential contract is sent to a Gemini API call. Google uses it to train a future model version.
 - **Risk:** Confidential customer data appears in another customer's AI-generated output.
 - **Implementation:**
@@ -3000,6 +3058,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE AI-002: AI-generated content is clearly marked.**
+
 - **Scenario:** A rep uses AI to draft a proposal section. The recipient assumes the rep personally wrote every word.
 - **Risk:** Not a technical risk, but a trust/transparency issue.
 - **Implementation:**
@@ -3011,6 +3070,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 2
 
 **RULE AI-003: AI admin guardrails are enforced server-side.**
+
 - **Scenario:** An admin configures "AI cannot access documents in the Legal workspace." A rep uses a browser extension that directly calls the AI API with a Legal workspace document's content.
 - **Risk:** Admin-configured guardrails are bypassed.
 - **Implementation:**
@@ -3026,6 +3086,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.14 Analytics & Tracking
 
 **RULE AN-001: Tracking pixel and section tracking respect privacy settings.**
+
 - **Scenario:** A recipient's email client blocks tracking pixels. PactIntel records no "view" event. The sender thinks the recipient never opened the document.
 - **Risk:** Inaccurate analytics, false "not viewed" status.
 - **Implementation:**
@@ -3039,6 +3100,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0 (basic view), 1 (open tracking), 2 (section-level)
 
 **RULE AN-002: Stakeholder/forwarding tracking identifies new viewers.**
+
 - **Scenario:** The sender sends a document to alice@company.com. Alice forwards the link to bob@company.com and carol@company.com. Bob and Carol open the document.
 - **Risk:** If tracking only logs the original recipient, the sender doesn't know Bob and Carol (potential decision-makers) are reviewing.
 - **Implementation:**
@@ -3056,6 +3118,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.15 Email & Notification Reliability
 
 **RULE NOTIF-001: Email delivery failures don't break signing flows.**
+
 - **Scenario:** Resend's API is down. A sender clicks "Send for Signature." The signing invitation email fails to send.
 - **Risk:** The document status transitions to "sent" but the signer never receives the email. The sender thinks the signer is ignoring them.
 - **Implementation:**
@@ -3070,6 +3133,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE NOTIF-002: Notification preferences are respected.**
+
 - **Scenario:** A user disables email notifications for "document viewed." They still receive 50 "viewed" emails per day.
 - **Risk:** User frustration, potential CAN-SPAM/GDPR issues.
 - **Implementation:**
@@ -3092,6 +3156,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.16 Infrastructure & Operational Safety
 
 **RULE INFRA-001: Database migrations are backward-compatible.**
+
 - **Scenario:** A migration adds a NOT NULL column without a default. The old application code (still running during a rolling deploy) crashes because it doesn't populate the new column.
 - **Risk:** Downtime during deployments.
 - **Implementation:**
@@ -3106,6 +3171,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE INFRA-002: Health checks distinguish liveness from readiness.**
+
 - **Scenario:** The application process is alive but the database connection pool is exhausted. Fly.io health checks pass, so traffic keeps flowing. All requests fail.
 - **Risk:** Silent outage — the system appears up but is non-functional.
 - **Implementation:**
@@ -3120,6 +3186,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE INFRA-003: Secrets are never in code, config files, or environment variable definitions committed to git.**
+
 - **Scenario:** A developer commits a `.env` file with production database credentials.
 - **Risk:** Credential exposure in git history.
 - **Implementation:**
@@ -3132,6 +3199,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE INFRA-004: Redis eviction policy handles memory pressure gracefully.**
+
 - **Scenario:** Redis runs out of memory. Session data, rate-limit counters, and BullMQ job data compete for space.
 - **Risk:** Sessions are evicted, logging users out. Or BullMQ jobs are lost. Or rate limits stop working.
 - **Implementation:**
@@ -3149,6 +3217,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.17 Clickwrap & Consent Capture
 
 **RULE CW-001: ClickwrapAcceptance is never reattributed to a newer version.**
+
 - **Scenario:** A customer publishes Terms of Service v1. 10,000 users accept v1. The customer publishes v2. The system silently updates all existing acceptances to point to v2.
 - **Risk:** The entire legal value of the acceptance record is destroyed — it no longer proves what a specific person agreed to.
 - **Implementation:**
@@ -3165,6 +3234,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.18 Risk Scoring & Identity Verification
 
 **RULE RISK-001: Third-party risk-scoring service outage fails to conservative, not open.**
+
 - **Scenario:** The risk-scoring vendor (Section 5.20) is unreachable. PactIntel needs to decide what verification method to apply.
 - **Risk:** If the system "fails open" (skips verification), fraudulent signatures are accepted. If it "fails closed" (blocks all signing), legitimate business stops.
 - **Implementation:**
@@ -3182,6 +3252,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.19 Portfolio Intelligence & Obligation Management
 
 **RULE PORT-001: Obligation record updates from amendments require manual review.**
+
 - **Scenario:** A contract is amended. The AI re-extracts the renewal date and automatically updates the `ObligationRecord`. The new extraction is wrong — it misread a clause.
 - **Risk:** A customer misses a renewal deadline because the AI auto-updated the date incorrectly.
 - **Implementation:**
@@ -3200,6 +3271,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.20 Security Monitoring & Alerts
 
 **RULE SEC-001: Security alerts have defined severity levels and escalation.**
+
 - **Scenario:** The account-level security monitoring (Section 5.21) detects a suspicious login pattern. It fires an alert. The admin receives 50 low-signal alerts per day and starts ignoring them.
 - **Risk:** A real attack is buried in noise and goes unnoticed.
 - **Implementation:**
@@ -3219,6 +3291,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.21 Error Handling & User-Facing Errors
 
 **RULE ERR-001: Never expose stack traces, database errors, or internal IDs to end users.**
+
 - **Scenario:** A database query fails. The 500 error response includes the SQL query and table names.
 - **Risk:** Information disclosure — attacker learns the database schema.
 - **Implementation:**
@@ -3240,6 +3313,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE ERR-002: All external API calls have timeouts and circuit breakers.**
+
 - **Scenario:** BoldSign's API becomes unresponsive. Every signing request hangs for 30 seconds, backing up the request queue.
 - **Risk:** Cascading failure — the entire application becomes unresponsive because all request handler threads are blocked waiting for BoldSign.
 - **Implementation:**
@@ -3258,6 +3332,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.22 Object Storage & File Upload Safety
 
 **RULE STORE-001: File uploads are validated and sanitized.**
+
 - **Scenario:** A user uploads a "PDF" that is actually an executable file, a zip bomb, or a file with a double extension (.pdf.exe).
 - **Risk:** Malware distribution via document attachments, server resource exhaustion.
 - **Implementation:**
@@ -3273,6 +3348,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE STORE-002: Signed document PDFs are stored immutably.**
+
 - **Scenario:** An admin accidentally (or maliciously) deletes the signed PDF from S3.
 - **Risk:** The legal evidence of the signed agreement is destroyed.
 - **Implementation:**
@@ -3290,6 +3366,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.23 Paddle-Specific Edge Cases
 
 **RULE PAD-001: Handle Paddle webhook event ordering correctly.**
+
 - **Scenario:** Paddle sends `subscription.updated` before `subscription.created` (out of order).
 - **Risk:** The `subscription.updated` handler tries to update a record that doesn't exist yet.
 - **Implementation:**
@@ -3303,6 +3380,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE PAD-002: Subscription cancellation downgrades gracefully.**
+
 - **Scenario:** A customer cancels their Professional plan. They have 50 documents in draft, 20 templates, and 8 team members.
 - **Risk:** If we immediately enforce Free tier limits (1 seat, 5 docs/month), 7 users are locked out and the customer can't access their own documents.
 - **Implementation:**
@@ -3322,6 +3400,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 ### 13.24 BoldSign-Specific Edge Cases
 
 **RULE BOLD-001: BoldSign outage doesn't prevent document viewing.**
+
 - **Scenario:** BoldSign's API is down. A signer clicks the signing link in their email.
 - **Risk:** If the recipient page requires a BoldSign API call to render, the signer sees an error page instead of the document.
 - **Implementation:**
@@ -3335,6 +3414,7 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 - **Phase:** 0
 
 **RULE BOLD-002: BoldSign webhook failures don't lose signing events.**
+
 - **Scenario:** BoldSign sends a `Signed` webhook. PactIntel's server is restarting and doesn't respond. BoldSign retries, but PactIntel's handler has a bug and crashes on the specific payload.
 - **Risk:** The signer's signature is recorded in BoldSign but not in PactIntel. The document status never updates.
 - **Implementation:**
@@ -3354,11 +3434,11 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 
 ## 14. Change Log
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0.0 | 2026-09-16 | System Architect | Initial blueprint |
-| 1.1.0 | 2026-09-16 | System Architect | Added Section 13: Comprehensive edge cases & mandatory implementation rules (100+ rules across 24 domains) |
-| 2.0.0 | 2026-10-08 | System Architect | **Google Cloud migration and "Build Once, Scale Forever" revision.** Authoritative changes: (1) Cloud platform changed from AWS/Fly.io to **Google Cloud (GCP) only** throughout all sections. All AWS service references replaced with GCP equivalents per the translation table in Addendum A. (2) Added §0 Architecture Invariants & Scale Model with cell architecture, invariants I-01–I-15, design envelope, and the No-Migration Principle. (3) §1 rewritten: modular-monolith codebase, multi-process runtime, cell-based deployment — "single Node.js process" and "extraction when scale demands" language removed. (4) §2.1 tech stack table fully rewritten for GCP (Cloud Run, Cloud SQL, Memorystore, Cloud Storage, Cloud KMS, Secret Manager, Pub/Sub, Artifact Registry, Cloud Armor, External ALB, Workload Identity Federation). §2.3 added: every migration scheduled in v1.1.0 is documented as eliminated. (5) §3.4 RLS predicate fixed (X-01: index-friendly, no cast). (6) §5.1 HIPAA compliance updated for Google Cloud BAA. §5.3 key hierarchy rewritten for Cloud KMS, multi-region keys, TK-based crypto-shredding, no per-org CMK by default. §5.4 secrets management updated to Secret Manager; WAF/SSRF/supply-chain controls added. (7) §8 Infrastructure completely rewritten: Fly.io and AWS removed; GCP project/folder layout; Cloud Run process-type catalog; GCP-native CI/CD (Workload Identity Federation, Artifact Registry); updated docker-compose (MinIO replaced; Redis role-split; Mailpit added); Cloud SQL native backup; IaC structure; runbook index. (8) ToC expanded with §15–§20 and appendices (content to be authored in subsequent passes per the revision brief). (9) `AGENTS.md` and `GEMINI.md` fully rewritten for GCP with invariants, forbidden patterns, and required workflow. Defect register: X-01 (RLS cast), X-24 (PostgreSQL TDE), X-46 (Fly.io artifacts), X-55 (minio/minio) addressed in this version. |
+| Version | Date       | Author           | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------- | ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.0.0   | 2026-09-16 | System Architect | Initial blueprint                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 1.1.0   | 2026-09-16 | System Architect | Added Section 13: Comprehensive edge cases & mandatory implementation rules (100+ rules across 24 domains)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 2.0.0   | 2026-10-08 | System Architect | **Google Cloud migration and "Build Once, Scale Forever" revision.** Authoritative changes: (1) Cloud platform changed from AWS/Fly.io to **Google Cloud (GCP) only** throughout all sections. All AWS service references replaced with GCP equivalents per the translation table in Addendum A. (2) Added §0 Architecture Invariants & Scale Model with cell architecture, invariants I-01–I-15, design envelope, and the No-Migration Principle. (3) §1 rewritten: modular-monolith codebase, multi-process runtime, cell-based deployment — "single Node.js process" and "extraction when scale demands" language removed. (4) §2.1 tech stack table fully rewritten for GCP (Cloud Run, Cloud SQL, Memorystore, Cloud Storage, Cloud KMS, Secret Manager, Pub/Sub, Artifact Registry, Cloud Armor, External ALB, Workload Identity Federation). §2.3 added: every migration scheduled in v1.1.0 is documented as eliminated. (5) §3.4 RLS predicate fixed (X-01: index-friendly, no cast). (6) §5.1 HIPAA compliance updated for Google Cloud BAA. §5.3 key hierarchy rewritten for Cloud KMS, multi-region keys, TK-based crypto-shredding, no per-org CMK by default. §5.4 secrets management updated to Secret Manager; WAF/SSRF/supply-chain controls added. (7) §8 Infrastructure completely rewritten: Fly.io and AWS removed; GCP project/folder layout; Cloud Run process-type catalog; GCP-native CI/CD (Workload Identity Federation, Artifact Registry); updated docker-compose (MinIO replaced; Redis role-split; Mailpit added); Cloud SQL native backup; IaC structure; runbook index. (8) ToC expanded with §15–§20 and appendices (content to be authored in subsequent passes per the revision brief). (9) `AGENTS.md` and `GEMINI.md` fully rewritten for GCP with invariants, forbidden patterns, and required workflow. Defect register: X-01 (RLS cast), X-24 (PostgreSQL TDE), X-46 (Fly.io artifacts), X-55 (minio/minio) addressed in this version. |
 
 ---
 
@@ -3384,4 +3464,3 @@ This section translates the product spec's Phase 0–4 into concrete technical m
 6. **Section 3 "A person can be a Manager in Workspace A and a plain Member in Workspace B; only Owner is account-wide"**: Confirmed and implemented via `workspace_memberships.role` being per-workspace, while `users.is_owner` is account-wide. The `user.role` in session context refers to the role in the **active workspace**.
 
 7. **Section 9 "Decide whether a user in multiple Workspaces consumes one seat per Workspace or one account-wide"**: Decision: **account-wide**. A user counts as one seat regardless of how many workspaces they belong to, unless workspaces are sold as fully separate sub-accounts (Enterprise tier only, Phase 4).
-
