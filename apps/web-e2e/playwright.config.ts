@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://127.0.0.1:3000';
+const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000';
 
 export default defineConfig({
   testDir: './src',
@@ -19,12 +19,10 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: process.env.PLAYWRIGHT_TEST_BASE_URL
-    ? undefined
-    : {
-        command: 'pnpm --filter @pactintel/web start',
-        url: 'http://127.0.0.1:3000',
-        reuseExistingServer: true,
-        timeout: 120 * 1000,
-      },
+  webServer: {
+    command: 'pnpm --filter @pactintel/web start',
+    url: 'http://localhost:3000/dashboard',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+  },
 });

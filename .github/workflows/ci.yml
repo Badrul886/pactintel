@@ -67,17 +67,8 @@ jobs:
       - name: Install Playwright Browsers
         run: pnpm --filter @pactintel/web-e2e exec playwright install --with-deps chromium
 
-      - name: Start Next.js Server for E2E
-        run: |
-          pnpm --filter @pactintel/web start &
-          npx wait-on http://127.0.0.1:3000 --timeout 60000
-        env:
-          PORT: 3000
-
       - name: Run Playwright E2E Regression Flows (Flows 01..15)
         run: pnpm run test:e2e
-        env:
-          PLAYWRIGHT_TEST_BASE_URL: http://127.0.0.1:3000
 
   # ---------------------------------------------------------------------------
   # 2. Ephemeral PR Preview Environment (Q11: Cost-capped Cloud Run Revisions)
