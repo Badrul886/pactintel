@@ -4,8 +4,9 @@ import { UserRole, Action, Subject } from '@pactintel/shared-types';
 export type AppAbility = MongoAbility<[Action, Subject]>;
 
 export class AbilityFactory {
-  static createForUser(role: UserRole): AppAbility {
+  static createForUser(role: UserRole, user?: { id: string }): AppAbility {
     const { can, cannot, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
+    const userId = user?.id;
 
     switch (role) {
       case 'owner':
@@ -35,20 +36,21 @@ export class AbilityFactory {
         can('manage', 'LineItem');
         can('manage', 'ProductCatalogItem');
         can('read', 'BrandKit');
-        can('manage', 'Comment');
-        can('manage', 'ContentLock');
-        can('manage', 'ApprovalChain');
-        can('manage', 'ApprovalStep');
-        can('manage', 'AutomationRule');
+        // Phase 2 additions for manager:
+        can(['read', 'create', 'update', 'delete'], 'Comment');
+        can(['read', 'create', 'delete'], 'ContentLock');
+        can(['read', 'create', 'update'], 'ApprovalChain');
+        can(['read', 'decide'], 'ApprovalStep');
+        can(['read', 'create', 'update', 'delete'], 'AutomationRule');
         can('use', 'AiFeature');
-        can(['read', 'send', 'snooze', 'dismiss', 'manage'], 'FollowUpQueueItem');
+        can(['read', 'send', 'snooze', 'dismiss'], 'FollowUpQueueItem');
         can('read', 'Webhook');
-        cannot('manage', 'Webhook');
+        cannot('manage', 'Webhook'); // explicit deny — admin only
         can(['read', 'create'], 'ClickwrapAgreement');
         can(['read', 'create'], 'ClickwrapVersion');
         can('read', 'ClickwrapAcceptance');
         cannot('manage', 'ClickwrapAgreement');
-        cannot('manage', 'PaymentCredential');
+        cannot('manage', 'PaymentCredential'); // admin only
         cannot('delete', 'Organization');
         cannot('manage', 'Billing');
         cannot('delete', 'User');
@@ -83,16 +85,32 @@ export class AbilityFactory {
         can('update', 'LineItem');
         can('read', 'BrandKit');
         can('read', 'ProductCatalogItem');
-        can('manage', 'Comment');
-        can('manage', 'ContentLock');
-        can('read', 'ApprovalChain');
+        // Phase 2 additions for member:
+        can(['read', 'create'], 'Comment');
+        if (userId) {
+          can('update', 'Comment', { authorId: { $eq: userId } } as any);
+          can('delete', 'Comment', { authorId: { $eq: userId } } as any);
+        } else {
+          can('update', 'Comment');
+          can('delete', 'Comment');
+        }
+        cannot('create', 'ContentLock'); // content locking = manager/admin only
+        can('read', 'ContentLock');
         can('read', 'ApprovalStep');
-        can('update', 'ApprovalStep');
-        can('read', 'AutomationRule');
-        can('use', 'AiFeature');
-        can(['read', 'send', 'snooze', 'dismiss'], 'FollowUpQueueItem');
+        cannot('decide', 'ApprovalStep'); // unless assigned as approver — handled in service
+        can('read', 'ApprovalChain');
         cannot('create', 'ApprovalChain');
+        can('read', 'AutomationRule');
         cannot('create', 'AutomationRule');
+        cannot('manage', 'AutomationRule');
+        can('use', 'AiFeature');
+        if (userId) {
+          can(['read', 'send', 'snooze', 'dismiss'], 'FollowUpQueueItem', {
+            ownerId: { $eq: userId },
+          } as any);
+        } else {
+          can(['read', 'send', 'snooze', 'dismiss'], 'FollowUpQueueItem');
+        }
         cannot('delete', 'Document');
         cannot('create', 'User');
         cannot('delete', 'User');
@@ -108,6 +126,7 @@ export class AbilityFactory {
         break;
 
       case 'collaborator':
+        cannot('manage', 'all'); // Baseline: collaborator cannot manage anything unless explicitly permitted
         can('read', 'Document');
         can('update', 'Document'); // Can comment/suggest, but not send/sign/delete
         can('read', 'Workspace');
@@ -128,12 +147,12 @@ export class AbilityFactory {
         cannot('delete', 'PricingTable');
         can('read', 'BrandKit');
         can('read', 'ProductCatalogItem');
-        can('create', 'Comment');
+        // Phase 2 additions for collaborator:
         can('read', 'Comment');
-        can('update', 'Comment');
-        can('delete', 'Comment');
+        can('create', 'Comment'); // collaborators can comment
         can('read', 'ContentLock');
         cannot('use', 'AiFeature'); // Explicit deny: AI requires full seat
+        cannot('decide', 'ApprovalStep');
         cannot('manage', 'ApprovalChain');
         cannot('manage', 'ApprovalStep');
         cannot('manage', 'AutomationRule');

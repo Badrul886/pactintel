@@ -64,6 +64,12 @@ jobs:
       - name: Build All Monorepo Projects
         run: pnpm run build
 
+      - name: Install Playwright Browsers
+        run: pnpm --filter @pactintel/web-e2e exec playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Regression Flows (Flows 01..15)
+        run: pnpm run test:e2e
+
   # ---------------------------------------------------------------------------
   # 2. Ephemeral PR Preview Environment (Q11: Cost-capped Cloud Run Revisions)
   # ---------------------------------------------------------------------------
