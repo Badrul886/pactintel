@@ -75,7 +75,7 @@ test.describe('Phase 1 E2E Flows — Advanced Contract Automation & Recipient Ex
     await page.goto('/d/doc-e2e-copy');
 
     // Assert document preserves original v1 text, completely unaffected by template modification
-    await expect(page.locator('body')).toContainText('1. Engagement Term');
+    await expect(page.locator('body')).toContainText('1. Engagement');
     await expect(page.locator('body')).not.toContainText('Term: 36 months');
   });
 

@@ -13,8 +13,10 @@ test.describe('Phase 0 Definition of Done — Critical User Journeys', () => {
     await expect(page.locator('aside')).toContainText('General Workspace');
 
     // Verify navigation links
-    await expect(page.getByRole('link', { name: 'Documents' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Billing & Plans' })).toBeVisible();
+    await expect(page.locator('aside').getByRole('link', { name: 'Documents' })).toBeVisible();
+    await expect(
+      page.locator('aside').getByRole('link', { name: 'Billing & Plans' }),
+    ).toBeVisible();
   });
 
   // Flow 2: Create Document, Write Content, & Create Immutable Version
@@ -70,9 +72,9 @@ test.describe('Phase 0 Definition of Done — Critical User Journeys', () => {
     await expect(page.locator('text=Team Seats Occupied')).toBeVisible();
 
     // Verify Available Plans grid
-    await expect(page.locator('text=Starter')).toBeVisible();
-    await expect(page.locator('text=Growth')).toBeVisible();
-    await expect(page.locator('text=Enterprise')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Starter' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Growth' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Enterprise' })).toBeVisible();
 
     // Verify Paddle customer portal button
     await expect(page.getByRole('button', { name: /Manage Invoices & Billing/i })).toBeVisible();

@@ -7,7 +7,7 @@ test.describe('PactIntel Critical Flows', () => {
     // Verify tabular data rendering (Design System invariant)
     const table = page.locator('table.pact-table');
     await expect(table).toBeVisible();
-    await expect(page.locator('.status-badge')).toBeVisible();
+    await expect(page.locator('.status-badge').first()).toBeVisible();
   });
 
   test('recipient page renders document review canvas', async ({ page }) => {
