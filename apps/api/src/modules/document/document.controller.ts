@@ -25,6 +25,8 @@ import {
   UpdateDocumentDtoSchema,
   CreateDocumentVersionDto,
   CreateDocumentVersionDtoSchema,
+  UpdateDocumentSettingsDto,
+  UpdateDocumentSettingsDtoSchema,
 } from '@pactintel/shared-types';
 import { ClsService } from 'nestjs-cls';
 
@@ -80,6 +82,15 @@ export class DocumentController {
   async updateDocument(@Param('id') id: string, @Body() dto: UpdateDocumentDto) {
     const orgId = this.cls.get<string>('organizationId');
     return this.docService.updateDocument(orgId, id, dto);
+  }
+
+  @Patch(':id/settings')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'update', subject: 'Document' })
+  @UsePipes(new ZodValidationPipe(UpdateDocumentSettingsDtoSchema))
+  async updateDocumentSettings(@Param('id') id: string, @Body() dto: UpdateDocumentSettingsDto) {
+    const orgId = this.cls.get<string>('organizationId');
+    return this.docService.updateDocumentSettings(orgId, id, dto);
   }
 
   @Delete(':id')

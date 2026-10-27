@@ -42,6 +42,7 @@ describe('Recipient Access Guard (RULE ACC-004 — Sprint 4.4)', () => {
       findById: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      recordView: jest.fn().mockResolvedValue({ id: docId }),
     } as any;
 
     notificationService = {

@@ -106,4 +106,39 @@ export class OrganizationService {
   async createWorkspace(organizationId: string, name: string, slug: string) {
     return this.orgRepo.createWorkspace(organizationId, name, slug);
   }
+
+  // AI Guardrail cache (RULE AI-003)
+  private readonly aiGuardrails = new Map<
+    string,
+    { disabled: boolean; excludedDocumentIds?: string[] }
+  >();
+
+  async getAiGuardrails(
+    organizationId: string,
+  ): Promise<{ disabled: boolean; excludedDocumentIds?: string[] }> {
+    return (
+      this.aiGuardrails.get(organizationId) || {
+        disabled: false,
+        excludedDocumentIds: [],
+      }
+    );
+  }
+
+  setAiGuardrails(
+    organizationId: string,
+    guardrails: { disabled: boolean; excludedDocumentIds?: string[] },
+  ) {
+    this.aiGuardrails.set(organizationId, guardrails);
+  }
+
+  async getCellRegion(organizationId: string): Promise<'us' | 'eu'> {
+    const org = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { cellId: true },
+    });
+    if (org?.cellId && (org.cellId.includes('eu') || org.cellId.includes('europe'))) {
+      return 'eu';
+    }
+    return (process.env.CELL_REGION as 'us' | 'eu') || 'us';
+  }
 }

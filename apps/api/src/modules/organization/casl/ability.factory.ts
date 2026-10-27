@@ -35,6 +35,20 @@ export class AbilityFactory {
         can('manage', 'LineItem');
         can('manage', 'ProductCatalogItem');
         can('read', 'BrandKit');
+        can('manage', 'Comment');
+        can('manage', 'ContentLock');
+        can('manage', 'ApprovalChain');
+        can('manage', 'ApprovalStep');
+        can('manage', 'AutomationRule');
+        can('use', 'AiFeature');
+        can(['read', 'send', 'snooze', 'dismiss', 'manage'], 'FollowUpQueueItem');
+        can('read', 'Webhook');
+        cannot('manage', 'Webhook');
+        can(['read', 'create'], 'ClickwrapAgreement');
+        can(['read', 'create'], 'ClickwrapVersion');
+        can('read', 'ClickwrapAcceptance');
+        cannot('manage', 'ClickwrapAgreement');
+        cannot('manage', 'PaymentCredential');
         cannot('delete', 'Organization');
         cannot('manage', 'Billing');
         cannot('delete', 'User');
@@ -69,6 +83,16 @@ export class AbilityFactory {
         can('update', 'LineItem');
         can('read', 'BrandKit');
         can('read', 'ProductCatalogItem');
+        can('manage', 'Comment');
+        can('manage', 'ContentLock');
+        can('read', 'ApprovalChain');
+        can('read', 'ApprovalStep');
+        can('update', 'ApprovalStep');
+        can('read', 'AutomationRule');
+        can('use', 'AiFeature');
+        can(['read', 'send', 'snooze', 'dismiss'], 'FollowUpQueueItem');
+        cannot('create', 'ApprovalChain');
+        cannot('create', 'AutomationRule');
         cannot('delete', 'Document');
         cannot('create', 'User');
         cannot('delete', 'User');
@@ -78,6 +102,9 @@ export class AbilityFactory {
         cannot('manage', 'BrandKit');
         cannot('manage', 'CustomDomain');
         cannot('manage', 'IntegrationConnection');
+        cannot('manage', 'Webhook');
+        cannot('manage', 'ClickwrapAgreement');
+        cannot('manage', 'PaymentCredential');
         break;
 
       case 'collaborator':
@@ -101,6 +128,20 @@ export class AbilityFactory {
         cannot('delete', 'PricingTable');
         can('read', 'BrandKit');
         can('read', 'ProductCatalogItem');
+        can('create', 'Comment');
+        can('read', 'Comment');
+        can('update', 'Comment');
+        can('delete', 'Comment');
+        can('read', 'ContentLock');
+        cannot('use', 'AiFeature'); // Explicit deny: AI requires full seat
+        cannot('manage', 'ApprovalChain');
+        cannot('manage', 'ApprovalStep');
+        cannot('manage', 'AutomationRule');
+        cannot('read', 'FollowUpQueueItem');
+        cannot('manage', 'FollowUpQueueItem');
+        cannot('manage', 'Webhook');
+        cannot('manage', 'ClickwrapAgreement');
+        cannot('manage', 'PaymentCredential');
         cannot('create', 'Document');
         cannot('delete', 'Document');
         cannot('create', 'User');

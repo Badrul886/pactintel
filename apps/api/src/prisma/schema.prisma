@@ -60,6 +60,17 @@ model Organization {
   pricingTables               PricingTable[]
   lineItems                   LineItem[]
   buyerPricingSelections      BuyerPricingSelection[]
+  documentComments            DocumentComment[]
+  contentLocks                ContentLock[]
+  approvalChains              ApprovalChain[]
+  approvalSteps               ApprovalStep[]
+  automationRules             AutomationRule[]
+  followUpQueueItems          FollowUpQueue[]
+  aiGenerationLogs            AiGenerationLog[]
+  webhookDeliveryLogs         WebhookDeliveryLog[]
+  clickwrapAgreements         ClickwrapAgreement[]
+  clickwrapVersions           ClickwrapVersion[]
+  clickwrapAcceptances        ClickwrapAcceptance[]
 
   @@map("organizations")
 }
@@ -80,6 +91,8 @@ model Workspace {
   templates      Template[]
   contentBlocks  ContentBlock[]
   folders        Folder[]
+  approvalChains ApprovalChain[]
+  automationRules AutomationRule[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -126,6 +139,13 @@ model User {
   auditLogs               AuditLogEntry[]
   notificationPreferences NotificationPreference[]
   inAppNotifications      InAppNotification[]
+  authoredComments        DocumentComment[]        @relation("CommentAuthor")
+  resolvedComments        DocumentComment[]        @relation("CommentResolver")
+  contentLocks            ContentLock[]
+  assignedApprovalSteps   ApprovalStep[]           @relation("Approver")
+  fallbackApprovalSteps   ApprovalStep[]           @relation("FallbackApprover")
+  followUpQueueItems      FollowUpQueue[]
+  aiGenerationLogs        AiGenerationLog[]
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -185,29 +205,37 @@ model Document {
   status            String    @default("draft") // draft, sent, viewed, signed, declined, expired, archived, voided
   customDomain      String?   @map("custom_domain")
   slug              String
-  passwordHash      String?   @map("password_hash")
-  expiresAt         DateTime? @map("expires_at")
-  maxViews          Int?      @map("max_views")
-  domainRestriction String[]  @map("domain_restriction")
-  currency          String    @default("USD")
-  totalValue        Decimal?  @map("total_value") @db.Decimal(15, 2)
-  metadata          Json      @default("{}")
-  currentVersionId  String?   @map("current_version_id")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  deletedAt         DateTime? @map("deleted_at")
+  passwordHash           String?                 @map("password_hash")
+  expiresAt              DateTime?               @map("expires_at")
+  expiryWarningSentAt    DateTime?               @map("expiry_warning_sent_at")
+  inactivityReminderDays Int?                    @map("inactivity_reminder_days")
+  lastViewedAt           DateTime?               @map("last_viewed_at")
+  maxViews               Int?                    @map("max_views")
+  domainRestriction      String[]                @map("domain_restriction")
+  currency               String                  @default("USD")
+  totalValue             Decimal?                @map("total_value") @db.Decimal(15, 2)
+  metadata               Json                    @default("{}")
+  currentVersionId       String?                 @map("current_version_id")
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  deletedAt              DateTime?               @map("deleted_at")
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  owner             User               @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  sourceTemplate    Template?          @relation(fields: [sourceTemplateId], references: [id])
-  versions          DocumentVersion[]
-  comments          Comment[]
-  signatureRequests SignatureRequest[]
+  organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace              Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner                  User                    @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  sourceTemplate         Template?               @relation(fields: [sourceTemplateId], references: [id])
+  versions               DocumentVersion[]
+  comments               Comment[]
+  signatureRequests      SignatureRequest[]
   signatureEvents        SignatureEvent[]
   payments               Payment[]
   pricingTables          PricingTable[]
   buyerPricingSelections BuyerPricingSelection[]
+  documentComments       DocumentComment[]
+  contentLocks           ContentLock[]
+  approvalSteps          ApprovalStep[]
+  followUpQueueItems     FollowUpQueue[]
+  aiGenerationLogs       AiGenerationLog[]
 
   @@unique([organizationId, slug])
   @@index([workspaceId, status])
@@ -223,15 +251,18 @@ model DocumentVersion {
   versionNumber   Int      @map("version_number")
   contentSnapshot Json     @map("content_snapshot")
   contentHash     String   @map("content_hash") // SHA-256 of canonical JSON
-  isSigned        Boolean  @default(false) @map("is_signed")
-  isCurrent       Boolean  @default(false) @map("is_current")
-  createdBy       String?  @map("created_by")
-  createdAt       DateTime @default(now()) @map("created_at")
+  isSigned          Boolean            @default(false) @map("is_signed")
+  isCurrent         Boolean            @default(false) @map("is_current")
+  yjsState          Bytes?             @map("yjs_state")
+  schemaVersion     Int                @default(1) @map("schema_version")
+  createdBy         String?            @map("created_by")
+  createdAt         DateTime           @default(now()) @map("created_at")
 
   document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creator           User?              @relation(fields: [createdBy], references: [id])
   signatureRequests SignatureRequest[]
+  documentComments  DocumentComment[]
 
   @@unique([documentId, versionNumber])
   @@index([documentId, isCurrent])
@@ -556,8 +587,9 @@ model Webhook {
   id              String    @id // UUIDv7
   organizationId  String    @map("organization_id")
   url             String
-  secret          String // HMAC signing secret
-  events          String[] // Subscribed event types
+  secret          String?   // HMAC signing secret (legacy/optional)
+  secretHash      String?   @map("secret_hash") // HMAC secret SHA-256 hash (WH-001)
+  events          String[]  // Subscribed event types
   isActive        Boolean   @default(true) @map("is_active")
   failureCount    Int       @default(0) @map("failure_count")
   lastTriggeredAt DateTime? @map("last_triggered_at")
@@ -565,7 +597,8 @@ model Webhook {
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveryLogs WebhookDeliveryLog[]
 
   @@map("webhooks")
 }
@@ -828,4 +861,237 @@ model InAppNotification {
   @@index([userId, isRead, createdAt(sort: Desc)])
   @@map("in_app_notifications")
 }
+
+// -----------------------------------------------------------------------------
+// 9. Phase 2 Models: Comments, Locks, Approvals, Automation, Follow-ups, AI,
+//    Webhooks, and Clickwrap
+// -----------------------------------------------------------------------------
+
+model DocumentComment {
+  id                String    @id // UUIDv7
+  organizationId   String    @map("organization_id")
+  documentId        String    @map("document_id")
+  documentVersionId String?   @map("document_version_id")
+  authorId          String    @map("author_id")
+  parentId          String?   @map("parent_id")
+  blockId           String?   @map("block_id")
+  content           String
+  isResolved        Boolean   @default(false) @map("is_resolved")
+  resolvedById      String?   @map("resolved_by_id")
+  resolvedAt        DateTime? @map("resolved_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document        Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion?  @relation(fields: [documentVersionId], references: [id], onDelete: SetNull)
+  author          User              @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  parent          DocumentComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies         DocumentComment[] @relation("CommentReplies")
+  resolvedBy      User?             @relation("CommentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([documentId, createdAt(sort: Desc)])
+  @@index([documentId, blockId])
+  @@map("document_comments")
+}
+
+model ContentLock {
+  id             String   @id // UUIDv7
+  organizationId String   @map("organization_id")
+  documentId     String   @map("document_id")
+  blockId        String   @map("block_id")
+  lockedById     String   @map("locked_by_id")
+  lockedAt       DateTime @default(now()) @map("locked_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  lockedBy     User         @relation(fields: [lockedById], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, blockId])
+  @@map("content_locks")
+}
+
+model ApprovalChain {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  name           String
+  conditions     Json      @default("{}")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  steps        ApprovalStep[]
+
+  @@map("approval_chains")
+}
+
+model ApprovalStep {
+  id                 String    @id // UUIDv7
+  approvalChainId    String    @map("approval_chain_id")
+  organizationId     String    @map("organization_id")
+  documentId         String?   @map("document_id")
+  stepOrder          Int       @map("step_order")
+  approverId         String?   @map("approver_id")
+  fallbackApproverId String?   @map("fallback_approver_id")
+  status             String    @default("pending") // pending, approved, rejected, skipped
+  timeoutHours       Int       @default(168) @map("timeout_hours")
+  decidedAt          DateTime? @map("decided_at")
+  comment            String?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  approvalChain    ApprovalChain @relation(fields: [approvalChainId], references: [id], onDelete: Cascade)
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document         Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  approver         User?         @relation("Approver", fields: [approverId], references: [id], onDelete: SetNull)
+  fallbackApprover User?         @relation("FallbackApprover", fields: [fallbackApproverId], references: [id], onDelete: SetNull)
+
+  @@index([approverId, status])
+  @@map("approval_steps")
+}
+
+model AutomationRule {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  name           String
+  triggerEvent   String    @map("trigger_event")
+  conditions     Json      @default("[]")
+  actions        Json      @default("[]")
+  isActive       Boolean   @default(true) @map("is_active")
+  executionCount Int       @default(0) @map("execution_count")
+  lastExecutedAt DateTime? @map("last_executed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("automation_rules")
+}
+
+model FollowUpQueue {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  documentId     String    @map("document_id")
+  ownerId        String    @map("owner_id")
+  scheduledFor   DateTime  @map("scheduled_for")
+  reason         String // inactivity, expiry_warning, custom
+  status         String    @default("pending") // pending, sent, snoozed, dismissed
+  sentAt         DateTime? @map("sent_at")
+  snoozedUntil   DateTime? @map("snoozed_until")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document     Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  owner        User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, scheduledFor])
+  @@map("follow_up_queue")
+}
+
+model AiGenerationLog {
+  id             String   @id // UUIDv7
+  organizationId String   @map("organization_id")
+  documentId     String?  @map("document_id")
+  userId         String   @map("user_id")
+  taskId         String   @map("task_id")
+  promptHash     String   @map("prompt_hash") // SHA-256 of prompt
+  modelUsed      String?  @map("model_used")
+  tokensInput    Int?     @map("tokens_input")
+  tokensOutput   Int?     @map("tokens_output")
+  latencyMs      Int?     @map("latency_ms")
+  status         String // success, error, rejected
+  errorCode      String?  @map("error_code")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document     Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("ai_generation_logs")
+}
+
+model WebhookDeliveryLog {
+  id            String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  webhookId     String    @map("webhook_id")
+  eventId       String    @map("event_id")
+  eventType     String    @map("event_type")
+  payloadHash   String    @map("payload_hash")
+  attemptNumber Int       @default(1) @map("attempt_number")
+  httpStatus    Int?      @map("http_status")
+  responseBody  String?   @map("response_body")
+  deliveredAt   DateTime? @map("delivered_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  webhook      Webhook      @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@unique([webhookId, eventId, attemptNumber])
+  @@map("webhook_delivery_logs")
+}
+
+model ClickwrapAgreement {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  name           String
+  slug           String
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  versions     ClickwrapVersion[]
+
+  @@unique([organizationId, slug])
+  @@map("clickwrap_agreements")
+}
+
+model ClickwrapVersion {
+  id                   String    @id // UUIDv7
+  organizationId       String    @map("organization_id")
+  clickwrapAgreementId String    @map("clickwrap_agreement_id")
+  versionNumber        Int       @map("version_number")
+  content              String
+  contentHash          String    @map("content_hash") // SHA-256
+  isCurrent            Boolean   @default(false) @map("is_current")
+  publishedAt          DateTime? @map("published_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  deletedAt            DateTime? @map("deleted_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agreement    ClickwrapAgreement    @relation(fields: [clickwrapAgreementId], references: [id], onDelete: Cascade)
+  acceptances  ClickwrapAcceptance[]
+
+  @@unique([clickwrapAgreementId, versionNumber])
+  @@map("clickwrap_versions")
+}
+
+model ClickwrapAcceptance {
+  id                 String   @id // UUIDv7
+  organizationId     String   @map("organization_id")
+  clickwrapVersionId String   @map("clickwrap_version_id")
+  acceptorEmail      String   @map("acceptor_email")
+  acceptorName       String?  @map("acceptor_name")
+  ipAddress          String?  @map("ip_address")
+  userAgent          String?  @map("user_agent")
+  acceptedAt         DateTime @default(now()) @map("accepted_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  version      ClickwrapVersion @relation(fields: [clickwrapVersionId], references: [id], onDelete: Restrict)
+
+  @@index([clickwrapVersionId, acceptedAt(sort: Desc)])
+  @@map("clickwrap_acceptances")
+}
+
 

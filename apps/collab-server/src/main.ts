@@ -1,38 +1,20 @@
-import { Server } from '@hocuspocus/server';
-import { Redis } from '@hocuspocus/extension-redis';
+/**
+ * Collab Server Main Entrypoint
+ * Blueprint References: §8, §16
+ */
+import { createHocuspocusServer } from './hocuspocus.server';
+import { config } from './config';
 
-const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 1234;
-const redisUrl = process.env.REDIS_REALTIME_URL || 'redis://localhost:6382';
+async function bootstrap() {
+  const server = createHocuspocusServer();
 
-const server = Server.configure({
-  port,
-  async onAuthenticate(data) {
-    const { token } = data;
-    // Phase 2: verify JWT/session token and check document permissions
-    if (!token) {
-      // In development sandbox, allow connections
-      if (process.env.NODE_ENV !== 'production') {
-        return { user: { id: 'anonymous', name: 'Anonymous User' } };
-      }
-      throw new Error('Authentication token is required for collaborative editing');
-    }
+  await server.listen();
+  console.log(
+    `[CollabServer] PactIntel Hocuspocus Collab Server listening on port ${config.port} (${config.env})`,
+  );
+}
 
-    return {
-      user: {
-        id: 'dev-user-id',
-        name: 'Collaborator',
-      },
-    };
-  },
-
-  extensions: [
-    new Redis({
-      host: new URL(redisUrl).hostname,
-      port: parseInt(new URL(redisUrl).port || '6382', 10),
-    }),
-  ],
-});
-
-server.listen().then(() => {
-  console.log(`PactIntel Hocuspocus Collab Server listening on port ${port}`);
+bootstrap().catch((err) => {
+  console.error('[CollabServer] Fatal error during bootstrap:', err);
+  process.exit(1);
 });

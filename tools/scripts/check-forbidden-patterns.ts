@@ -63,7 +63,7 @@ srcDirs.forEach((srcDir) => {
 
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.split(/\r?\n/);
-    const relPath = path.relative(ROOT_DIR, filePath);
+    const relPath = path.relative(ROOT_DIR, filePath).replace(/\\/g, '/');
 
     lines.forEach((line, idx) => {
       const lineNum = idx + 1;
@@ -104,6 +104,44 @@ srcDirs.forEach((srcDir) => {
         });
       }
 
+      if (
+        (line.includes("from '@anthropic-ai/sdk'") ||
+          line.includes("require('@anthropic-ai/sdk')")) &&
+        !relPath.includes('adapters/anthropic')
+      ) {
+        violations.push({
+          file: relPath,
+          line: lineNum,
+          rule: 'ADP-001 / ANTHROPIC_LEAK',
+          details: 'Anthropic SDK import found outside AI adapter.',
+        });
+      }
+
+      if (
+        (line.includes("from '@google-cloud/aiplatform'") ||
+          line.includes("require('@google-cloud/aiplatform')")) &&
+        !relPath.includes('adapters/vertex-ai')
+      ) {
+        violations.push({
+          file: relPath,
+          line: lineNum,
+          rule: 'ADP-001 / VERTEX_AI_LEAK',
+          details: 'Vertex AI SDK import found outside AI adapter.',
+        });
+      }
+
+      if (
+        (line.includes("from 'stripe'") || line.includes("require('stripe')")) &&
+        !relPath.includes('adapters/stripe')
+      ) {
+        violations.push({
+          file: relPath,
+          line: lineNum,
+          rule: 'ADP-001 / STRIPE_LEAK',
+          details: 'Stripe SDK import found outside payments adapter.',
+        });
+      }
+
       // Rule 3: No direct ClickHouse INSERT from application code
       if (
         line.includes('INSERT INTO') &&
@@ -126,6 +164,33 @@ srcDirs.forEach((srcDir) => {
             line: lineNum,
             rule: 'DS-15 / GLASSMORPHISM_FORBIDDEN',
             details: 'Glassmorphism (backdrop-filter) is prohibited by Design System Section 15.',
+          });
+        }
+        if (line.includes('linear-gradient(') || line.includes('radial-gradient(')) {
+          violations.push({
+            file: relPath,
+            line: lineNum,
+            rule: 'DS-15 / GRADIENT_FORBIDDEN',
+            details: 'Gradient backgrounds are prohibited by Design System Section 15.',
+          });
+        }
+      }
+
+      // Rule 5: No gen_random_uuid() in application code (use generateId())
+      if ((ext === '.ts' || ext === '.js') && !relPath.includes('migrations')) {
+        const trimmed = line.trim();
+        if (
+          line.includes('gen_random_uuid()') &&
+          !trimmed.startsWith('*') &&
+          !trimmed.startsWith('//') &&
+          !trimmed.startsWith('/*')
+        ) {
+          violations.push({
+            file: relPath,
+            line: lineNum,
+            rule: 'ID-001 / RAW_UUID_CALL',
+            details:
+              'Do not use gen_random_uuid() in application code. Use generateId() from @pactintel/shared-utils.',
           });
         }
       }

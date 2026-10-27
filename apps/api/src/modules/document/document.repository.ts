@@ -155,4 +155,92 @@ export class DocumentRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  // --- Document Expiry & Inactivity Reminders (Sprint 2.6) ---
+
+  async findExpiringSoon(warningThreshold: Date, now: Date = new Date()) {
+    return this.prisma.document.findMany({
+      where: {
+        deletedAt: null,
+        expiresAt: { not: null, lte: warningThreshold, gt: now },
+        expiryWarningSentAt: null,
+        status: { notIn: ['expired', 'signed', 'voided', 'declined'] },
+      },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+      },
+    });
+  }
+
+  async setExpiryWarningAt(documentId: string, timestamp: Date = new Date()) {
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: { expiryWarningSentAt: timestamp },
+    });
+  }
+
+  async findJustExpired(now: Date = new Date()) {
+    return this.prisma.document.findMany({
+      where: {
+        deletedAt: null,
+        expiresAt: { not: null, lte: now },
+        status: { notIn: ['expired', 'signed', 'voided', 'declined'] },
+      },
+    });
+  }
+
+  async setStatus(documentId: string, status: string) {
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: { status },
+    });
+  }
+
+  async findInactiveDocuments(now: Date = new Date()) {
+    // Finds documents in 'sent' status with inactivityReminderDays set
+    // RULE EC-EXPIRY-05: If lastViewedAt is NULL, fallback to createdAt for inactivity calculation
+    const candidates = await this.prisma.document.findMany({
+      where: {
+        deletedAt: null,
+        status: 'sent',
+        inactivityReminderDays: { not: null },
+      },
+      include: {
+        owner: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return candidates.filter((doc) => {
+      if (!doc.inactivityReminderDays) return false;
+      const refDate = doc.lastViewedAt ?? doc.createdAt;
+      const daysDiff = (now.getTime() - refDate.getTime()) / (1000 * 60 * 60 * 24);
+      return daysDiff >= doc.inactivityReminderDays;
+    });
+  }
+
+  async recordView(documentId: string, now: Date = new Date()) {
+    return this.prisma.document.update({
+      where: { id: documentId },
+      data: { lastViewedAt: now },
+    });
+  }
+
+  async updateSettings(
+    organizationId: string,
+    documentId: string,
+    settings: {
+      expiresAt?: Date | null;
+      inactivityReminderDays?: number | null;
+    },
+  ) {
+    return this.prisma.document.update({
+      where: { id: documentId, organizationId },
+      data: {
+        ...(settings.expiresAt !== undefined ? { expiresAt: settings.expiresAt } : {}),
+        ...(settings.inactivityReminderDays !== undefined
+          ? { inactivityReminderDays: settings.inactivityReminderDays }
+          : {}),
+      },
+    });
+  }
 }

@@ -3,7 +3,12 @@ import { DocumentRepository } from './document.repository';
 import { DocumentOutboxService } from './outbox/document-outbox.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
-import { CreateDocumentDto, UpdateDocumentDto, DocumentStatus } from '@pactintel/shared-types';
+import {
+  CreateDocumentDto,
+  UpdateDocumentDto,
+  DocumentStatus,
+  UpdateDocumentSettingsDto,
+} from '@pactintel/shared-types';
 import { sha256, canonicalJson, generateId } from '@pactintel/shared-utils';
 
 @Injectable()
@@ -470,6 +475,11 @@ export class DocumentService {
       await this.transitionStatus(doc.organizationId, doc.id, 'viewed');
     }
 
+    // Always update lastViewedAt for inactivity telemetry (Sprint 2.6)
+    if (this.docRepo?.recordView) {
+      await this.docRepo.recordView(doc.id);
+    }
+
     const currentVersion = doc.versions[0];
 
     return {
@@ -544,6 +554,29 @@ export class DocumentService {
       status: 'accepted',
       message: 'Access request has been submitted to the document owner.',
     };
+  }
+
+  async updateDocumentSettings(
+    organizationId: string,
+    documentId: string,
+    dto: UpdateDocumentSettingsDto,
+  ) {
+    const doc = await this.docRepo.findById(organizationId, documentId);
+    if (!doc) {
+      throw new NotFoundException(`Document with id '${documentId}' not found.`);
+    }
+
+    const expiresAt =
+      dto.expiresInDays != null
+        ? new Date(Date.now() + dto.expiresInDays * 24 * 60 * 60 * 1000)
+        : dto.expiresInDays === null
+          ? null
+          : undefined;
+
+    return this.docRepo.updateSettings(organizationId, documentId, {
+      expiresAt,
+      inactivityReminderDays: dto.inactivityReminderDays,
+    });
   }
 
   private assertValidTransition(from: DocumentStatus, to: DocumentStatus) {

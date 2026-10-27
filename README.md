@@ -89,18 +89,107 @@ pactintel/
 
 ---
 
-## 4. Verification & Testing
+## 4. Verification & Testing Guide
+
+This project includes a comprehensive automated test suite (50 test suites, 250+ unit and integration tests) and an automated architectural inspection team.
+
+### 4.1 Run All Tests Across the Monorepo
 
 ```bash
-# Type check all apps and libs
-pnpm nx run-many --target=typecheck --all
+# Run all tests (uses Nx computation caching for fast re-runs)
+pnpm test
 
-# Run linter across all projects
-pnpm nx run-many --target=lint --all
+# Force-run all tests live without using Nx cache
+pnpm test -- --skip-nx-cache
+```
 
-# Run all test suites
-pnpm nx run-many --target=test --all
+> **Why did `pnpm test` finish in ~100ms?**  
+> Nx caches task outputs. If files haven't changed since the last test run, Nx instantly returns cached passing results. Use `--skip-nx-cache` to force re-execution.
 
-# Run E2E smoke tests
-pnpm nx run web-e2e:e2e
+---
+
+### 4.2 Run Tests by Application / Service
+
+```bash
+# 1. Backend API Service (47 test suites covering auth, RLS, documents, CPQ, signing, billing, analytics)
+pnpm --filter @pactintel/api test
+
+# 2. Real-Time Collab Server (Hocuspocus auth, server-side content locking, GC & LRU eviction)
+pnpm --filter @pactintel/collab-server test
+
+# 3. End-to-End Tests (Playwright browser flows)
+pnpm run test:e2e
+```
+
+---
+
+### 4.3 Run Specific Test Suites
+
+You can target any individual test file by passing its path:
+
+```bash
+# Section Analytics & Edge Cases (EC-ANALYTICS-01..05)
+pnpm --filter @pactintel/api test test/analytics/section-analytics.spec.ts
+
+# Real-Time Collaborative Content Lock Enforcement (EC-COLLAB-01..09)
+pnpm --filter @pactintel/collab-server test src/__tests__/content-lock.spec.ts
+
+# Hocuspocus WebSocket Authentication & Permissions
+pnpm --filter @pactintel/collab-server test src/__tests__/hocuspocus-auth.spec.ts
+
+# Multi-Tenant PostgreSQL RLS Isolation & Connection Pooler Safety
+pnpm --filter @pactintel/api test test/rls/cross-tenant-isolation.spec.ts
+pnpm --filter @pactintel/api test test/rls/rls-under-pooler.spec.ts
+
+# E-Signature Audit Trail & Version Immutability
+pnpm --filter @pactintel/api test test/signing/audit-trail-immutability.spec.ts
+pnpm --filter @pactintel/api test test/document/version-immutability.spec.ts
+
+# Paddle Webhook Idempotency & Billing Grace Period
+pnpm --filter @pactintel/api test test/billing/paddle-webhook-idempotency.spec.ts
+```
+
+---
+
+### 4.4 Helpful Test Execution Flags
+
+```bash
+# Print every individual test case name with status
+pnpm --filter @pactintel/api test -- --verbose
+pnpm --filter @pactintel/collab-server test -- --verbose
+
+# Watch mode (re-runs tests on file changes during development)
+pnpm --filter @pactintel/api test -- --watch
+
+# Generate code coverage report
+pnpm --filter @pactintel/api run test:cov
+
+# Detect hanging asynchronous handles or active timers
+pnpm --filter @pactintel/api test -- --detectOpenHandles
+```
+
+---
+
+### 4.5 Architectural Inspection Team & Automated Quality Gate
+
+Before submitting code, run the automated quality gate:
+
+```bash
+# 1. Verify Data Manifest (Invariant I-10: every table/bucket must be registered)
+pnpm run check:manifest
+
+# 2. Check forbidden architectural patterns (no AWS SDKs, no direct ClickHouse INSERTs, no gen_random_uuid())
+pnpm run check:forbidden-patterns
+
+# 3. Lint all workspace projects
+pnpm run lint
+
+# 4. Typecheck all workspace packages
+pnpm run typecheck
+
+# 5. Run all tests
+pnpm test -- --skip-nx-cache
+
+# 6. Verify production build
+pnpm run build
 ```

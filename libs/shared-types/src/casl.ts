@@ -1,4 +1,14 @@
-export type Action = 'create' | 'read' | 'update' | 'delete' | 'manage' | 'use';
+export type Action =
+  | 'create'
+  | 'read'
+  | 'update'
+  | 'delete'
+  | 'manage'
+  | 'use'
+  | 'send'
+  | 'snooze'
+  | 'dismiss'
+  | 'decide';
 
 export type Subject =
   | 'Document'
@@ -18,6 +28,18 @@ export type Subject =
   | 'IntegrationConnection'
   | 'Folder'
   | 'NotificationPreference'
+  | 'Comment'
+  | 'ContentLock'
+  | 'ApprovalChain'
+  | 'ApprovalStep'
+  | 'AutomationRule'
+  | 'FollowUpQueueItem'
+  | 'AiFeature'
+  | 'Webhook'
+  | 'ClickwrapAgreement'
+  | 'ClickwrapVersion'
+  | 'ClickwrapAcceptance'
+  | 'PaymentCredential'
   | 'all';
 
 export interface RequiredPolicyRule {

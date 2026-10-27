@@ -14,6 +14,7 @@ export interface DataManifestEntry {
     'until_org_deletion' | '7_years' | '2_years' | '1_year' | '90_days' | '30_days' | 'ephemeral';
   erasure:
     | 'soft_delete'
+    | 'hard_delete'
     | 'hard_delete_cascade'
     | 'hard_delete_on_request'
     | 'none'
@@ -389,6 +390,118 @@ export const dataManifest: DataManifest = {
       description: 'In-app notification inbox feed for users',
     },
 
+    // --- PostgreSQL: Phase 2 Additions (Collaboration, Approvals, Automation, AI, Clickwrap) ---
+    {
+      id: 'pg-document-comments',
+      type: 'postgresql_table',
+      tableOrResource: 'document_comments',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Threaded block-level discussions and inline resolution states',
+    },
+    {
+      id: 'pg-content-locks',
+      type: 'postgresql_table',
+      tableOrResource: 'content_locks',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'hard_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Server-enforced section and block edit locks',
+    },
+    {
+      id: 'pg-approval-chains',
+      type: 'postgresql_table',
+      tableOrResource: 'approval_chains',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Workspace document approval chain definitions and conditions',
+    },
+    {
+      id: 'pg-approval-steps',
+      type: 'postgresql_table',
+      tableOrResource: 'approval_steps',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'none',
+      residency: 'cell_jurisdiction',
+      description: 'Sequential approver steps with immutable status once decided',
+    },
+    {
+      id: 'pg-automation-rules',
+      type: 'postgresql_table',
+      tableOrResource: 'automation_rules',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Automated nudge and workflow trigger rules',
+    },
+    {
+      id: 'pg-follow-up-queue',
+      type: 'postgresql_table',
+      tableOrResource: 'follow_up_queue',
+      rls: true,
+      retention: '1_year',
+      erasure: 'hard_delete_on_request',
+      residency: 'cell_jurisdiction',
+      description: 'Sales representative review queue for automated nudge emails',
+    },
+    {
+      id: 'pg-ai-generation-logs',
+      type: 'postgresql_table',
+      tableOrResource: 'ai_generation_logs',
+      rls: true,
+      retention: '2_years',
+      erasure: 'none',
+      residency: 'cell_jurisdiction',
+      description: 'Append-only audit trail of AI drafts with SHA-256 prompt hashes',
+    },
+    {
+      id: 'pg-webhook-delivery-logs',
+      type: 'postgresql_table',
+      tableOrResource: 'webhook_delivery_logs',
+      rls: true,
+      retention: '90_days',
+      erasure: 'none',
+      residency: 'cell_jurisdiction',
+      description: 'Append-only outbound webhook delivery attempts and HTTP status logs',
+    },
+    {
+      id: 'pg-clickwrap-agreements',
+      type: 'postgresql_table',
+      tableOrResource: 'clickwrap_agreements',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Public consent agreement containers and permanent slugs',
+    },
+    {
+      id: 'pg-clickwrap-versions',
+      type: 'postgresql_table',
+      tableOrResource: 'clickwrap_versions',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'none',
+      residency: 'cell_jurisdiction',
+      description: 'Versioned agreement terms with SHA-256 content hashes',
+    },
+    {
+      id: 'pg-clickwrap-acceptances',
+      type: 'postgresql_table',
+      tableOrResource: 'clickwrap_acceptances',
+      rls: true,
+      retention: '7_years',
+      erasure: 'none',
+      residency: 'cell_jurisdiction',
+      description: 'Immutable legal consent records with IP and user-agent attribution',
+    },
+
     // --- ClickHouse: Analytics Store ---
     {
       id: 'ch-analytics-events',
@@ -409,6 +522,16 @@ export const dataManifest: DataManifest = {
       erasure: 'partition_drop',
       residency: 'cell_jurisdiction',
       description: 'Document recipient viewer session intervals and duration telemetry',
+    },
+    {
+      id: 'ch-section-views',
+      type: 'clickhouse_table',
+      tableOrResource: 'section_views',
+      rls: false,
+      retention: '2_years',
+      erasure: 'partition_drop',
+      residency: 'cell_jurisdiction',
+      description: 'High-volume section-level viewer reading duration and scroll depth telemetry',
     },
 
     // --- Cloud Storage Buckets ---

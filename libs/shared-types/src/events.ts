@@ -24,7 +24,31 @@ export type WebhookEventType =
   | 'subscription.updated'
   | 'subscription.cancelled'
   | 'template.created'
-  | 'document.created_from_template';
+  | 'document.created_from_template'
+  | 'comment.created'
+  | 'comment.resolved'
+  | 'comment.reopened'
+  | 'content_lock.acquired'
+  | 'content_lock.released'
+  | 'approval.chain.created'
+  | 'approval.chain.triggered'
+  | 'approval.step.decided'
+  | 'approval.chain.approved'
+  | 'approval.chain.rejected'
+  | 'approval.step.auto_reassigned'
+  | 'automation.rule.created'
+  | 'automation.rule.executed'
+  | 'automation.rule.failed'
+  | 'document.expiry_approaching'
+  | 'follow_up.sent'
+  | 'webhook.delivered'
+  | 'webhook.failed'
+  | 'webhook.auto_disabled'
+  | 'clickwrap.version.created'
+  | 'clickwrap.version.published'
+  | 'clickwrap.acceptance.recorded'
+  | 'payment_credential.added'
+  | 'payment_credential.revoked';
 
 export interface OutboxEventRecord {
   id: string;

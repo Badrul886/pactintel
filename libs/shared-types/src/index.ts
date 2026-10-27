@@ -779,3 +779,506 @@ export interface DocumentAnalyticsSummary {
   lastViewedAt: string | null;
   sessionsCount: number;
 }
+
+// --- Section Analytics (Phase 2 Sprint 2.1) ---
+export const SectionViewEventSchema = z.object({
+  blockId: z.string().min(1).max(255),
+  sectionTitle: z.string().max(255).optional().nullable(),
+  durationMs: z.number().int().min(0).max(3600000),
+  visibilityPct: z.number().min(0).max(1),
+  scrollDepthPct: z.number().min(0).max(1).optional().nullable(),
+});
+export type SectionViewEvent = z.infer<typeof SectionViewEventSchema>;
+
+export const BatchSectionEventsDtoSchema = z.object({
+  documentSlug: z.string().min(1),
+  sessionId: z.string().min(1),
+  events: z.array(SectionViewEventSchema).min(1).max(50),
+});
+export type BatchSectionEventsDto = z.infer<typeof BatchSectionEventsDtoSchema>;
+
+export interface SectionAnalyticsSummary {
+  blockId: string;
+  sectionTitle: string | null;
+  totalDurationMs: number;
+  avgVisibilityPct: number;
+  uniqueSessions: number;
+  viewsCount: number;
+}
+
+export interface ViewerSessionSummary {
+  sessionId: string;
+  viewerEmail: string | null;
+  firstOpenedAt: string;
+  lastActiveAt: string;
+  viewsCount: number;
+  timeSpentSeconds: number;
+  device: string;
+  country: string | null;
+}
+
+export interface DocumentAnalyticsFullResponse {
+  summary: DocumentAnalyticsSummary;
+  completionRate: number;
+  sections: SectionAnalyticsSummary[];
+  viewers: ViewerSessionSummary[];
+  nextCursor: string | null;
+}
+
+// --- Comments & Threads (Phase 2 Sprint 2.3) ---
+export const CommentAuthorDtoSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable().optional(),
+  email: z.string().email(),
+  avatarUrl: z.string().nullable().optional(),
+});
+export type CommentAuthorDto = z.infer<typeof CommentAuthorDtoSchema>;
+
+export const CreateCommentDtoSchema = z.object({
+  content: z.string().min(1).max(10000),
+  blockId: z.string().max(255).optional().nullable(),
+  parentId: z.string().uuid().optional().nullable(),
+  documentVersionId: z.string().uuid().optional().nullable(),
+});
+export type CreateCommentDto = z.infer<typeof CreateCommentDtoSchema>;
+
+export const UpdateCommentDtoSchema = z.object({
+  content: z.string().min(1).max(10000),
+});
+export type UpdateCommentDto = z.infer<typeof UpdateCommentDtoSchema>;
+
+export const CommentReplyDtoSchema = z.object({
+  id: z.string(),
+  documentId: z.string(),
+  authorId: z.string(),
+  author: CommentAuthorDtoSchema,
+  parentId: z.string(),
+  blockId: z.string().nullable().optional(),
+  content: z.string(),
+  isResolved: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  deletedAt: z.string().nullable().optional(),
+});
+export type CommentReplyDto = z.infer<typeof CommentReplyDtoSchema>;
+
+export const CommentThreadDtoSchema = z.object({
+  id: z.string(),
+  documentId: z.string(),
+  authorId: z.string(),
+  author: CommentAuthorDtoSchema,
+  parentId: z.null().optional(),
+  blockId: z.string().nullable().optional(),
+  content: z.string(),
+  isResolved: z.boolean(),
+  resolvedById: z.string().nullable().optional(),
+  resolvedAt: z.string().nullable().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  deletedAt: z.string().nullable().optional(),
+  replies: z.array(CommentReplyDtoSchema),
+});
+export type CommentThreadDto = z.infer<typeof CommentThreadDtoSchema>;
+
+export const ListCommentsQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  blockId: z.string().optional(),
+  isResolved: z
+    .enum(['true', 'false'])
+    .transform((val) => val === 'true')
+    .optional(),
+});
+export type ListCommentsQuery = z.infer<typeof ListCommentsQuerySchema>;
+
+export interface CommentsListResponseDto {
+  items: CommentThreadDto[];
+  nextCursor: string | null;
+  totalCount: number;
+}
+
+// --- Content Locking (Phase 2 Sprint 2.3) ---
+export const LockBlockDtoSchema = z.object({
+  blockId: z.string().min(1).max(255),
+});
+export type LockBlockDto = z.infer<typeof LockBlockDtoSchema>;
+
+export const ContentLockDtoSchema = z.object({
+  id: z.string(),
+  documentId: z.string(),
+  blockId: z.string(),
+  lockedById: z.string(),
+  lockedBy: CommentAuthorDtoSchema.optional(),
+  lockedAt: z.string(),
+});
+export type ContentLockDto = z.infer<typeof ContentLockDtoSchema>;
+
+export const ContentLockEventSchema = z.object({
+  action: z.enum(['locked', 'unlocked']),
+  documentId: z.string(),
+  blockId: z.string(),
+  lockedById: z.string(),
+  lockedAt: z.string(),
+});
+export type ContentLockEvent = z.infer<typeof ContentLockEventSchema>;
+
+// --- Approval Workflows (Phase 2 Sprint 2.4) ---
+export const CreateApprovalStepDtoSchema = z.object({
+  stepOrder: z.number().int().positive(),
+  approverId: z.string().uuid().optional().nullable(),
+  fallbackApproverId: z.string().uuid().optional().nullable(),
+  timeoutHours: z.number().int().min(1).max(720).default(168),
+});
+export type CreateApprovalStepDto = z.infer<typeof CreateApprovalStepDtoSchema>;
+
+export const ApprovalConditionsSchema = z.object({
+  triggerOn: z.enum(['document.sent', 'document.signed', 'manual']),
+  minDealValue: z.number().positive().optional().nullable(),
+  workspaceIds: z.array(z.string().uuid()).optional().nullable(),
+});
+export type ApprovalConditions = z.infer<typeof ApprovalConditionsSchema>;
+
+export const CreateApprovalChainDtoSchema = z.object({
+  workspaceId: z.string().uuid(),
+  name: z.string().min(1).max(200),
+  conditions: ApprovalConditionsSchema,
+  steps: z.array(CreateApprovalStepDtoSchema).min(1).max(10),
+});
+export type CreateApprovalChainDto = z.infer<typeof CreateApprovalChainDtoSchema>;
+
+export const SubmitApprovalDecisionDtoSchema = z.object({
+  decision: z.enum(['approved', 'rejected']),
+  comment: z.string().max(2000).optional().nullable(),
+});
+export type SubmitApprovalDecisionDto = z.infer<typeof SubmitApprovalDecisionDtoSchema>;
+
+export interface ApprovalStepDto {
+  id: string;
+  approvalChainId: string;
+  organizationId: string;
+  documentId: string | null;
+  stepOrder: number;
+  approverId: string | null;
+  approver?: { id: string; name: string | null; email: string } | null;
+  fallbackApproverId: string | null;
+  fallbackApprover?: { id: string; name: string | null; email: string } | null;
+  status: 'pending' | 'approved' | 'rejected' | 'skipped';
+  timeoutHours: number;
+  decidedAt: string | null;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ApprovalChainDto {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  name: string;
+  conditions: ApprovalConditions;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  steps: ApprovalStepDto[];
+}
+
+// --- Automation Rules (Phase 2 Sprint 2.4) ---
+export const AutomationConditionSchema = z.object({
+  field: z.string().min(1),
+  operator: z.enum(['eq', 'gt', 'lt', 'contains', 'not_eq']),
+  value: z.union([z.string(), z.number(), z.boolean()]),
+});
+export type AutomationCondition = z.infer<typeof AutomationConditionSchema>;
+
+export const AutomationActionSchema = z.object({
+  type: z.enum([
+    'send_notification',
+    'send_email',
+    'add_to_follow_up',
+    'trigger_webhook',
+    'update_document_tag',
+  ]),
+  config: z.record(z.unknown()),
+});
+export type AutomationAction = z.infer<typeof AutomationActionSchema>;
+
+export const CreateAutomationRuleDtoSchema = z.object({
+  workspaceId: z.string().uuid(),
+  name: z.string().min(1).max(200),
+  triggerEvent: z.enum([
+    'document.signed',
+    'document.viewed',
+    'document.sent',
+    'document.expired',
+    'approval.chain.approved',
+    'approval.chain.rejected',
+  ]),
+  conditions: z.array(AutomationConditionSchema).max(5).default([]),
+  actions: z.array(AutomationActionSchema).min(1).max(5),
+});
+export type CreateAutomationRuleDto = z.infer<typeof CreateAutomationRuleDtoSchema>;
+
+export const UpdateAutomationRuleDtoSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  isActive: z.boolean().optional(),
+  conditions: z.array(AutomationConditionSchema).max(5).optional(),
+  actions: z.array(AutomationActionSchema).min(1).max(5).optional(),
+});
+export type UpdateAutomationRuleDto = z.infer<typeof UpdateAutomationRuleDtoSchema>;
+
+export const TestAutomationRuleDtoSchema = z.object({
+  samplePayload: z.record(z.unknown()),
+});
+export type TestAutomationRuleDto = z.infer<typeof TestAutomationRuleDtoSchema>;
+
+export interface AutomationRuleDto {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  name: string;
+  triggerEvent: string;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  isActive: boolean;
+  executionCount: number;
+  lastExecutedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+// --- In-Editor AI Drafting (Phase 2 Sprint 2.5) ---
+export const AiTaskEnum = z.enum([
+  'DRAFT_SECTION_V1',
+  'REFINE_TEXT_V1',
+  'GRAMMAR_FIX_V1',
+  'TRANSLATE_V1',
+  'draft-section',
+  'refine-text',
+  'grammar-fix',
+  'translate',
+]);
+export type AiTaskId = z.infer<typeof AiTaskEnum>;
+
+export const AiDraftInputSchema = z
+  .object({
+    task: z.string().min(1).max(2000).optional(),
+    originalText: z.string().min(1).max(50000).optional(),
+    instruction: z.enum(['grammar_fix', 'condense', 'expand', 'change_tone', 'custom']).optional(),
+    tone: z.enum(['professional', 'friendly', 'formal', 'casual']).optional(),
+    documentContext: z.string().max(500).optional(), // Max 500 chars, summary only (RULE AI-014)
+    additionalInstructions: z.string().max(500).optional(),
+    sectionTitle: z.string().optional(),
+    documentType: z.string().optional(),
+    keyPoints: z.array(z.string()).optional(),
+    text: z.string().optional(),
+    targetLanguage: z.string().optional(),
+  })
+  .passthrough();
+export type AiDraftInput = z.infer<typeof AiDraftInputSchema>;
+
+export const AiDraftDtoSchema = z.object({
+  documentId: z.string().uuid().optional().nullable(),
+  taskId: AiTaskEnum,
+  input: AiDraftInputSchema,
+});
+export type AiDraftDto = z.infer<typeof AiDraftDtoSchema>;
+
+export interface AiResponseDto {
+  content: string;
+  taskId: string;
+  tokensUsed: number;
+}
+
+// --- Document Expiry & Reminders (Phase 2 Sprint 2.6) ---
+export const UpdateDocumentSettingsDtoSchema = z.object({
+  expiresInDays: z.number().int().min(1).max(730).nullable().optional(),
+  inactivityReminderDays: z.number().int().min(1).max(365).nullable().optional(),
+});
+export type UpdateDocumentSettingsDto = z.infer<typeof UpdateDocumentSettingsDtoSchema>;
+
+export const FollowUpReasonEnum = z.enum(['inactivity', 'expiry_warning', 'custom']);
+export type FollowUpReason = z.infer<typeof FollowUpReasonEnum>;
+
+export const FollowUpStatusEnum = z.enum(['pending', 'sent', 'snoozed', 'dismissed']);
+export type FollowUpStatus = z.infer<typeof FollowUpStatusEnum>;
+
+export const FollowUpQueueItemSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  documentId: z.string().uuid(),
+  ownerId: z.string().uuid(),
+  scheduledFor: z.coerce.date(),
+  reason: FollowUpReasonEnum,
+  status: FollowUpStatusEnum,
+  sentAt: z.coerce.date().nullable().optional(),
+  snoozedUntil: z.coerce.date().nullable().optional(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+  document: z
+    .object({
+      id: z.string(),
+      title: z.string(),
+      slug: z.string(),
+      status: z.string(),
+      lastViewedAt: z.coerce.date().nullable().optional(),
+      expiresAt: z.coerce.date().nullable().optional(),
+    })
+    .optional(),
+  owner: z
+    .object({
+      id: z.string(),
+      name: z.string().nullable().optional(),
+      email: z.string(),
+    })
+    .optional(),
+});
+export type FollowUpQueueItem = z.infer<typeof FollowUpQueueItemSchema>;
+
+export const SnoozeFollowUpDtoSchema = z.object({
+  snoozedUntil: z.coerce.date(),
+});
+export type SnoozeFollowUpDto = z.infer<typeof SnoozeFollowUpDtoSchema>;
+
+// --- Webhooks (Sprint 2.7) ---
+export const WebhookEventEnum = z.enum([
+  'document.created',
+  'document.sent',
+  'document.viewed',
+  'document.signed',
+  'document.declined',
+  'document.expired',
+  'document.voided',
+  'approval.chain.approved',
+  'approval.chain.rejected',
+  'payment.completed',
+  'payment.failed',
+  'comment.created',
+  'follow_up.sent',
+]);
+export type WebhookEvent = z.infer<typeof WebhookEventEnum>;
+
+export const CreateWebhookDtoSchema = z.object({
+  url: z.string().url().max(2000),
+  events: z.array(WebhookEventEnum).min(1).max(20),
+});
+export type CreateWebhookDto = z.infer<typeof CreateWebhookDtoSchema>;
+
+export const UpdateWebhookDtoSchema = z.object({
+  url: z.string().url().max(2000).optional(),
+  events: z.array(WebhookEventEnum).min(1).max(20).optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateWebhookDto = z.infer<typeof UpdateWebhookDtoSchema>;
+
+export const WebhookDtoSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  url: z.string().url(),
+  events: z.array(z.string()),
+  isActive: z.boolean(),
+  failureCount: z.number().int(),
+  lastTriggeredAt: z.coerce.date().nullable().optional(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+  secret: z.string().optional(),
+});
+export type WebhookDto = z.infer<typeof WebhookDtoSchema>;
+
+export const WebhookDeliveryLogDtoSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  webhookId: z.string().uuid(),
+  eventId: z.string(),
+  eventType: z.string(),
+  payloadHash: z.string(),
+  attemptNumber: z.number().int(),
+  httpStatus: z.number().int().nullable().optional(),
+  responseBody: z.string().nullable().optional(),
+  deliveredAt: z.coerce.date().nullable().optional(),
+  createdAt: z.coerce.date(),
+});
+export type WebhookDeliveryLogDto = z.infer<typeof WebhookDeliveryLogDtoSchema>;
+
+// --- Clickwrap (Sprint 2.7) ---
+export const CreateClickwrapAgreementDtoSchema = z.object({
+  name: z.string().min(1).max(200),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/)
+    .min(3)
+    .max(100),
+});
+export type CreateClickwrapAgreementDto = z.infer<typeof CreateClickwrapAgreementDtoSchema>;
+
+export const CreateClickwrapVersionDtoSchema = z.object({
+  content: z.string().min(10).max(100000),
+});
+export type CreateClickwrapVersionDto = z.infer<typeof CreateClickwrapVersionDtoSchema>;
+
+export const RecordClickwrapAcceptanceDtoSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(1).max(200).optional(),
+});
+export type RecordClickwrapAcceptanceDto = z.infer<typeof RecordClickwrapAcceptanceDtoSchema>;
+
+export const ClickwrapAgreementDtoSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  name: z.string(),
+  slug: z.string(),
+  isActive: z.boolean(),
+  createdAt: z.coerce.date(),
+  updatedAt: z.coerce.date(),
+});
+export type ClickwrapAgreementDto = z.infer<typeof ClickwrapAgreementDtoSchema>;
+
+export const ClickwrapVersionDtoSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  clickwrapAgreementId: z.string().uuid(),
+  versionNumber: z.number().int(),
+  content: z.string(),
+  contentHash: z.string(),
+  isCurrent: z.boolean(),
+  publishedAt: z.coerce.date().nullable().optional(),
+  createdAt: z.coerce.date(),
+});
+export type ClickwrapVersionDto = z.infer<typeof ClickwrapVersionDtoSchema>;
+
+export const ClickwrapAcceptanceDtoSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  clickwrapVersionId: z.string().uuid(),
+  acceptorEmail: z.string().email(),
+  acceptorName: z.string().nullable().optional(),
+  ipAddress: z.string().nullable().optional(),
+  userAgent: z.string().nullable().optional(),
+  acceptedAt: z.coerce.date(),
+});
+export type ClickwrapAcceptanceDto = z.infer<typeof ClickwrapAcceptanceDtoSchema>;
+
+// --- BYOK Payment Credentials (Sprint 2.7) ---
+export const AddPaymentCredentialDtoSchema = z.object({
+  providerType: z.enum(['stripe', 'paypal']),
+  displayName: z.string().min(1).max(200),
+  secretKey: z.string().min(10).max(500),
+  publicKey: z.string().min(10).max(500).optional(),
+  webhookSecret: z.string().min(10).max(500).optional(),
+  supportedCurrencies: z.array(z.string()).default(['USD', 'EUR', 'GBP']),
+});
+export type AddPaymentCredentialDto = z.infer<typeof AddPaymentCredentialDtoSchema>;
+
+export const PaymentCredentialResponseDtoSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().uuid(),
+  providerType: z.string(),
+  displayName: z.string(),
+  supportedCurrencies: z.array(z.string()),
+  isActive: z.boolean(),
+  isVerified: z.boolean(),
+  lastVerifiedAt: z.coerce.date().nullable().optional(),
+  createdAt: z.coerce.date(),
+});
+export type PaymentCredentialResponseDto = z.infer<typeof PaymentCredentialResponseDtoSchema>;

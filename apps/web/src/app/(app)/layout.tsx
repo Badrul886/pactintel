@@ -68,6 +68,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             Documents
           </Link>
           <Link
+            href="/follow-ups"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Follow-ups
+          </Link>
+          <Link
             href="/templates"
             style={{
               padding: '8px 12px',
@@ -90,6 +102,54 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             }}
           >
             Brand Kits
+          </Link>
+          <Link
+            href="/settings/automation"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Automations
+          </Link>
+          <Link
+            href="/settings/webhooks"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Webhooks
+          </Link>
+          <Link
+            href="/settings/clickwrap"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Clickwrap
+          </Link>
+          <Link
+            href="/settings/payment-credentials"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Payment Accounts (BYOK)
           </Link>
           <Link
             href="/settings/billing"

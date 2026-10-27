@@ -284,6 +284,8 @@ resource "google_cloud_run_v2_service" "collab" {
   ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
   template {
+    timeout = "3600s"
+
     scaling {
       min_instance_count = var.environment == "dev" ? 0 : 1
       max_instance_count = var.environment == "dev" ? 2 : 10
@@ -302,11 +304,20 @@ resource "google_cloud_run_v2_service" "collab" {
           cpu    = "1"
           memory = "1Gi"
         }
+        startup_cpu_boost = true
       }
 
       env {
         name  = "PORT"
         value = "1234"
+      }
+      env {
+        name  = "COLLAB_PORT"
+        value = "1234"
+      }
+      env {
+        name  = "MAX_IN_MEMORY_DOCS"
+        value = "500"
       }
       env {
         name  = "REDIS_REALTIME_HOST"

@@ -14,6 +14,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import PricingTable from './components/PricingTable';
+import { useSectionTracking } from './hooks/useSectionTracking';
 
 interface RecipientViewerProps {
   params: Promise<{ slug: string }>;
@@ -70,6 +71,13 @@ export default function RecipientDocumentPage({ params }: RecipientViewerProps) 
     title?: string;
     error?: string;
   } | null>(null);
+
+  // Section-Level Engagement Telemetry (Phase 2 Sprint 2.1 — Invariants I-10, AN-001)
+  useSectionTracking({
+    documentSlug: slug,
+    enabled: isUnlocked && !denialState,
+    apiBaseUrl: apiBase,
+  });
 
   const [emailInput, setEmailInput] = useState('');
   const [showRequestAccessModal, setShowRequestAccessModal] = useState(false);
@@ -988,7 +996,11 @@ export default function RecipientDocumentPage({ params }: RecipientViewerProps) 
       <div style={{ color: 'var(--color-gray-900)', lineHeight: 1.8, fontSize: '15px' }}>
         {documentData.content.map((sec, idx) => (
           <React.Fragment key={idx}>
-            <div style={{ marginBottom: '28px' }}>
+            <div
+              data-block-id={`block-${idx + 1}`}
+              data-section-title={sec.heading}
+              style={{ marginBottom: '28px' }}
+            >
               <h2
                 style={{
                   fontSize: '16px',
@@ -1004,7 +1016,11 @@ export default function RecipientDocumentPage({ params }: RecipientViewerProps) 
 
             {/* Embed CPQ Pricing Table right after Payment Terms (Section 2) */}
             {idx === 1 && (
-              <div style={{ margin: '32px 0' }}>
+              <div
+                data-block-id="block-pricing-table"
+                data-section-title="Pricing Schedule"
+                style={{ margin: '32px 0' }}
+              >
                 <PricingTable
                   documentId="doc-us1-demo"
                   tableId="pt-us1-demo"

@@ -4,7 +4,7 @@ import React, { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { PricingTableExtension } from '@pactintel/ui';
+import { PricingTableExtension, ContentLockExtension } from '@pactintel/ui';
 import {
   ArrowLeft,
   Save,
@@ -27,7 +27,13 @@ import {
   CheckCircle,
   Copy,
   Receipt,
+  MessageSquare,
+  Sparkles,
 } from 'lucide-react';
+import { useCollabProvider } from './hooks/useCollabProvider';
+import { PresenceStack } from './components/PresenceStack';
+import { CommentSidebar } from './components/CommentSidebar';
+import { AiDrawer } from './components/AiDrawer';
 
 interface DocumentEditorPageProps {
   params: Promise<{ id: string }>;
@@ -36,6 +42,9 @@ interface DocumentEditorPageProps {
 export default function DocumentEditorPage({ params }: DocumentEditorPageProps) {
   const resolvedParams = use(params);
   const documentId = resolvedParams.id;
+
+  // Real-Time Co-Editing with Hocuspocus & Yjs (Phase 2 Sprint 2.2 — RULES COLLAB-001..003)
+  const { connectionStatus, collaborators } = useCollabProvider(documentId);
 
   const [title, setTitle] = useState('Master Services Agreement (MSA)');
   const [status, setStatus] = useState<'draft' | 'sent' | 'viewed' | 'signed'>('draft');
@@ -59,6 +68,14 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
   const [password, setPassword] = useState('');
   const [domainRestriction, setDomainRestriction] = useState('');
 
+  // Comments and Content Locking state (Sprint 2.3)
+  const [showCommentsSidebar, setShowCommentsSidebar] = useState(false);
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
+
+  // In-Editor AI Assistant state (Phase 2 Sprint 2.5)
+  const [showAiDrawer, setShowAiDrawer] = useState(false);
+  const [selectedEditorText, setSelectedEditorText] = useState('');
+
   const isSigned = status === 'signed';
 
   const editor = useEditor({
@@ -67,6 +84,10 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
         heading: { levels: [1, 2, 3] },
       }),
       PricingTableExtension,
+      ContentLockExtension.configure({
+        locks: [],
+        currentUserId: 'usr_collab_current',
+      }),
     ],
     content: `
       <h1>Master Services Agreement</h1>
@@ -94,6 +115,15 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
         setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }, 1500);
       return () => clearTimeout(timer);
+    },
+    onSelectionUpdate: ({ editor: activeEditor }) => {
+      const { from, to } = activeEditor.state.selection;
+      if (from !== to) {
+        const text = activeEditor.state.doc.textBetween(from, to, ' ');
+        setSelectedEditorText(text);
+      } else {
+        setSelectedEditorText('');
+      }
     },
   });
 
@@ -150,6 +180,25 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
         setTemplateSuccess(false);
       }, 1200);
     }, 700);
+  };
+
+  // Accept and insert AI-generated draft content into editor
+  const handleAcceptAiContent = (content: string) => {
+    if (!editor) return;
+    // Format paragraph breaks cleanly
+    const htmlContent = content
+      .split('\n\n')
+      .map((p) => `<p data-ai-generated="true">${p.replace(/\n/g, '<br/>')}</p>`)
+      .join('');
+
+    const { from, to } = editor.state.selection;
+    if (from !== to) {
+      // Replace active selection
+      editor.chain().focus().deleteRange({ from, to }).insertContent(htmlContent).run();
+    } else {
+      // Insert at current cursor position
+      editor.chain().focus().insertContent(htmlContent).run();
+    }
   };
 
   return (
@@ -248,6 +297,18 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Real-time Collaborators Avatar Stack */}
+          <PresenceStack collaborators={collaborators} connectionStatus={connectionStatus} />
+
+          <button
+            onClick={() => setShowCommentsSidebar((prev) => !prev)}
+            className={`pact-btn ${showCommentsSidebar ? 'pact-btn-primary' : 'pact-btn-secondary'}`}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <MessageSquare size={15} />
+            Comments
+          </button>
+
           <button
             onClick={handleSaveVersion}
             disabled={isSigned || isSaving}
@@ -570,6 +631,36 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
               title="Insert Interactive CPQ Pricing Table"
             >
               <Receipt size={14} />+ Pricing Table
+            </button>
+
+            <span
+              style={{
+                width: '1px',
+                height: '18px',
+                backgroundColor: 'var(--color-gray-300)',
+                margin: '0 4px',
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => setShowAiDrawer((prev) => !prev)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                border: '1px solid #C7D2FE',
+                background: showAiDrawer ? '#EEF2FF' : '#F5F3FF',
+                color: '#4F46E5',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 600,
+              }}
+              title="Open In-Editor AI Drafting Assistant (Claude via Vertex AI)"
+            >
+              <Sparkles size={14} /> AI Assistant
             </button>
           </div>
         )}
@@ -968,6 +1059,26 @@ export default function DocumentEditorPage({ params }: DocumentEditorPageProps) 
           </div>
         </div>
       )}
+
+      {/* Comment & Review Collaboration Sidebar (Sprint 2.3) */}
+      <CommentSidebar
+        documentId={documentId}
+        currentUserId="usr_collab_current"
+        currentUserRole="admin"
+        isOpen={showCommentsSidebar}
+        onClose={() => setShowCommentsSidebar(false)}
+        activeBlockId={activeBlockId}
+        onSelectBlock={(bId) => setActiveBlockId(bId)}
+      />
+
+      {/* In-Editor AI Drafting Assistant (Sprint 2.5) */}
+      <AiDrawer
+        isOpen={showAiDrawer}
+        onClose={() => setShowAiDrawer(false)}
+        documentId={documentId}
+        selectedText={selectedEditorText}
+        onAcceptContent={handleAcceptAiContent}
+      />
     </div>
   );
 }

@@ -305,3 +305,17 @@ body {
   }
 }
 
+/* In-Editor AI Generated Content styling (RULE AI-002: visible in editor, stripped from recipient) */
+.prose [data-ai-generated="true"] {
+  border-left: 2px solid #818CF8;
+  padding-left: 8px;
+  background-color: #F8FAFC;
+  border-radius: 2px;
+}
+
+.recipient-page-container [data-ai-generated="true"] {
+  border-left: none !important;
+  padding-left: 0 !important;
+  background-color: transparent !important;
+}
+

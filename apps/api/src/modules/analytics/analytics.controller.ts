@@ -13,9 +13,14 @@ import {
 import { Request, Response } from 'express';
 import { AnalyticsService } from './analytics.service';
 import { HeartbeatDto } from './dto/heartbeat.dto';
+import { BatchSectionEventsDto } from './dto/section-events.dto';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { CaslGuard, CheckPolicies } from '../../common/guards/casl.guard';
-import { DocumentAnalyticsSummary } from '@pactintel/shared-types';
+import {
+  DocumentAnalyticsSummary,
+  SectionAnalyticsSummary,
+  DocumentAnalyticsFullResponse,
+} from '@pactintel/shared-types';
 
 @Controller()
 export class AnalyticsController {
@@ -34,12 +39,15 @@ export class AnalyticsController {
     const cookieSessionId = req.cookies ? req.cookies['v_session'] : undefined;
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress;
     const country = (req.headers['cf-ipcountry'] as string) || undefined;
+    const userAgent = req.headers['user-agent'] as string | undefined;
 
     const result = await this.analyticsService.recordPixelView(
       documentSlug,
       cookieSessionId,
       ip,
       country,
+      undefined,
+      userAgent,
     );
 
     // If new session, set HttpOnly, SameSite=None, Secure cookie (MaxAge: 30 days)
@@ -71,6 +79,46 @@ export class AnalyticsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async postHeartbeat(@Body() body: HeartbeatDto) {
     await this.analyticsService.recordHeartbeat(body.documentSlug, body.sessionId, body.durationMs);
+  }
+
+  /**
+   * Batch Section-Level Engagement Events (Sprint 2.1 — NO auth, validated by documentSlug + sessionId).
+   * POST /api/v1/analytics/section-events
+   */
+  @Post('api/v1/analytics/section-events')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async postSectionEvents(@Body() body: BatchSectionEventsDto) {
+    await this.analyticsService.recordSectionEvents(body.documentSlug, body.sessionId, body.events);
+  }
+
+  /**
+   * Section Analytics Summary (Authenticated + CASL guarded: read Document).
+   * GET /api/v1/documents/:id/analytics/sections
+   */
+  @Get('api/v1/documents/:id/analytics/sections')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'Document' })
+  async getSectionMetrics(
+    @Param('id') documentId: string,
+    @Req() req: any,
+  ): Promise<SectionAnalyticsSummary[]> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.analyticsService.getSectionAnalytics(documentId, orgId);
+  }
+
+  /**
+   * Full Analytics Dashboard Payload (Authenticated + CASL guarded: read Document).
+   * GET /api/v1/documents/:id/analytics/full
+   */
+  @Get('api/v1/documents/:id/analytics/full')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'Document' })
+  async getFullAnalytics(
+    @Param('id') documentId: string,
+    @Req() req: any,
+  ): Promise<DocumentAnalyticsFullResponse> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.analyticsService.getFullDocumentAnalytics(documentId, orgId);
   }
 
   /**

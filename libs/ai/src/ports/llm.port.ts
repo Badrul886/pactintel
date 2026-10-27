@@ -5,21 +5,26 @@
  */
 
 export interface LlmCompletionRequest {
-  taskId: string;
+  taskId?: string;
   systemPrompt: string;
   userPrompt: string;
+  endpoint?: string;
   temperature?: number;
   maxTokens?: number;
-  tenantId: string;
+  tenantId?: string;
 }
 
 export interface LlmCompletionResponse {
   content: string;
-  promptTokens: number;
-  completionTokens: number;
-  durationMs: number;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+  };
+  durationMs?: number;
+  finishReason?: string;
 }
 
 export interface LlmPort {
-  complete(request: LlmCompletionRequest): Promise<LlmCompletionResponse>;
+  generate(request: LlmCompletionRequest): Promise<LlmCompletionResponse>;
+  complete?(request: LlmCompletionRequest): Promise<LlmCompletionResponse>;
 }

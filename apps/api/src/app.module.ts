@@ -22,6 +22,14 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { BrandKitModule } from './modules/brand-kit/brand-kit.module';
 import { IntegrationModule } from './modules/integration/integration.module';
 import { CustomDomainModule } from './modules/custom-domain/custom-domain.module';
+import { CommentModule } from './modules/comment/comment.module';
+import { ContentLockModule } from './modules/content-lock/content-lock.module';
+import { ApprovalModule } from './modules/approval/approval.module';
+import { AutomationModule } from './modules/automation/automation.module';
+import { AiModule } from './modules/ai/ai.module';
+import { FollowUpModule } from './modules/follow-up/follow-up.module';
+import { WebhookModule } from './modules/webhook/webhook.module';
+import { ClickwrapModule } from './modules/clickwrap/clickwrap.module';
 
 @Module({
   imports: [
@@ -43,6 +51,14 @@ import { CustomDomainModule } from './modules/custom-domain/custom-domain.module
     BrandKitModule,
     IntegrationModule,
     CustomDomainModule,
+    CommentModule,
+    ContentLockModule,
+    ApprovalModule,
+    AutomationModule,
+    AiModule,
+    FollowUpModule,
+    WebhookModule,
+    ClickwrapModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [

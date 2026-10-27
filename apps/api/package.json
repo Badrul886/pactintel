@@ -20,7 +20,9 @@
     "test:cov": "jest --coverage"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "@casl/ability": "^6.7.3",
+    "@google-cloud/aiplatform": "^7.7.0",
     "@nestjs/common": "^11.0.10",
     "@nestjs/core": "^11.0.10",
     "@nestjs/platform-express": "^11.0.10",
@@ -30,6 +32,7 @@
     "@pactintel/shared-types": "workspace:*",
     "@pactintel/shared-utils": "workspace:*",
     "@prisma/client": "^6.4.1",
+    "bullmq": "^6.4.1",
     "decimal.js": "^10.6.0",
     "helmet": "^8.0.0",
     "ioredis": "^5.5.0",

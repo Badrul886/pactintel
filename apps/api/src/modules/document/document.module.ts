@@ -8,6 +8,11 @@ import { PdfService } from './pdf/pdf.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationModule } from '../notification/notification.module';
 
+import { ExpiryCheckJob } from './jobs/expiry-check.job';
+import { ReminderCheckJob } from './jobs/reminder-check.job';
+import { FollowUpDigestJob } from './jobs/follow-up-digest.job';
+import { ExpiryListener } from './listeners/expiry.listener';
+
 @Module({
   imports: [NotificationModule],
   controllers: [DocumentController, PublicDocumentController],
@@ -17,7 +22,19 @@ import { NotificationModule } from '../notification/notification.module';
     DocumentOutboxService,
     PdfService,
     PrismaService,
+    ExpiryCheckJob,
+    ReminderCheckJob,
+    FollowUpDigestJob,
+    ExpiryListener,
   ],
-  exports: [DocumentService, DocumentRepository, DocumentOutboxService, PdfService],
+  exports: [
+    DocumentService,
+    DocumentRepository,
+    DocumentOutboxService,
+    PdfService,
+    ExpiryCheckJob,
+    ReminderCheckJob,
+    FollowUpDigestJob,
+  ],
 })
 export class DocumentModule {}

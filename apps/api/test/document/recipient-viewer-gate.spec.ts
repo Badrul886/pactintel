@@ -19,6 +19,7 @@ describe('RULE I18N-001: Recipient Document Viewer Access Gate (/d/:slug)', () =
     mockDocRepo = {
       findBySlug: jest.fn(),
       findById: jest.fn(),
+      recordView: jest.fn().mockResolvedValue({ id: docId }),
     };
 
     mockOutbox = {

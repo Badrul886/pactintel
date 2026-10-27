@@ -12,6 +12,9 @@ export class AiGateway {
     if (!request.tenantId) {
       throw new Error('AiGateway: tenantId is strictly required for isolation (A6.8, AI-014)');
     }
-    return this.llmAdapter.complete(request);
+    if (this.llmAdapter.complete) {
+      return this.llmAdapter.complete(request);
+    }
+    return this.llmAdapter.generate(request);
   }
 }
