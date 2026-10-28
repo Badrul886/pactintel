@@ -351,20 +351,43 @@ export const SubscriptionDtoSchema = z.object({
 export type SubscriptionDto = z.infer<typeof SubscriptionDtoSchema>;
 
 // --- Templates (Phase 1 Sprint 1) ---
-export const TemplateVariableFieldTypeEnum = z.enum(['text', 'number', 'date', 'email']);
+export const TemplateVariableFieldTypeEnum = z.enum([
+  'text',
+  'number',
+  'date',
+  'email',
+  'single_select',
+  'multi_select',
+  'crm_field',
+]);
 export type TemplateVariableFieldType = z.infer<typeof TemplateVariableFieldTypeEnum>;
 
+export const TemplateIntakeQuestionConditionSchema = z.object({
+  questionId: z.string(),
+  operator: z.enum(['equals', 'not_equals', 'contains', 'is_truthy']),
+  value: z.any().optional(),
+});
+export type TemplateIntakeQuestionCondition = z.infer<typeof TemplateIntakeQuestionConditionSchema>;
+
 export const TemplateVariableFieldSchema = z.object({
+  id: z.string().optional(),
   key: z.string().min(1),
   label: z.string().min(1),
   type: TemplateVariableFieldTypeEnum,
   required: z.boolean().default(false),
+  options: z.array(z.string()).optional(),
+  crmFieldMapping: z.string().optional(),
+  placeholder: z.string().optional(),
+  dependsOn: TemplateIntakeQuestionConditionSchema.optional(),
 });
 export type TemplateVariableField = z.infer<typeof TemplateVariableFieldSchema>;
 
+export const TemplateIntakeQuestionSchema = TemplateVariableFieldSchema;
+export type TemplateIntakeQuestion = TemplateVariableField;
+
 export const TemplateSignerRoleSchema = z.object({
   roleLabel: z.string().min(1),
-  verificationMethod: z.enum(['none', 'email', 'passcode', 'sms']).default('none'),
+  verificationMethod: VerificationMethodEnum.default('none'),
 });
 export type TemplateSignerRole = z.infer<typeof TemplateSignerRoleSchema>;
 
@@ -675,6 +698,208 @@ export interface PricingTableResponseDto {
   updatedAt: string;
 }
 
+// --- CPQ Full Enterprise Suite: Bundles, Rules, Playbooks (Phase 3 Sprint 3.1) ---
+
+export const BundleTypeEnum = z.enum(['fixed', 'sum_of_items', 'percent_discount']);
+export type BundleType = z.infer<typeof BundleTypeEnum>;
+
+export const CreateBundleItemDtoSchema = z.object({
+  productItemId: z.string().uuid(),
+  isRequired: z.boolean().default(true),
+  sortOrder: z.number().int().default(0),
+  quantity: z.number().positive().default(1),
+});
+export type CreateBundleItemDto = z.input<typeof CreateBundleItemDtoSchema>;
+
+export const UpdateBundleItemDtoSchema = z.object({
+  isRequired: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+  quantity: z.number().positive().optional(),
+});
+export type UpdateBundleItemDto = z.input<typeof UpdateBundleItemDtoSchema>;
+
+export const CreateBundleDtoSchema = z.object({
+  workspaceId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  description: z.string().max(2000).optional(),
+  bundleType: BundleTypeEnum,
+  fixedPrice: z.number().min(0).optional().nullable(),
+  discountPercent: z.number().min(0).max(100).optional().nullable(),
+  items: z.array(CreateBundleItemDtoSchema).default([]),
+});
+export type CreateBundleDto = z.input<typeof CreateBundleDtoSchema>;
+
+export const UpdateBundleDtoSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  bundleType: BundleTypeEnum.optional(),
+  fixedPrice: z.number().min(0).optional().nullable(),
+  discountPercent: z.number().min(0).max(100).optional().nullable(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateBundleDto = z.input<typeof UpdateBundleDtoSchema>;
+
+export interface BundleItemResponseDto {
+  id: string;
+  bundleId: string;
+  organizationId: string;
+  productItemId: string;
+  productItem?: ProductCatalogItem;
+  isRequired: boolean;
+  sortOrder: number;
+  quantity: string | number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface BundleResponseDto {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  bundleType: BundleType;
+  fixedPrice: string | number | null;
+  discountPercent: string | number | null;
+  isActive: boolean;
+  version: number;
+  items: BundleItemResponseDto[];
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  deletedAt?: string | Date | null;
+}
+
+export const PricingRuleTypeEnum = z.enum([
+  'volume_discount',
+  'deal_value_threshold',
+  'customer_segment',
+  'time_based',
+  'stacking_policy',
+]);
+export type PricingRuleType = z.infer<typeof PricingRuleTypeEnum>;
+
+export const StackingModeEnum = z.enum(['stack_all', 'highest_wins', 'first_match']);
+export type StackingMode = z.infer<typeof StackingModeEnum>;
+
+export const CreatePricingRuleDtoSchema = z.object({
+  workspaceId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  ruleType: PricingRuleTypeEnum,
+  conditions: z.record(z.unknown()).default({}),
+  actions: z.record(z.unknown()).default({}),
+  priority: z.number().int().default(0),
+  stackingMode: StackingModeEnum.default('highest_wins'),
+  validFrom: z.string().datetime().optional().nullable(),
+  validUntil: z.string().datetime().optional().nullable(),
+});
+export type CreatePricingRuleDto = z.input<typeof CreatePricingRuleDtoSchema>;
+
+export const UpdatePricingRuleDtoSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  ruleType: PricingRuleTypeEnum.optional(),
+  conditions: z.record(z.unknown()).optional(),
+  actions: z.record(z.unknown()).optional(),
+  priority: z.number().int().optional(),
+  stackingMode: StackingModeEnum.optional(),
+  isActive: z.boolean().optional(),
+  validFrom: z.string().datetime().optional().nullable(),
+  validUntil: z.string().datetime().optional().nullable(),
+});
+export type UpdatePricingRuleDto = z.input<typeof UpdatePricingRuleDtoSchema>;
+
+export interface PricingRuleResponseDto {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  name: string;
+  ruleType: PricingRuleType;
+  conditions: Record<string, unknown>;
+  actions: Record<string, unknown>;
+  priority: number;
+  stackingMode: StackingMode;
+  isActive: boolean;
+  validFrom?: string | Date | null;
+  validUntil?: string | Date | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  deletedAt?: string | Date | null;
+}
+
+export const CreatePlaybookDtoSchema = z.object({
+  workspaceId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  description: z.string().max(2000).optional(),
+  steps: z.array(z.record(z.unknown())).default([]),
+});
+export type CreatePlaybookDto = z.input<typeof CreatePlaybookDtoSchema>;
+
+export const UpdatePlaybookDtoSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  steps: z.array(z.record(z.unknown())).optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdatePlaybookDto = z.input<typeof UpdatePlaybookDtoSchema>;
+
+export const ExecutePlaybookDtoSchema = z.object({
+  dealAttributes: z.record(z.union([z.string(), z.number(), z.boolean()])),
+});
+export type ExecutePlaybookDto = z.input<typeof ExecutePlaybookDtoSchema>;
+
+export interface PlaybookResponseDto {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  steps: Record<string, unknown>[];
+  isActive: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  deletedAt?: string | Date | null;
+}
+
+export const CpqLineItemInputSchema = z.object({
+  id: z.string(),
+  productItemId: z.string().uuid().optional().nullable(),
+  name: z.string(),
+  quantity: z.number().positive(),
+  unitPrice: z.number().min(0),
+  discountPercent: z.number().min(0).max(100).optional().nullable(),
+  discountAmount: z.number().min(0).optional().nullable(),
+  billingFrequency: z.string().optional().nullable(),
+  isOptional: z.boolean().optional(),
+  isSelected: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+export type CpqLineItemInput = z.infer<typeof CpqLineItemInputSchema>;
+
+export const EvaluateCpqDtoSchema = z.object({
+  lineItems: z.array(CpqLineItemInputSchema).min(1),
+  dealAttributes: z.record(z.union([z.string(), z.number(), z.boolean()])).default({}),
+  timestamp: z.string().datetime().optional(),
+});
+export type EvaluateCpqDto = z.input<typeof EvaluateCpqDtoSchema>;
+
+export interface AppliedRuleDto {
+  ruleId: string;
+  ruleName: string;
+  ruleType: PricingRuleType;
+  discountAmount: string;
+  targetLineItemId?: string;
+  description: string;
+}
+
+export interface CpqEvaluationResultDto {
+  appliedRules: AppliedRuleDto[];
+  finalLineItems: CalculatedLineItemTotal[];
+  totalBeforeDiscount: string;
+  totalAfterDiscount: string;
+  discountAmount: string;
+  requiresApproval: boolean;
+  approvalReasons: string[];
+}
+
 // --- Brand Kit (Phase 1 Sprint 3) ---
 export const HexColorRegex = /^#[0-9a-fA-F]{6}$/;
 
@@ -931,10 +1156,18 @@ export const CreateApprovalStepDtoSchema = z.object({
 });
 export type CreateApprovalStepDto = z.infer<typeof CreateApprovalStepDtoSchema>;
 
+export const CpqApprovalConditionsSchema = z.object({
+  dealValueGt: z.number().positive().optional().nullable(),
+  discountPctGt: z.number().min(0).max(100).optional().nullable(),
+  restrictedProductIds: z.array(z.string().uuid()).optional().nullable(),
+});
+export type CpqApprovalConditions = z.infer<typeof CpqApprovalConditionsSchema>;
+
 export const ApprovalConditionsSchema = z.object({
   triggerOn: z.enum(['document.sent', 'document.signed', 'manual']),
   minDealValue: z.number().positive().optional().nullable(),
   workspaceIds: z.array(z.string().uuid()).optional().nullable(),
+  cpqConditions: CpqApprovalConditionsSchema.optional().nullable(),
 });
 export type ApprovalConditions = z.infer<typeof ApprovalConditionsSchema>;
 
@@ -942,6 +1175,7 @@ export const CreateApprovalChainDtoSchema = z.object({
   workspaceId: z.string().uuid(),
   name: z.string().min(1).max(200),
   conditions: ApprovalConditionsSchema,
+  cpqConditions: CpqApprovalConditionsSchema.optional().nullable(),
   steps: z.array(CreateApprovalStepDtoSchema).min(1).max(10),
 });
 export type CreateApprovalChainDto = z.infer<typeof CreateApprovalChainDtoSchema>;
@@ -976,6 +1210,7 @@ export interface ApprovalChainDto {
   workspaceId: string;
   name: string;
   conditions: ApprovalConditions;
+  cpqConditions?: CpqApprovalConditions | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1058,6 +1293,11 @@ export const AiTaskEnum = z.enum([
   'refine-text',
   'grammar-fix',
   'translate',
+  'guided-proposal-assembly',
+  'url-to-draft',
+  'document-extraction',
+  'portfolio-report',
+  'counterparty-normalization',
 ]);
 export type AiTaskId = z.infer<typeof AiTaskEnum>;
 
@@ -1088,6 +1328,36 @@ export type AiDraftDto = z.infer<typeof AiDraftDtoSchema>;
 export interface AiResponseDto {
   content: string;
   taskId: string;
+  tokensUsed: number;
+}
+
+// --- Sprint 3.4: Guided Proposal Builder & URL-to-Draft ---
+export const AssembleProposalDtoSchema = z.object({
+  templateId: z.string().uuid(),
+  title: z.string().min(1).max(250).optional(),
+  workspaceId: z.string().uuid().optional(),
+  answers: z.record(z.any()),
+  crmEntityId: z.string().optional(),
+});
+export type AssembleProposalDto = z.infer<typeof AssembleProposalDtoSchema>;
+
+export interface AssembledProposalResponseDto {
+  title: string;
+  content: Record<string, unknown>;
+  crmDataUsed: Record<string, unknown>;
+  crmWarning?: string | null;
+  tokensUsed: number;
+}
+
+export const UrlToDraftDtoSchema = z.object({
+  url: z.string().url(),
+});
+export type UrlToDraftDto = z.infer<typeof UrlToDraftDtoSchema>;
+
+export interface UrlToDraftResponseDto {
+  title: string;
+  summary: string;
+  content: Record<string, unknown>;
   tokensUsed: number;
 }
 
@@ -1282,3 +1552,495 @@ export const PaymentCredentialResponseDtoSchema = z.object({
   createdAt: z.coerce.date(),
 });
 export type PaymentCredentialResponseDto = z.infer<typeof PaymentCredentialResponseDtoSchema>;
+
+// --- Workflow Orchestration Visual Builder (Sprint 3.2 - Maestro Equivalent) ---
+export const WorkflowNodeTypeEnum = z.enum([
+  'trigger',
+  'condition',
+  'action',
+  'risk_assessment',
+  'delay',
+  'end',
+]);
+export type WorkflowNodeType = z.infer<typeof WorkflowNodeTypeEnum>;
+
+export const WorkflowNodeSchema = z.object({
+  id: z.string(),
+  type: WorkflowNodeTypeEnum,
+  label: z.string().min(1).max(200),
+  config: z.record(z.unknown()).default({}),
+  position: z.object({ x: z.number(), y: z.number() }).default({ x: 0, y: 0 }),
+});
+export type WorkflowNode = z.infer<typeof WorkflowNodeSchema>;
+
+export const WorkflowEdgeSchema = z.object({
+  id: z.string(),
+  source: z.string(),
+  target: z.string(),
+  sourceHandle: z.enum(['true', 'false', 'default']).optional(),
+  label: z.string().optional(),
+});
+export type WorkflowEdge = z.infer<typeof WorkflowEdgeSchema>;
+
+export const WorkflowDagSchema = z.object({
+  nodes: z.array(WorkflowNodeSchema).default([]),
+  edges: z.array(WorkflowEdgeSchema).default([]),
+});
+export type WorkflowDag = z.infer<typeof WorkflowDagSchema>;
+
+export const WorkflowDefinitionStatusEnum = z.enum(['draft', 'active', 'paused', 'archived']);
+export type WorkflowDefinitionStatus = z.infer<typeof WorkflowDefinitionStatusEnum>;
+
+export const WorkflowInstanceStatusEnum = z.enum([
+  'running',
+  'completed',
+  'failed',
+  'halted',
+  'paused',
+]);
+export type WorkflowInstanceStatus = z.infer<typeof WorkflowInstanceStatusEnum>;
+
+export const WorkflowNodeExecutionStatusEnum = z.enum([
+  'pending',
+  'running',
+  'completed',
+  'failed',
+  'skipped',
+]);
+export type WorkflowNodeExecutionStatus = z.infer<typeof WorkflowNodeExecutionStatusEnum>;
+
+export const CreateWorkflowDefinitionDtoSchema = z.object({
+  workspaceId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  description: z.string().max(2000).optional().nullable(),
+  triggerEvent: z.string().min(1).max(100),
+  dag: WorkflowDagSchema,
+  maxInstances: z.number().int().min(1).max(100000).optional().default(1000),
+});
+export type CreateWorkflowDefinitionDto = z.input<typeof CreateWorkflowDefinitionDtoSchema>;
+
+export const UpdateWorkflowDefinitionDtoSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().max(2000).optional().nullable(),
+  triggerEvent: z.string().min(1).max(100).optional(),
+  dag: WorkflowDagSchema.optional(),
+  status: WorkflowDefinitionStatusEnum.optional(),
+  maxInstances: z.number().int().min(1).max(100000).optional(),
+});
+export type UpdateWorkflowDefinitionDto = z.input<typeof UpdateWorkflowDefinitionDtoSchema>;
+
+export interface WorkflowDefinitionResponseDto {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  name: string;
+  description?: string | null;
+  triggerEvent: string;
+  dag: WorkflowDag;
+  status: WorkflowDefinitionStatus;
+  version: number;
+  maxInstances: number;
+  createdBy: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+export interface WorkflowInstanceResponseDto {
+  id: string;
+  organizationId: string;
+  workflowId: string;
+  triggerPayload: Record<string, unknown>;
+  currentNodeId?: string | null;
+  status: WorkflowInstanceStatus;
+  chainDepth: number;
+  visitedNodes: string[];
+  errorMessage?: string | null;
+  startedAt: Date | string;
+  completedAt?: Date | string | null;
+  updatedAt: Date | string;
+  workflowName?: string;
+}
+
+export interface WorkflowNodeExecutionDto {
+  id: string;
+  organizationId: string;
+  instanceId: string;
+  nodeId: string;
+  nodeType: string;
+  input: Record<string, unknown>;
+  output?: Record<string, unknown> | null;
+  status: WorkflowNodeExecutionStatus;
+  startedAt?: Date | string | null;
+  completedAt?: Date | string | null;
+  errorMessage?: string | null;
+  createdAt: Date | string;
+}
+
+export interface WorkflowMetricsDto {
+  totalTriggered: number;
+  totalCompleted: number;
+  totalFailed: number;
+  totalHalted: number;
+  activeWorkflowsCount: number;
+}
+
+export const ResumeWorkflowInstanceDtoSchema = z.object({
+  action: z.enum(['resume', 'halt', 'skip']),
+  nodeId: z.string().optional(),
+});
+export type ResumeWorkflowInstanceDto = z.infer<typeof ResumeWorkflowInstanceDtoSchema>;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Deal Rooms (Sprint 3.3)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const DealRoomStatusEnum = z.enum(['active', 'closed', 'archived']);
+export type DealRoomStatus = z.infer<typeof DealRoomStatusEnum>;
+
+export const DealRoomMemberRoleEnum = z.enum(['owner', 'member', 'viewer']);
+export type DealRoomMemberRole = z.infer<typeof DealRoomMemberRoleEnum>;
+
+export const DealRoomMessageVisibilityEnum = z.enum(['internal', 'external']);
+export type DealRoomMessageVisibility = z.infer<typeof DealRoomMessageVisibilityEnum>;
+
+export const MutualActionPlanMilestoneStatusEnum = z.enum([
+  'pending',
+  'in_progress',
+  'complete',
+  'blocked',
+]);
+export type MutualActionPlanMilestoneStatus = z.infer<typeof MutualActionPlanMilestoneStatusEnum>;
+
+export const MutualActionPlanMilestoneSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1).max(255),
+  description: z.string().max(2000).optional(),
+  owner: z.enum(['internal', 'external']),
+  assigneeName: z.string().max(200).optional(),
+  assigneeEmail: z.string().email().optional(),
+  dueDate: z.string().optional(),
+  status: MutualActionPlanMilestoneStatusEnum.default('pending'),
+  order: z.number().int().default(0),
+  completedAt: z.string().optional(),
+});
+export type MutualActionPlanMilestone = z.infer<typeof MutualActionPlanMilestoneSchema>;
+
+export const CreateDealRoomDtoSchema = z.object({
+  workspaceId: z.string().uuid(),
+  title: z.string().min(1).max(255),
+  slug: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9-]+$/i, 'Slug must be alphanumeric with hyphens')
+    .optional(),
+  brandKitId: z.string().uuid().optional(),
+  initialDocumentId: z.string().uuid().optional(),
+  mutualActionPlan: z.array(MutualActionPlanMilestoneSchema).default([]),
+});
+export type CreateDealRoomDto = z.input<typeof CreateDealRoomDtoSchema>;
+
+export const UpdateDealRoomDtoSchema = z.object({
+  title: z.string().min(1).max(255).optional(),
+  status: DealRoomStatusEnum.optional(),
+  brandKitId: z.string().uuid().optional().nullable(),
+  mutualActionPlan: z.array(MutualActionPlanMilestoneSchema).optional(),
+});
+export type UpdateDealRoomDto = z.input<typeof UpdateDealRoomDtoSchema>;
+
+export const InviteDealRoomMemberDtoSchema = z.object({
+  userId: z.string().uuid().optional(),
+  externalEmail: z.string().email().optional(),
+  externalName: z.string().min(1).max(200).optional(),
+  role: DealRoomMemberRoleEnum.default('viewer'),
+});
+export type InviteDealRoomMemberDto = z.input<typeof InviteDealRoomMemberDtoSchema>;
+
+export const AddDealRoomDocumentDtoSchema = z.object({
+  documentId: z.string().uuid(),
+});
+export type AddDealRoomDocumentDto = z.input<typeof AddDealRoomDocumentDtoSchema>;
+
+export const CreateDealRoomMessageDtoSchema = z.object({
+  body: z.string().min(1).max(10000),
+  visibility: DealRoomMessageVisibilityEnum.default('external'),
+  parentId: z.string().optional(),
+  authorName: z.string().max(200).optional(),
+  authorEmail: z.string().email().optional(),
+});
+export type CreateDealRoomMessageDto = z.input<typeof CreateDealRoomMessageDtoSchema>;
+
+export const UpdateMapDtoSchema = z.object({
+  mutualActionPlan: z.array(MutualActionPlanMilestoneSchema),
+});
+export type UpdateMapDto = z.infer<typeof UpdateMapDtoSchema>;
+
+export interface DealRoomMemberResponseDto {
+  id: string;
+  dealRoomId: string;
+  organizationId: string;
+  userId?: string | null;
+  externalEmail?: string | null;
+  externalName?: string | null;
+  role: DealRoomMemberRole;
+  invitedAt: Date | string;
+  joinedAt?: Date | string | null;
+  createdAt: Date | string;
+  magicLinkUrl?: string;
+}
+
+export interface DealRoomDocumentResponseDto {
+  id: string;
+  dealRoomId: string;
+  organizationId: string;
+  documentId: string;
+  addedBy: string;
+  createdAt: Date | string;
+  documentTitle?: string;
+  documentSlug?: string;
+  documentStatus?: string;
+}
+
+export interface DealRoomMessageResponseDto {
+  id: string;
+  dealRoomId: string;
+  organizationId: string;
+  authorUserId?: string | null;
+  authorEmail?: string | null;
+  authorName?: string | null;
+  body: string;
+  visibility: DealRoomMessageVisibility;
+  parentId?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  replies?: DealRoomMessageResponseDto[];
+}
+
+export interface DealRoomResponseDto {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  title: string;
+  slug: string;
+  status: DealRoomStatus;
+  brandKitId?: string | null;
+  mutualActionPlan: MutualActionPlanMilestone[];
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  members?: DealRoomMemberResponseDto[];
+  documents?: DealRoomDocumentResponseDto[];
+  messages?: DealRoomMessageResponseDto[];
+  brandKit?: Record<string, unknown> | null;
+}
+
+export interface DealRoomActivityDto {
+  id: string;
+  dealRoomId: string;
+  type: string;
+  title: string;
+  actor: string;
+  timestamp: Date | string;
+  metadata?: Record<string, unknown>;
+}
+
+// --- Sprint 3.5: AI Data Extraction & Portfolio Intelligence ---
+
+export const ExtractionFieldTypeEnum = z.enum(['text', 'numeric', 'date', 'boolean', 'list']);
+export type ExtractionFieldType = z.infer<typeof ExtractionFieldTypeEnum>;
+
+export const ObligationRecordDtoSchema = z.object({
+  id: z.string(),
+  organizationId: z.string(),
+  documentId: z.string(),
+  documentVersionId: z.string(),
+  fieldName: z.string(),
+  fieldValue: z.string().nullable().optional(),
+  fieldValueNumeric: z.number().nullable().optional(),
+  fieldValueDate: z.string().nullable().optional(),
+  fieldType: ExtractionFieldTypeEnum,
+  confidenceScore: z.number().nullable().optional(),
+  extractionMethod: z.string(),
+  isCustomField: z.boolean(),
+  isVerified: z.boolean(),
+  pendingUpdate: z.record(z.unknown()).nullable().optional(),
+  createdAt: z.union([z.string(), z.date()]),
+  updatedAt: z.union([z.string(), z.date()]),
+});
+export type ObligationRecordDto = z.infer<typeof ObligationRecordDtoSchema>;
+
+export const VerifyObligationDtoSchema = z.object({
+  fieldValue: z.string().optional(),
+  fieldValueNumeric: z.number().optional(),
+  fieldValueDate: z.string().optional(),
+});
+export type VerifyObligationDto = z.infer<typeof VerifyObligationDtoSchema>;
+
+export const CounterpartyDtoSchema = z.object({
+  id: z.string(),
+  organizationId: z.string(),
+  canonicalName: z.string(),
+  aliases: z.array(z.string()),
+  domain: z.string().nullable().optional(),
+  createdAt: z.union([z.string(), z.date()]),
+  updatedAt: z.union([z.string(), z.date()]),
+  documentCount: z.number().optional(),
+});
+export type CounterpartyDto = z.infer<typeof CounterpartyDtoSchema>;
+
+export const CreateCounterpartyDtoSchema = z.object({
+  canonicalName: z.string().min(1).max(250),
+  aliases: z.array(z.string().min(1).max(250)).optional().default([]),
+  domain: z.string().max(250).optional(),
+});
+export type CreateCounterpartyDto = z.infer<typeof CreateCounterpartyDtoSchema>;
+
+export const UpdateCounterpartyDtoSchema = z.object({
+  canonicalName: z.string().min(1).max(250).optional(),
+  aliases: z.array(z.string().min(1).max(250)).optional(),
+  domain: z.string().max(250).optional(),
+});
+export type UpdateCounterpartyDto = z.infer<typeof UpdateCounterpartyDtoSchema>;
+
+export const CreateCustomExtractionFieldDtoSchema = z.object({
+  fieldName: z.string().min(1).max(100),
+  description: z.string().min(1).max(500),
+  fieldType: ExtractionFieldTypeEnum,
+});
+export type CreateCustomExtractionFieldDto = z.infer<typeof CreateCustomExtractionFieldDtoSchema>;
+
+export const UpdateCustomExtractionFieldDtoSchema = z.object({
+  description: z.string().min(1).max(500).optional(),
+  isActive: z.boolean().optional(),
+});
+export type UpdateCustomExtractionFieldDto = z.infer<typeof UpdateCustomExtractionFieldDtoSchema>;
+
+export const CustomExtractionFieldDtoSchema = z.object({
+  id: z.string(),
+  organizationId: z.string(),
+  fieldName: z.string(),
+  description: z.string(),
+  fieldType: ExtractionFieldTypeEnum,
+  isActive: z.boolean(),
+  createdAt: z.union([z.string(), z.date()]),
+  updatedAt: z.union([z.string(), z.date()]),
+});
+export type CustomExtractionFieldDto = z.infer<typeof CustomExtractionFieldDtoSchema>;
+
+export const PortfolioSearchQueryDtoSchema = z.object({
+  q: z.string().optional(),
+  counterpartyId: z.string().optional(),
+  status: z.string().optional(),
+  obligationType: z.string().optional(),
+  expiringWithinDays: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+export type PortfolioSearchQueryDto = z.infer<typeof PortfolioSearchQueryDtoSchema>;
+
+export interface SearchResultItem {
+  id: string;
+  documentId: string;
+  title: string;
+  status: string;
+  counterpartyName?: string | null;
+  snippet?: string;
+  matchScore?: number;
+  updatedAt: string | Date;
+}
+
+export interface PortfolioStatsDto {
+  totalAgreements: number;
+  totalActiveObligations: number;
+  unverifiedObligations: number;
+  pendingAmendments: number;
+  expiringWithin30Days: number;
+  totalCounterparties: number;
+}
+
+// ---------------------------------------------------------------------------
+// Sprint 3.6: Advanced ID-Verification Signing Types (KBA, Gov ID, QES)
+// ---------------------------------------------------------------------------
+
+export const KbaQuestionDtoSchema = z.object({
+  id: z.string(),
+  prompt: z.string(),
+  options: z.array(z.string()),
+});
+export type KbaQuestionDto = z.infer<typeof KbaQuestionDtoSchema>;
+
+export const KbaSessionDtoSchema = z.object({
+  sessionId: z.string(),
+  questions: z.array(KbaQuestionDtoSchema),
+  attemptsRemaining: z.number(),
+  expiresAt: z.string(),
+});
+export type KbaSessionDto = z.infer<typeof KbaSessionDtoSchema>;
+
+export const SubmitKbaAnswersDtoSchema = z.object({
+  sessionId: z.string(),
+  answers: z.record(z.string(), z.string()),
+});
+export type SubmitKbaAnswersDto = z.infer<typeof SubmitKbaAnswersDtoSchema>;
+
+export const KbaResultDtoSchema = z.object({
+  passed: z.boolean(),
+  locked: z.boolean(),
+  attemptsRemaining: z.number(),
+  message: z.string(),
+});
+export type KbaResultDto = z.infer<typeof KbaResultDtoSchema>;
+
+export const InitiateIdVerificationDtoSchema = z.object({
+  returnUrl: z.string().url().optional(),
+});
+export type InitiateIdVerificationDto = z.infer<typeof InitiateIdVerificationDtoSchema>;
+
+export const IdVerificationSessionDtoSchema = z.object({
+  sessionId: z.string(),
+  verificationUrl: z.string().url(),
+  expiresAt: z.string(),
+});
+export type IdVerificationSessionDto = z.infer<typeof IdVerificationSessionDtoSchema>;
+
+export const IdVerificationResultDtoSchema = z.object({
+  status: z.enum(['pending', 'passed', 'failed', 'expired']),
+  confidenceScore: z.number().min(0).max(100).optional(),
+  vendorReferenceId: z.string().optional(),
+  verifiedAt: z.string().optional(),
+  biometricMatch: z.boolean().optional(),
+  failureReason: z.string().optional(),
+});
+export type IdVerificationResultDto = z.infer<typeof IdVerificationResultDtoSchema>;
+
+export const InitiateQesDtoSchema = z.object({
+  countryCode: z.string().length(2).default('DE'),
+  providerPreference: z.string().optional(),
+  returnUrl: z.string().url().optional(),
+});
+export type InitiateQesDto = z.infer<typeof InitiateQesDtoSchema>;
+
+export const QesSessionDtoSchema = z.object({
+  sessionId: z.string(),
+  qtspProvider: z.string(),
+  signingUrl: z.string().url(),
+  eidasLevel: z.literal('QES'),
+  expiresAt: z.string(),
+});
+export type QesSessionDto = z.infer<typeof QesSessionDtoSchema>;
+
+export const QesResultDtoSchema = z.object({
+  status: z.enum(['pending', 'completed', 'failed']),
+  certificateIssuer: z.string().optional(),
+  certificateSerial: z.string().optional(),
+  qualifiedTimestamp: z.string().optional(),
+  vendorReferenceId: z.string().optional(),
+  verifiedAt: z.string().optional(),
+});
+export type QesResultDto = z.infer<typeof QesResultDtoSchema>;
+
+export const VerificationFallbackConfigSchema = z.object({
+  kbaFallback: z.enum(['sms', 'passcode', 'email']).default('sms'),
+  idDocumentFallback: z.enum(['sms', 'passcode', 'email']).default('sms'),
+  qesFallback: z.enum(['id_document', 'sms', 'passcode']).default('sms'),
+});
+export type VerificationFallbackConfig = z.infer<typeof VerificationFallbackConfigSchema>;

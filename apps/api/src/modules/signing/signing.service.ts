@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Inject, Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { SigningRepository } from './signing.repository';
 import { DocumentOutboxService } from '../document/outbox/document-outbox.service';
 import { NotificationService } from '../notification/notification.service';
@@ -8,17 +8,166 @@ import {
   ReassignSignerDto,
   SignWithTokenDto,
   DeclineWithTokenDto,
+  SubmitKbaAnswersDto,
+  InitiateIdVerificationDto,
+  InitiateQesDto,
 } from '@pactintel/shared-types';
 import { generateId, sha256 } from '@pactintel/shared-utils';
+import { SIGNING_PROVIDER_PORT, SigningProviderPort } from './ports/signing-provider.port';
+import {
+  CircuitBreakerOpenException,
+  SigningProviderTimeoutException,
+} from './adapters/boldsign.adapter';
 
 @Injectable()
 export class SigningService {
+  private readonly logger = new Logger(SigningService.name);
+
+  // Subscription plan tier ranking for feature gates
+  private readonly tierRanks: Record<string, number> = {
+    free: 0,
+    starter: 1,
+    professional: 2,
+    business: 3,
+    enterprise: 4,
+  };
+
+  // EU member states for eIDAS QES jurisdiction checks
+  private readonly euJurisdictions = new Set([
+    'EU',
+    'DE',
+    'FR',
+    'IT',
+    'ES',
+    'NL',
+    'BE',
+    'AT',
+    'SE',
+    'PL',
+    'IE',
+    'PT',
+    'GR',
+    'CZ',
+    'RO',
+    'DK',
+    'FI',
+    'SK',
+    'BG',
+    'HR',
+    'LT',
+    'SI',
+    'LV',
+    'EE',
+    'CY',
+    'LU',
+    'MT',
+  ]);
+
   constructor(
     private readonly signingRepo: SigningRepository,
     private readonly outbox: DocumentOutboxService,
     private readonly notificationService: NotificationService,
     private readonly prisma: PrismaService,
+    @Inject(SIGNING_PROVIDER_PORT)
+    private readonly signingProvider: SigningProviderPort,
   ) {}
+
+  /**
+   * Plan gate validation (Sprint 3.6):
+   * - KBA: Professional and above
+   * - Government ID: Business and above
+   * - QES: Enterprise only
+   */
+  async checkVerificationPlanGate(organizationId: string, method: string): Promise<void> {
+    if (['none', 'email', 'passcode', 'sms'].includes(method)) {
+      return;
+    }
+
+    const sub = await this.prisma.subscription.findUnique({
+      where: { organizationId },
+    });
+
+    const currentTier = sub?.planTier?.toLowerCase() || 'free';
+    const rank = this.tierRanks[currentTier] ?? 0;
+
+    if (method === 'kba' && rank < this.tierRanks['professional']) {
+      throw new HttpException(
+        {
+          code: 'PLAN_GATE_RESTRICTED',
+          message: 'Knowledge-Based Authentication (KBA) requires a Professional plan or above.',
+          currentTier,
+          requiredTier: 'professional',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (method === 'id_document' && rank < this.tierRanks['business']) {
+      throw new HttpException(
+        {
+          code: 'PLAN_GATE_RESTRICTED',
+          message: 'Government ID verification requires a Business plan or above.',
+          currentTier,
+          requiredTier: 'business',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    if (method === 'qes' && rank < this.tierRanks['enterprise']) {
+      throw new HttpException(
+        {
+          code: 'PLAN_GATE_RESTRICTED',
+          message: 'Qualified Electronic Signatures (QES) are restricted to Enterprise plans.',
+          currentTier,
+          requiredTier: 'enterprise',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+  }
+
+  /**
+   * Jurisdiction validation:
+   * - KBA: US credit bureau data only -> US only
+   * - QES: EU QTSP / eIDAS only -> EU only
+   * - Gov ID: Global
+   */
+  checkVerificationJurisdiction(method: string, jurisdiction?: string): void {
+    if (method === 'kba' && jurisdiction && jurisdiction.toUpperCase() !== 'US') {
+      throw new HttpException(
+        {
+          code: 'JURISDICTION_RESTRICTED',
+          message: 'Knowledge-Based Authentication (KBA) is only available for US signers.',
+          jurisdiction,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (method === 'qes' && jurisdiction && !this.euJurisdictions.has(jurisdiction.toUpperCase())) {
+      throw new HttpException(
+        {
+          code: 'JURISDICTION_RESTRICTED',
+          message: 'Qualified Electronic Signatures (QES) are only available for EU signers.',
+          jurisdiction,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  /**
+   * Conservative fallback resolution (RULE RISK-001):
+   * When verification provider is down or circuit breaker trips, fall back to next conservative method
+   * (e.g. SMS OTP or Passcode). Never bypass verification platform-wide.
+   */
+  private getFallbackVerificationMethod(currentMethod: string): 'sms' | 'passcode' | 'id_document' {
+    if (currentMethod === 'qes') {
+      return 'id_document';
+    }
+    return 'sms';
+  }
 
   /**
    * Creates a signature request (RULE SIG-002, AUTH-005).
@@ -48,6 +197,11 @@ export class SigningService {
         },
         HttpStatus.CONFLICT,
       );
+    }
+
+    // Validate plan gates for each requested verification method
+    for (const signer of dto.signers) {
+      await this.checkVerificationPlanGate(organizationId, signer.verificationMethod);
     }
 
     const { signatureRequest, signers } = await this.signingRepo.createSignatureRequest(
@@ -174,6 +328,7 @@ export class SigningService {
     }
 
     const requiresPasscode = signer.verificationMethod === 'passcode' && signer.status !== 'signed';
+    const isKbaLocked = !!signer.kbaLockedAt;
 
     return {
       signer: {
@@ -183,6 +338,10 @@ export class SigningService {
         status: signer.status,
         roleLabel: signer.roleLabel,
         verificationMethod: signer.verificationMethod,
+        verificationAttempts: signer.verificationAttempts,
+        kbaLocked: isKbaLocked,
+        kbaLockedAt: signer.kbaLockedAt,
+        verificationResult: signer.verificationResult,
         requiresPasscode,
       },
       document: {
@@ -215,6 +374,16 @@ export class SigningService {
       throw new HttpException(
         { code: 'SIGNER_NOT_FOUND', message: 'Invalid signing token.' },
         HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (signer.kbaLockedAt) {
+      throw new HttpException(
+        {
+          code: 'SIGNER_LOCKED',
+          message: 'Signer account is locked due to failed identity verification.',
+        },
+        HttpStatus.FORBIDDEN,
       );
     }
 
@@ -265,6 +434,478 @@ export class SigningService {
     return { verified: true, message: 'Identity verified successfully.' };
   }
 
+  // ---------------------------------------------------------------------------
+  // Advanced ID Verification Operations (Sprint 3.6)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Initiates KBA session with circuit breaker & plan gate check.
+   */
+  async initiateKba(token: string, ipAddress?: string, userAgent?: string) {
+    const signer = await this.signingRepo.findSignerByToken(token);
+    if (!signer) {
+      throw new HttpException(
+        { code: 'SIGNER_NOT_FOUND', message: 'Invalid signing token.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (signer.kbaLockedAt) {
+      throw new HttpException(
+        {
+          code: 'KBA_LOCKED',
+          message: 'Signer identity verification is locked due to maximum failed attempts.',
+          kbaLockedAt: signer.kbaLockedAt,
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    await this.checkVerificationPlanGate(signer.organizationId, 'kba');
+
+    try {
+      const session = await this.signingProvider.initiateKba({
+        signerId: signer.id,
+        signerEmail: signer.email,
+        signerName: signer.name || undefined,
+      });
+
+      return session;
+    } catch (err: any) {
+      this.logger.error(`[KBA Initiation Error] ${err.message}`);
+      if (
+        err instanceof CircuitBreakerOpenException ||
+        err instanceof SigningProviderTimeoutException
+      ) {
+        // RULE RISK-001: Conservative fallback to SMS/passcode
+        const fallbackMethod = this.getFallbackVerificationMethod('kba');
+        await this.signingRepo.recordVerificationFallback(
+          signer.organizationId,
+          signer.signatureRequest.documentId,
+          signer.id,
+          'kba',
+          fallbackMethod,
+          err.message,
+          ipAddress,
+          userAgent,
+        );
+
+        await this.prisma.$transaction(async (tx) => {
+          await this.outbox.emit(
+            tx,
+            signer.organizationId,
+            'verification.fallback_applied',
+            signer.id,
+            {
+              signerId: signer.id,
+              originalMethod: 'kba',
+              fallbackMethod,
+              reason: err.message,
+            },
+          );
+        });
+
+        return {
+          fallbackApplied: true,
+          fallbackMethod,
+          message:
+            'Verification provider is temporarily unavailable. Switched to fallback verification.',
+        };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Submits KBA answers, tracks 3-attempt lockout, emits outbox events.
+   */
+  async submitKbaAnswers(
+    token: string,
+    dto: SubmitKbaAnswersDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const signer = await this.signingRepo.findSignerByToken(token);
+    if (!signer) {
+      throw new HttpException(
+        { code: 'SIGNER_NOT_FOUND', message: 'Invalid signing token.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (signer.kbaLockedAt) {
+      throw new HttpException(
+        {
+          code: 'KBA_LOCKED',
+          message: 'Signer identity verification is locked due to maximum failed attempts.',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    try {
+      const result = await this.signingProvider.submitKbaAnswers({
+        sessionId: dto.sessionId,
+        signerId: signer.id,
+        answers: dto.answers,
+      });
+
+      if (result.passed) {
+        await this.signingRepo.recordVerificationPassed(
+          signer.organizationId,
+          signer.signatureRequest.documentId,
+          signer.id,
+          'kba',
+          {
+            status: 'passed',
+            method: 'kba',
+            verifiedAt: new Date().toISOString(),
+          },
+          ipAddress,
+          userAgent,
+        );
+
+        await this.prisma.$transaction(async (tx) => {
+          await this.outbox.emit(tx, signer.organizationId, 'verification.kba.passed', signer.id, {
+            signerId: signer.id,
+            documentId: signer.signatureRequest.documentId,
+          });
+        });
+
+        return {
+          passed: true,
+          locked: false,
+          attemptsRemaining: result.attemptsRemaining,
+          message: result.message,
+        };
+      }
+
+      // Handle failure & lockout count
+      const attempts = (signer.verificationAttempts || 0) + 1;
+      const locked = attempts >= 3 || result.locked;
+
+      await this.signingRepo.recordKbaFailure(
+        signer.organizationId,
+        signer.signatureRequest.documentId,
+        signer.id,
+        attempts,
+        locked,
+        ipAddress,
+        userAgent,
+      );
+
+      await this.prisma.$transaction(async (tx) => {
+        const eventType = locked ? 'verification.kba.locked' : 'verification.kba.failed';
+        await this.outbox.emit(tx, signer.organizationId, eventType, signer.id, {
+          signerId: signer.id,
+          documentId: signer.signatureRequest.documentId,
+          attempts,
+          locked,
+        });
+      });
+
+      // Notify document owner/sender if locked out
+      if (locked) {
+        await this.notificationService.enqueueEmail({
+          to: signer.signatureRequest.document.organization.slug || 'sender@pactintel.internal',
+          template: 'kba-lockout-notice',
+          organizationId: signer.organizationId,
+          data: {
+            signerEmail: signer.email,
+            signerName: signer.name || signer.email,
+            documentTitle: signer.signatureRequest.document.title,
+          },
+        });
+      }
+
+      return {
+        passed: false,
+        locked,
+        attemptsRemaining: Math.max(0, 3 - attempts),
+        message: locked ? 'Maximum KBA attempts exceeded. Verification locked.' : result.message,
+      };
+    } catch (err: any) {
+      this.logger.error(`[KBA Submit Error] ${err.message}`);
+      if (
+        err instanceof CircuitBreakerOpenException ||
+        err instanceof SigningProviderTimeoutException
+      ) {
+        const fallbackMethod = this.getFallbackVerificationMethod('kba');
+        await this.signingRepo.recordVerificationFallback(
+          signer.organizationId,
+          signer.signatureRequest.documentId,
+          signer.id,
+          'kba',
+          fallbackMethod,
+          err.message,
+          ipAddress,
+          userAgent,
+        );
+
+        await this.prisma.$transaction(async (tx) => {
+          await this.outbox.emit(
+            tx,
+            signer.organizationId,
+            'verification.fallback_applied',
+            signer.id,
+            {
+              signerId: signer.id,
+              originalMethod: 'kba',
+              fallbackMethod,
+              reason: err.message,
+            },
+          );
+        });
+
+        return {
+          passed: false,
+          locked: false,
+          attemptsRemaining: 0,
+          fallbackApplied: true,
+          fallbackMethod,
+          message: 'Identity verification provider unavailable. Switched to fallback verification.',
+        };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Initiates Government ID & Biometric Verification (Business+ plan required).
+   */
+  async initiateIdVerification(
+    token: string,
+    dto: InitiateIdVerificationDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const signer = await this.signingRepo.findSignerByToken(token);
+    if (!signer) {
+      throw new HttpException(
+        { code: 'SIGNER_NOT_FOUND', message: 'Invalid signing token.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (signer.kbaLockedAt) {
+      throw new HttpException(
+        { code: 'KBA_LOCKED', message: 'Signer is locked.' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    await this.checkVerificationPlanGate(signer.organizationId, 'id_document');
+
+    try {
+      const session = await this.signingProvider.initiateIdVerification({
+        signerId: signer.id,
+        signerEmail: signer.email,
+        returnUrl: dto.returnUrl,
+      });
+
+      await this.prisma.$transaction(async (tx) => {
+        await this.outbox.emit(tx, signer.organizationId, 'verification.id.submitted', signer.id, {
+          signerId: signer.id,
+          sessionId: session.sessionId,
+        });
+      });
+
+      return session;
+    } catch (err: any) {
+      this.logger.error(`[ID Verification Initiation Error] ${err.message}`);
+      if (
+        err instanceof CircuitBreakerOpenException ||
+        err instanceof SigningProviderTimeoutException
+      ) {
+        const fallbackMethod = this.getFallbackVerificationMethod('id_document');
+        await this.signingRepo.recordVerificationFallback(
+          signer.organizationId,
+          signer.signatureRequest.documentId,
+          signer.id,
+          'id_document',
+          fallbackMethod,
+          err.message,
+          ipAddress,
+          userAgent,
+        );
+
+        return {
+          fallbackApplied: true,
+          fallbackMethod,
+          message: 'ID verification provider is unavailable. Conservative fallback applied.',
+        };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Checks Government ID verification result (ZERO-PII Storage enforced).
+   */
+  async checkIdVerificationResult(
+    token: string,
+    sessionId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const signer = await this.signingRepo.findSignerByToken(token);
+    if (!signer) {
+      throw new HttpException(
+        { code: 'SIGNER_NOT_FOUND', message: 'Invalid signing token.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const result = await this.signingProvider.getIdVerificationResult({ sessionId });
+
+    if (result.status === 'passed') {
+      // STRICT ZERO-PII: Only status, score, reference ID, verifiedAt, biometricMatch
+      const sanitizedResult = {
+        status: 'passed',
+        method: 'id_document',
+        confidenceScore: result.confidenceScore,
+        vendorReferenceId: result.vendorReferenceId,
+        biometricMatch: result.biometricMatch,
+        verifiedAt: result.verifiedAt || new Date().toISOString(),
+      };
+
+      await this.signingRepo.recordVerificationPassed(
+        signer.organizationId,
+        signer.signatureRequest.documentId,
+        signer.id,
+        'id_document',
+        sanitizedResult,
+        ipAddress,
+        userAgent,
+      );
+
+      await this.prisma.$transaction(async (tx) => {
+        await this.outbox.emit(tx, signer.organizationId, 'verification.id.passed', signer.id, {
+          signerId: signer.id,
+          confidenceScore: result.confidenceScore,
+        });
+      });
+    } else if (result.status === 'failed') {
+      await this.prisma.$transaction(async (tx) => {
+        await this.outbox.emit(tx, signer.organizationId, 'verification.id.failed', signer.id, {
+          signerId: signer.id,
+          failureReason: result.failureReason,
+        });
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Initiates Qualified Electronic Signature (QES - Enterprise only, EU jurisdictions only).
+   */
+  async initiateQes(token: string, dto: InitiateQesDto, ipAddress?: string, userAgent?: string) {
+    const signer = await this.signingRepo.findSignerByToken(token);
+    if (!signer) {
+      throw new HttpException(
+        { code: 'SIGNER_NOT_FOUND', message: 'Invalid signing token.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    if (signer.kbaLockedAt) {
+      throw new HttpException(
+        { code: 'KBA_LOCKED', message: 'Signer is locked.' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    await this.checkVerificationPlanGate(signer.organizationId, 'qes');
+    this.checkVerificationJurisdiction('qes', dto.countryCode);
+
+    try {
+      const session = await this.signingProvider.initiateQes({
+        signerId: signer.id,
+        signerEmail: signer.email,
+        signerName: signer.name || undefined,
+        countryCode: dto.countryCode,
+        providerPreference: dto.providerPreference,
+        returnUrl: dto.returnUrl,
+      });
+
+      return session;
+    } catch (err: any) {
+      this.logger.error(`[QES Initiation Error] ${err.message}`);
+      if (
+        err instanceof CircuitBreakerOpenException ||
+        err instanceof SigningProviderTimeoutException
+      ) {
+        const fallbackMethod = this.getFallbackVerificationMethod('qes');
+        await this.signingRepo.recordVerificationFallback(
+          signer.organizationId,
+          signer.signatureRequest.documentId,
+          signer.id,
+          'qes',
+          fallbackMethod,
+          err.message,
+          ipAddress,
+          userAgent,
+        );
+
+        return {
+          fallbackApplied: true,
+          fallbackMethod,
+          message: 'QES trust provider unavailable. Fallback verification applied.',
+        };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Checks QES verification status and records Qualified Certificate metadata.
+   */
+  async checkQesResult(token: string, sessionId: string, ipAddress?: string, userAgent?: string) {
+    const signer = await this.signingRepo.findSignerByToken(token);
+    if (!signer) {
+      throw new HttpException(
+        { code: 'SIGNER_NOT_FOUND', message: 'Invalid signing token.' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const result = await this.signingProvider.getQesResult({ sessionId });
+
+    if (result.status === 'completed') {
+      const qesResultData = {
+        status: 'passed',
+        method: 'qes',
+        eidasLevel: 'QES',
+        certificateIssuer: result.certificateIssuer,
+        certificateSerial: result.certificateSerial,
+        qualifiedTimestamp: result.qualifiedTimestamp,
+        vendorReferenceId: result.vendorReferenceId,
+        verifiedAt: result.verifiedAt || new Date().toISOString(),
+      };
+
+      await this.signingRepo.recordVerificationPassed(
+        signer.organizationId,
+        signer.signatureRequest.documentId,
+        signer.id,
+        'qes',
+        qesResultData,
+        ipAddress,
+        userAgent,
+      );
+
+      await this.prisma.$transaction(async (tx) => {
+        await this.outbox.emit(tx, signer.organizationId, 'verification.qes.applied', signer.id, {
+          signerId: signer.id,
+          certificateIssuer: result.certificateIssuer,
+          qualifiedTimestamp: result.qualifiedTimestamp,
+        });
+      });
+    }
+
+    return result;
+  }
+
   /**
    * RULE SIG-002, SIG-003: Submits signature, locks version, and records audit trail.
    */
@@ -292,11 +933,35 @@ export class SigningService {
       );
     }
 
+    if (signer.kbaLockedAt) {
+      throw new HttpException(
+        {
+          code: 'SIGNER_LOCKED',
+          message: 'This signer account has been locked due to failed identity verification.',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
     if (signer.status === 'signed') {
       throw new HttpException(
         { code: 'ALREADY_SIGNED', message: 'You have already signed this document.' },
         HttpStatus.CONFLICT,
       );
+    }
+
+    // Advanced ID verification gate check before signing
+    if (['kba', 'id_document', 'qes'].includes(signer.verificationMethod)) {
+      const vResult = signer.verificationResult as any;
+      if (!vResult || (vResult.status !== 'passed' && vResult.status !== 'completed')) {
+        throw new HttpException(
+          {
+            code: 'VERIFICATION_REQUIRED',
+            message: `Identity verification via ${signer.verificationMethod.toUpperCase()} must be successfully completed before signing.`,
+          },
+          HttpStatus.FORBIDDEN,
+        );
+      }
     }
 
     const { signer: updatedSigner, allCompleted } = await this.signingRepo.recordSignature(

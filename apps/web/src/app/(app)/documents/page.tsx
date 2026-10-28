@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, FileText, ChevronRight } from 'lucide-react';
+import { Plus, Search, FileText, ChevronRight, Sparkles } from 'lucide-react';
 
 interface DocumentItem {
   id: string;
@@ -78,19 +78,37 @@ export default function DocumentsPage() {
             Manage contracts, proposals, and electronic signatures.
           </p>
         </div>
-        <Link
-          href="/documents/new"
-          className="pact-btn pact-btn-primary"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            textDecoration: 'none',
-          }}
-        >
-          <Plus size={16} />
-          New Document
-        </Link>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Link
+            href="/documents/guided-builder"
+            className="pact-btn pact-btn-secondary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              textDecoration: 'none',
+              border: '1px solid var(--color-gray-300)',
+              backgroundColor: '#FFFFFF',
+              color: 'var(--color-gray-900)',
+            }}
+          >
+            <Sparkles size={16} color="#2563EB" />
+            Guided Proposal
+          </Link>
+          <Link
+            href="/documents/new"
+            className="pact-btn pact-btn-primary"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              textDecoration: 'none',
+            }}
+          >
+            <Plus size={16} />
+            New Document
+          </Link>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}

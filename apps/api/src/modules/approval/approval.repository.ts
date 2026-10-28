@@ -25,6 +25,9 @@ export class ApprovalRepository {
           workspaceId: dto.workspaceId,
           name: dto.name,
           conditions: dto.conditions as unknown as Prisma.InputJsonValue,
+          cpqConditions: (dto.cpqConditions ||
+            (dto.conditions as any)?.cpqConditions ||
+            {}) as unknown as Prisma.InputJsonValue,
           isActive: true,
           steps: {
             create: dto.steps.map((step) => ({
@@ -433,6 +436,7 @@ export class ApprovalRepository {
       workspaceId: chain.workspaceId,
       name: chain.name,
       conditions: chain.conditions as any,
+      cpqConditions: chain.cpqConditions as any,
       isActive: chain.isActive,
       createdAt: chain.createdAt.toISOString(),
       updatedAt: chain.updatedAt.toISOString(),

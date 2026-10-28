@@ -30,6 +30,9 @@ import { AiModule } from './modules/ai/ai.module';
 import { FollowUpModule } from './modules/follow-up/follow-up.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { ClickwrapModule } from './modules/clickwrap/clickwrap.module';
+import { WorkflowModule } from './modules/workflow/workflow.module';
+import { DealRoomModule } from './modules/deal-room/deal-room.module';
+import { PortfolioModule } from './modules/portfolio/portfolio.module';
 
 @Module({
   imports: [
@@ -59,6 +62,9 @@ import { ClickwrapModule } from './modules/clickwrap/clickwrap.module';
     FollowUpModule,
     WebhookModule,
     ClickwrapModule,
+    WorkflowModule,
+    DealRoomModule,
+    PortfolioModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [

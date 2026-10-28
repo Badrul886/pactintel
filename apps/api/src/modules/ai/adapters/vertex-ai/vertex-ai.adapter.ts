@@ -29,6 +29,18 @@ export class VertexAiAdapter implements LlmPort {
     const startMs = Date.now();
     const endpoint = request.endpoint || VERTEX_AI_US_ENDPOINT;
 
+    // RULE GDPR-002: Strict regional data residency. Never failover cross-border.
+    if (
+      (endpoint.includes('europe-west1') || endpoint === VERTEX_AI_EU_ENDPOINT) &&
+      process.env.TEST_EU_ENDPOINT_DOWN === 'true'
+    ) {
+      throw new ServiceUnavailableException({
+        code: 'FEATURE_UNAVAILABLE_IN_REGION',
+        message:
+          'AI service is temporarily unavailable in your region (EU). Cross-border routing is disabled.',
+      });
+    }
+
     this.logger.log(
       `[VertexAiAdapter] Dispatching task ${request.taskId || 'prompt'} to Vertex AI endpoint: ${endpoint}`,
     );
@@ -124,7 +136,75 @@ export class VertexAiAdapter implements LlmPort {
     // Deterministic simulation based on prompt content
     let simulatedText =
       'This Agreement is entered into by and between the parties under mutual commercial terms.';
-    if (request.userPrompt.includes('Task:') || request.userPrompt.includes('executive summary')) {
+
+    if (
+      request.taskId === 'guided-proposal-assembly' ||
+      request.userPrompt.includes('Assemble the complete Tiptap JSON document now:')
+    ) {
+      simulatedText = JSON.stringify({
+        type: 'doc',
+        content: [
+          {
+            type: 'heading',
+            attrs: { level: 1 },
+            content: [{ type: 'text', text: 'Commercial Services Proposal' }],
+          },
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'Executive Summary: This document sets forth the comprehensive commercial deliverables, timeline commitments, and service standards.',
+              },
+            ],
+          },
+          {
+            type: 'heading',
+            attrs: { level: 2 },
+            content: [{ type: 'text', text: 'Scope of Work' }],
+          },
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'All agreed services shall be performed in accordance with enterprise-grade quality benchmarks.',
+              },
+            ],
+          },
+        ],
+      });
+    } else if (
+      request.taskId === 'url-to-draft' ||
+      request.userPrompt.includes('Generate the JSON proposal now:')
+    ) {
+      simulatedText = JSON.stringify({
+        title: 'Commercial Proposal: Acme Solutions',
+        summary: 'Commercial proposal formulated from the target website overview.',
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'heading',
+              attrs: { level: 1 },
+              content: [{ type: 'text', text: 'Commercial Proposal: Acme Solutions' }],
+            },
+            {
+              type: 'paragraph',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Executive Summary: We are pleased to present this partnership proposal tailored to your technology and business objectives.',
+                },
+              ],
+            },
+          ],
+        },
+      });
+    } else if (
+      request.userPrompt.includes('Task:') ||
+      request.userPrompt.includes('executive summary')
+    ) {
       simulatedText =
         'Executive Summary: This document sets forth the comprehensive scope of commercial deliverables, timeline commitments, and service standards.';
     } else if (

@@ -1,4 +1,11 @@
-import { Injectable, HttpException, HttpStatus, NotFoundException, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  ForbiddenException,
+  Optional,
+} from '@nestjs/common';
 import { DocumentRepository } from './document.repository';
 import { DocumentOutboxService } from './outbox/document-outbox.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -206,6 +213,23 @@ export class DocumentService {
   async sendDocument(organizationId: string, documentId: string) {
     const doc = await this.getDocument(organizationId, documentId);
     this.assertValidTransition(doc.status as DocumentStatus, 'sent');
+
+    // RULE WF-003 & CPQ Sprint 3.1: Enforce approval gate on document send
+    const pendingApproval = this.prisma.approvalStep
+      ? await this.prisma.approvalStep.findFirst({
+          where: {
+            documentId,
+            organizationId,
+            status: 'pending',
+          },
+        })
+      : null;
+
+    if (pendingApproval) {
+      throw new ForbiddenException(
+        'Document send is blocked: pending approval steps must be decided before sending.',
+      );
+    }
 
     // RULE BILL-002: Check document volume quota on send
     const subscription = await this.prisma.subscription.findUnique({

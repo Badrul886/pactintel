@@ -124,4 +124,35 @@ export class AiGateway {
       }
     }
   }
+
+  /**
+   * Generates public/unauthenticated AI tasks (e.g. URL-to-Draft) strictly without database writes (ephemeral).
+   * RULE A6.7: Uses PROMPT_REGISTRY.
+   */
+  async generatePublic(taskId: string, input: Record<string, unknown>): Promise<AiGatewayResult> {
+    const promptDef = PROMPT_REGISTRY[taskId];
+    if (!promptDef) {
+      throw new BadRequestException(`Unknown AI task: ${taskId}`);
+    }
+
+    const prompt = promptDef.userTemplate(input);
+    const endpoint =
+      process.env.CELL_REGION === 'eu' ? VERTEX_AI_EU_ENDPOINT : VERTEX_AI_US_ENDPOINT;
+
+    const result = await this.llmPort.generate({
+      taskId,
+      systemPrompt: promptDef.systemPrompt,
+      userPrompt: prompt,
+      endpoint,
+      maxTokens: 2048,
+      temperature: 0.3,
+      tenantId: 'public',
+    });
+
+    return {
+      content: result.content,
+      taskId,
+      tokensUsed: (result.usage?.inputTokens ?? 0) + (result.usage?.outputTokens ?? 0),
+    };
+  }
 }

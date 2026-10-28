@@ -78,8 +78,21 @@ services:
       - '1025:1025'
       - '8025:8025'
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: pactintel-meilisearch
+    ports:
+      - '7700:7700'
+    environment:
+      MEILI_ENV: development
+      MEILI_NO_ANALYTICS: 'true'
+      MEILI_MASTER_KEY: pactintel_local_master_key_12345
+    volumes:
+      - meilidata:/meili_data
+
 volumes:
   pgdata:
   redis_queue_data:
   chdata:
   seaweed_data:
+  meilidata:

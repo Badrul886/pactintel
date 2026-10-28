@@ -92,6 +92,42 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             Templates
           </Link>
           <Link
+            href="/workflows"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Workflows
+          </Link>
+          <Link
+            href="/deal-rooms"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Deal Rooms
+          </Link>
+          <Link
+            href="/portfolio"
+            style={{
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-default)',
+              color: 'var(--color-gray-800)',
+              textDecoration: 'none',
+              fontWeight: 500,
+            }}
+          >
+            Portfolio
+          </Link>
+          <Link
             href="/settings/brand-kit"
             style={{
               padding: '8px 12px',

@@ -12,6 +12,9 @@ import {
   PenTool,
   Type,
   ArrowRight,
+  ShieldCheck,
+  ShieldAlert,
+  Award,
 } from 'lucide-react';
 
 interface SignPageProps {
@@ -24,6 +27,11 @@ interface SignerInfo {
   name: string;
   status: string;
   role: string;
+  verificationMethod?: string;
+  verificationAttempts?: number;
+  kbaLocked?: boolean;
+  kbaLockedAt?: string;
+  verificationResult?: Record<string, any>;
 }
 
 interface DocumentInfo {
@@ -37,6 +45,12 @@ interface LatestVersionInfo {
   versionNumber: number;
   fileUrl: string;
   contentHash: string;
+}
+
+interface KbaQuestion {
+  id: string;
+  prompt: string;
+  options: string[];
 }
 
 export default function ExternalSigningPage({ params }: SignPageProps) {
@@ -55,6 +69,29 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
   const [signer, setSigner] = useState<SignerInfo | null>(null);
   const [document, setDocument] = useState<DocumentInfo | null>(null);
   const [latestVersion, setLatestVersion] = useState<LatestVersionInfo | null>(null);
+
+  // Advanced ID Verification State (Sprint 3.6)
+  const [showKbaModal, setShowKbaModal] = useState(false);
+  const [kbaQuestions, setKbaQuestions] = useState<KbaQuestion[]>([]);
+  const [kbaSessionId, setKbaSessionId] = useState<string>('');
+  const [kbaAnswers, setKbaAnswers] = useState<Record<string, string>>({});
+  const [kbaAttemptsRemaining, setKbaAttemptsRemaining] = useState<number>(3);
+  const [kbaError, setKbaError] = useState<string | null>(null);
+  const [kbaLoading, setKbaLoading] = useState(false);
+
+  const [showGovIdModal, setShowGovIdModal] = useState(false);
+  const [govIdSessionId, setGovIdSessionId] = useState<string>('');
+  const [govIdVerificationUrl, setGovIdVerificationUrl] = useState<string>('');
+  const [govIdLoading, setGovIdLoading] = useState(false);
+  const [govIdError, setGovIdError] = useState<string | null>(null);
+
+  const [showQesModal, setShowQesModal] = useState(false);
+  const [qesSessionId, setQesSessionId] = useState<string>('');
+  const [qesProvider, setQesProvider] = useState<string>('D-Trust Qualified QTSP EU');
+  const [qesSigningUrl, setQesSigningUrl] = useState<string>('');
+  const [qesCountryCode, setQesCountryCode] = useState<string>('DE');
+  const [qesLoading, setQesLoading] = useState(false);
+  const [qesError, setQesError] = useState<string | null>(null);
 
   // Workflow states
   const [isSigned, setIsSigned] = useState(false);
@@ -75,6 +112,17 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawing = useRef(false);
+
+  // Helper: check if advanced verification is satisfied
+  const isVerificationSatisfied = () => {
+    if (!signer) return true;
+    const method = signer.verificationMethod;
+    if (!method || ['none', 'email', 'passcode', 'sms'].includes(method)) {
+      return true;
+    }
+    const result = signer.verificationResult;
+    return Boolean(result && (result.status === 'passed' || result.status === 'completed'));
+  };
 
   // Load initial signing request metadata
   useEffect(() => {
@@ -104,7 +152,6 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
           setTypedSignature(data.signer.name);
         }
       } catch {
-        // Fallback or offline support
         setErrorMessage(
           'Unable to connect to the signing service. Please check your network and try again.',
         );
@@ -151,6 +198,231 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
       setPasscodeError('Error validating passcode. Please try again.');
     } finally {
       setIsVerifyingPasscode(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Advanced ID Verification Handlers (Sprint 3.6)
+  // ---------------------------------------------------------------------------
+
+  const handleStartKba = async () => {
+    setKbaLoading(true);
+    setKbaError(null);
+    try {
+      const res = await fetch(`/api/signing/sign/${token}/kba/initiate`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setKbaError(data.message || 'Unable to initiate KBA session.');
+        return;
+      }
+
+      if (data.fallbackApplied) {
+        alert(`Notice: ${data.message}`);
+        if (signer) {
+          setSigner({ ...signer, verificationMethod: data.fallbackMethod });
+        }
+        return;
+      }
+
+      setKbaSessionId(data.sessionId);
+      setKbaQuestions(data.questions || []);
+      setKbaAttemptsRemaining(data.attemptsRemaining ?? 3);
+      setShowKbaModal(true);
+    } catch {
+      setKbaError('Network error starting KBA verification.');
+    } finally {
+      setKbaLoading(false);
+    }
+  };
+
+  const handleSubmitKba = async () => {
+    setKbaLoading(true);
+    setKbaError(null);
+    try {
+      const res = await fetch(`/api/signing/sign/${token}/kba/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: kbaSessionId,
+          answers: kbaAnswers,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setKbaError(data.message || 'KBA answer submission failed.');
+        return;
+      }
+
+      if (data.passed) {
+        if (signer) {
+          setSigner({
+            ...signer,
+            verificationResult: { status: 'passed', method: 'kba' },
+          });
+        }
+        setShowKbaModal(false);
+      } else if (data.locked) {
+        if (signer) {
+          setSigner({ ...signer, kbaLocked: true });
+        }
+        setShowKbaModal(false);
+      } else {
+        setKbaAttemptsRemaining(data.attemptsRemaining ?? 0);
+        setKbaError(data.message || 'Incorrect answers. Please try again.');
+      }
+    } catch {
+      setKbaError('Network error submitting KBA answers.');
+    } finally {
+      setKbaLoading(false);
+    }
+  };
+
+  const handleStartGovId = async () => {
+    setGovIdLoading(true);
+    setGovIdError(null);
+    try {
+      const res = await fetch(`/api/signing/sign/${token}/id-verify/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          returnUrl: window.location.href,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGovIdError(data.message || 'Unable to initiate ID verification.');
+        return;
+      }
+
+      if (data.fallbackApplied) {
+        alert(`Notice: ${data.message}`);
+        if (signer) {
+          setSigner({ ...signer, verificationMethod: data.fallbackMethod });
+        }
+        return;
+      }
+
+      setGovIdSessionId(data.sessionId);
+      setGovIdVerificationUrl(data.verificationUrl);
+      setShowGovIdModal(true);
+    } catch {
+      setGovIdError('Network error initiating Government ID verification.');
+    } finally {
+      setGovIdLoading(false);
+    }
+  };
+
+  const handleCompleteGovIdCheck = async () => {
+    setGovIdLoading(true);
+    setGovIdError(null);
+    try {
+      const res = await fetch(
+        `/api/signing/sign/${token}/id-verify/result?sessionId=${govIdSessionId}`,
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setGovIdError(data.message || 'Error checking verification status.');
+        return;
+      }
+
+      if (data.status === 'passed') {
+        if (signer) {
+          setSigner({
+            ...signer,
+            verificationResult: {
+              status: 'passed',
+              method: 'id_document',
+              confidenceScore: data.confidenceScore,
+              biometricMatch: data.biometricMatch,
+            },
+          });
+        }
+        setShowGovIdModal(false);
+      } else {
+        setGovIdError(
+          'Verification is still pending or was not approved. Please complete document submission.',
+        );
+      }
+    } catch {
+      setGovIdError('Network error checking verification result.');
+    } finally {
+      setGovIdLoading(false);
+    }
+  };
+
+  const handleStartQes = async () => {
+    setQesLoading(true);
+    setQesError(null);
+    try {
+      const res = await fetch(`/api/signing/sign/${token}/qes/initiate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          countryCode: qesCountryCode,
+          providerPreference: qesProvider,
+          returnUrl: window.location.href,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setQesError(data.message || 'Unable to initiate QES session.');
+        return;
+      }
+
+      if (data.fallbackApplied) {
+        alert(`Notice: ${data.message}`);
+        if (signer) {
+          setSigner({ ...signer, verificationMethod: data.fallbackMethod });
+        }
+        return;
+      }
+
+      setQesSessionId(data.sessionId);
+      setQesSigningUrl(data.signingUrl);
+      setShowQesModal(true);
+    } catch {
+      setQesError('Network error initiating QES certificate session.');
+    } finally {
+      setQesLoading(false);
+    }
+  };
+
+  const handleCompleteQesCheck = async () => {
+    setQesLoading(true);
+    setQesError(null);
+    try {
+      const res = await fetch(`/api/signing/sign/${token}/qes/result?sessionId=${qesSessionId}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setQesError(data.message || 'Error checking QES status.');
+        return;
+      }
+
+      if (data.status === 'completed' || data.status === 'passed') {
+        if (signer) {
+          setSigner({
+            ...signer,
+            verificationResult: {
+              status: 'passed',
+              method: 'qes',
+              certificateIssuer: data.certificateIssuer,
+              qualifiedTimestamp: data.qualifiedTimestamp,
+            },
+          });
+        }
+        setShowQesModal(false);
+      } else {
+        setQesError(
+          'Qualified certificate authentication is still pending. Please authorize with your QTSP.',
+        );
+      }
+    } catch {
+      setQesError('Network error checking QES result.');
+    } finally {
+      setQesLoading(false);
     }
   };
 
@@ -205,6 +477,11 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
   // Submit Signature
   const handleCompleteSign = async () => {
     if (!legalAssentChecked) return;
+    if (!isVerificationSatisfied()) {
+      alert('Please complete the required identity verification before signing.');
+      return;
+    }
+
     let signatureData = '';
     if (signatureMode === 'draw') {
       const canvas = canvasRef.current;
@@ -301,7 +578,64 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
     );
   }
 
-  // 2. Error State (Invalid/Expired Token)
+  // 2. KBA Lockout Gate View (RULE KBA-001)
+  if (signer?.kbaLocked) {
+    return (
+      <div
+        style={{
+          maxWidth: '540px',
+          margin: '40px auto',
+          backgroundColor: 'var(--color-white)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          padding: '40px 32px',
+          textAlign: 'center',
+          boxShadow: '0 1px 3px rgba(15, 23, 42, 0.05)',
+        }}
+      >
+        <div
+          style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--status-error-bg)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '16px',
+            color: 'var(--status-error-text)',
+          }}
+        >
+          <ShieldAlert size={26} />
+        </div>
+        <h1
+          style={{
+            fontSize: '18px',
+            fontWeight: 600,
+            color: 'var(--color-gray-950)',
+            marginBottom: '8px',
+          }}
+        >
+          Identity Verification Locked
+        </h1>
+        <p
+          style={{
+            fontSize: '14px',
+            color: 'var(--color-gray-600)',
+            lineHeight: '22px',
+            marginBottom: '24px',
+          }}
+        >
+          You have exceeded the maximum allowed attempts for Knowledge-Based Authentication (KBA).
+          For legal security and anti-fraud compliance, this signing link has been locked and the
+          sender has been alerted. Please contact the document sender to unlock or reissue your
+          invitation.
+        </p>
+      </div>
+    );
+  }
+
+  // 3. Error State (Invalid/Expired Token)
   if (errorMessage) {
     return (
       <div
@@ -370,7 +704,7 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
     );
   }
 
-  // 3. Passcode Gate View
+  // 4. Passcode Gate View
   if (requiresPasscode) {
     return (
       <div
@@ -484,7 +818,7 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
     );
   }
 
-  // 4. Signed Success Confirmation
+  // 5. Signed Success Confirmation
   if (isSigned) {
     return (
       <div
@@ -536,7 +870,6 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
           permanently attached to the cryptographic audit trail.
         </p>
 
-        {/* Post-Signature Payment Request CTA (if payment link attached) */}
         {paymentLinkUrl && (
           <div
             style={{
@@ -618,7 +951,7 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
     );
   }
 
-  // 5. Declined Confirmation
+  // 6. Declined Confirmation
   if (isDeclined) {
     return (
       <div
@@ -665,7 +998,11 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
     );
   }
 
-  // 6. Active Document Viewing & Signing Experience
+  const verificationMethod = signer?.verificationMethod || 'none';
+  const hasAdvancedVerification = ['kba', 'id_document', 'qes'].includes(verificationMethod);
+  const isVerified = isVerificationSatisfied();
+
+  // 7. Active Document Viewing & Signing Experience
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
       {/* Document Info Header */}
@@ -701,6 +1038,114 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
           </div>
         </div>
       </div>
+
+      {/* Advanced Verification Banner (Sprint 3.6) */}
+      {hasAdvancedVerification && (
+        <div
+          style={{
+            backgroundColor: isVerified
+              ? 'var(--status-success-bg)'
+              : 'var(--color-primary-subtle)',
+            border: isVerified
+              ? '1px solid var(--status-success-border)'
+              : '1px solid var(--color-primary-muted)',
+            borderRadius: '8px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {isVerified ? (
+              <ShieldCheck size={22} color="var(--status-success-text)" />
+            ) : (
+              <ShieldAlert size={22} color="var(--color-primary)" />
+            )}
+            <div>
+              <div
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: isVerified ? 'var(--status-success-text)' : 'var(--color-gray-950)',
+                }}
+              >
+                {isVerified
+                  ? `Identity Verified (${verificationMethod.toUpperCase()})`
+                  : `Identity Verification Required (${verificationMethod.toUpperCase()})`}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--color-gray-600)', marginTop: '2px' }}>
+                {isVerified
+                  ? 'Your identity has been verified under legal compliance requirements.'
+                  : 'The sender requires identity verification prior to executing this agreement.'}
+              </div>
+            </div>
+          </div>
+
+          {!isVerified && (
+            <div>
+              {verificationMethod === 'kba' && (
+                <button
+                  type="button"
+                  onClick={handleStartKba}
+                  disabled={kbaLoading}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'var(--color-primary)',
+                    color: 'var(--color-white)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: kbaLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {kbaLoading ? 'Starting...' : 'Verify with KBA'}
+                </button>
+              )}
+              {verificationMethod === 'id_document' && (
+                <button
+                  type="button"
+                  onClick={handleStartGovId}
+                  disabled={govIdLoading}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'var(--color-primary)',
+                    color: 'var(--color-white)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: govIdLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {govIdLoading ? 'Starting...' : 'Verify Government ID'}
+                </button>
+              )}
+              {verificationMethod === 'qes' && (
+                <button
+                  type="button"
+                  onClick={handleStartQes}
+                  disabled={qesLoading}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: 'var(--color-primary)',
+                    color: 'var(--color-white)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    cursor: qesLoading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {qesLoading ? 'Starting...' : 'Verify with QES'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Document Content Paper */}
       <div
@@ -856,7 +1301,15 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
             Decline
           </button>
           <button
-            onClick={() => setShowSignModal(true)}
+            onClick={() => {
+              if (!isVerified) {
+                if (verificationMethod === 'kba') handleStartKba();
+                else if (verificationMethod === 'id_document') handleStartGovId();
+                else if (verificationMethod === 'qes') handleStartQes();
+                return;
+              }
+              setShowSignModal(true);
+            }}
             style={{
               padding: '8px 20px',
               backgroundColor: 'var(--color-primary)',
@@ -868,10 +1321,507 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
               cursor: 'pointer',
             }}
           >
-            Sign Document
+            {isVerified ? 'Sign Document' : 'Verify Identity to Sign'}
           </button>
         </div>
       </div>
+
+      {/* KBA Questionnaire Modal */}
+      {showKbaModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'var(--surface-overlay)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 60,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--color-white)',
+              borderRadius: '8px',
+              width: '100%',
+              maxWidth: '560px',
+              padding: '28px',
+              boxShadow: 'var(--shadow-modal)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <div>
+                <h2 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--color-gray-950)' }}>
+                  Knowledge-Based Authentication (KBA)
+                </h2>
+                <p style={{ fontSize: '12px', color: 'var(--color-gray-500)', marginTop: '2px' }}>
+                  Attempt {4 - kbaAttemptsRemaining} of 3 · Verification via credit bureau records
+                </p>
+              </div>
+              <button
+                onClick={() => setShowKbaModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--color-gray-400)',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {kbaError && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  backgroundColor: 'var(--status-error-bg)',
+                  color: 'var(--status-error-text)',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  marginBottom: '16px',
+                }}
+              >
+                {kbaError}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+                marginBottom: '24px',
+              }}
+            >
+              {kbaQuestions.map((q, idx) => (
+                <div key={q.id}>
+                  <p
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: 500,
+                      color: 'var(--color-gray-900)',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    {idx + 1}. {q.prompt}
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {q.options.map((opt) => (
+                      <label
+                        key={opt}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          border:
+                            kbaAnswers[q.id] === opt
+                              ? '1px solid var(--color-primary)'
+                              : '1px solid var(--border-color)',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          backgroundColor:
+                            kbaAnswers[q.id] === opt
+                              ? 'var(--color-primary-subtle)'
+                              : 'var(--color-white)',
+                          fontSize: '13px',
+                          color: 'var(--color-gray-800)',
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name={q.id}
+                          value={opt}
+                          checked={kbaAnswers[q.id] === opt}
+                          onChange={() => setKbaAnswers({ ...kbaAnswers, [q.id]: opt })}
+                        />
+                        <span>{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setShowKbaModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'var(--color-white)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  color: 'var(--color-gray-700)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitKba}
+                disabled={kbaLoading || Object.keys(kbaAnswers).length < kbaQuestions.length}
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'var(--color-white)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor:
+                    kbaLoading || Object.keys(kbaAnswers).length < kbaQuestions.length
+                      ? 'not-allowed'
+                      : 'pointer',
+                  opacity:
+                    kbaLoading || Object.keys(kbaAnswers).length < kbaQuestions.length ? 0.6 : 1,
+                }}
+              >
+                {kbaLoading ? 'Verifying...' : 'Submit Answers'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Government ID & Biometric Verification Modal */}
+      {showGovIdModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'var(--surface-overlay)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 60,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--color-white)',
+              borderRadius: '8px',
+              width: '100%',
+              maxWidth: '520px',
+              padding: '28px',
+              boxShadow: 'var(--shadow-modal)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <h2 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--color-gray-950)' }}>
+                Government ID & Biometric Verification
+              </h2>
+              <button
+                onClick={() => setShowGovIdModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--color-gray-400)',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {govIdError && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  backgroundColor: 'var(--status-error-bg)',
+                  color: 'var(--status-error-text)',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  marginBottom: '16px',
+                }}
+              >
+                {govIdError}
+              </div>
+            )}
+
+            <div
+              style={{
+                padding: '16px',
+                backgroundColor: 'var(--color-gray-50)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                fontSize: '13px',
+                color: 'var(--color-gray-700)',
+                lineHeight: '20px',
+                marginBottom: '20px',
+              }}
+            >
+              <strong>GDPR & CCPA Zero-PII Notice:</strong> Your identity document and biometric
+              facial analysis are verified in real time. PactIntel does not retain document photos,
+              license numbers, or SSNs in internal datastores.
+            </div>
+
+            {govIdVerificationUrl && (
+              <div style={{ marginBottom: '20px' }}>
+                <a
+                  href={govIdVerificationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '13px',
+                    color: 'var(--color-primary)',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  <span>Open Identity Provider Portal in New Tab</span>
+                  <ArrowRight size={14} />
+                </a>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setShowGovIdModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'var(--color-white)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  color: 'var(--color-gray-700)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCompleteGovIdCheck}
+                disabled={govIdLoading}
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'var(--color-white)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: govIdLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {govIdLoading ? 'Checking Result...' : 'Confirm Verification'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QES Modal */}
+      {showQesModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'var(--surface-overlay)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 60,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--color-white)',
+              borderRadius: '8px',
+              width: '100%',
+              maxWidth: '520px',
+              padding: '28px',
+              boxShadow: 'var(--shadow-modal)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px',
+              }}
+            >
+              <h2 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--color-gray-950)' }}>
+                eIDAS Qualified Electronic Signature (QES)
+              </h2>
+              <button
+                onClick={() => setShowQesModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--color-gray-400)',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {qesError && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  backgroundColor: 'var(--status-error-bg)',
+                  color: 'var(--status-error-text)',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  marginBottom: '16px',
+                }}
+              >
+                {qesError}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '14px',
+                backgroundColor: 'var(--color-primary-subtle)',
+                borderRadius: '6px',
+                marginBottom: '20px',
+              }}
+            >
+              <Award size={24} color="var(--color-primary)" />
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-gray-950)' }}>
+                  eIDAS Qualified Certificate
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--color-gray-600)' }}>
+                  Issued by {qesProvider} under EU Regulation No 910/2014.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label
+                htmlFor="qesCountrySelect"
+                style={{
+                  display: 'block',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: 'var(--color-gray-800)',
+                  marginBottom: '6px',
+                }}
+              >
+                EU Member State / Jurisdiction
+              </label>
+              <select
+                id="qesCountrySelect"
+                value={qesCountryCode}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setQesCountryCode(val);
+                  if (val === 'DE') setQesProvider('D-Trust Qualified QTSP EU');
+                  else if (val === 'FR') setQesProvider('CertEurope QTSP EU');
+                  else if (val === 'IT') setQesProvider('InfoCert Qualified QTSP EU');
+                  else setQesProvider('Cleverbase Qualified QTSP EU');
+                }}
+                style={{
+                  width: '100%',
+                  height: '38px',
+                  padding: '0 10px',
+                  fontSize: '13px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--color-white)',
+                  color: 'var(--color-gray-900)',
+                }}
+              >
+                <option value="DE">Germany (DE - D-Trust)</option>
+                <option value="FR">France (FR - CertEurope)</option>
+                <option value="IT">Italy (IT - InfoCert)</option>
+                <option value="ES">Spain (ES - Camerfirma)</option>
+                <option value="NL">Netherlands (NL - Cleverbase)</option>
+              </select>
+            </div>
+
+            {qesSigningUrl && (
+              <div style={{ marginBottom: '20px' }}>
+                <a
+                  href={qesSigningUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '13px',
+                    color: 'var(--color-primary)',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  <span>Authenticate on QTSP Portal ({qesProvider})</span>
+                  <ArrowRight size={14} />
+                </a>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setShowQesModal(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'var(--color-white)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  color: 'var(--color-gray-700)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCompleteQesCheck}
+                disabled={qesLoading}
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'var(--color-white)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: qesLoading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {qesLoading ? 'Verifying Certificate...' : 'Complete QES Verification'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Signature Capture Modal */}
       {showSignModal && (

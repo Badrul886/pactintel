@@ -35,6 +35,22 @@ export class AbilityFactory {
         can('manage', 'PricingTable');
         can('manage', 'LineItem');
         can('manage', 'ProductCatalogItem');
+        can('manage', 'Bundle');
+        can('manage', 'PricingRule');
+        can('manage', 'Playbook');
+        can('decide', 'CpqApproval');
+        // Phase 3 additions for manager (Workflow Orchestration):
+        can('manage', 'WorkflowDefinition');
+        can('manage', 'WorkflowInstance');
+        // Phase 3 additions for manager (Deal Rooms):
+        can('manage', 'DealRoom');
+        can('manage', 'DealRoomMessage');
+        // Phase 3 additions for manager (Portfolio Intelligence):
+        can('manage', 'Portfolio');
+        can('manage', 'ObligationRecord');
+        can('manage', 'Counterparty');
+        can('manage', 'CustomExtractionField');
+        can('manage', 'Signature');
         can('read', 'BrandKit');
         // Phase 2 additions for manager:
         can(['read', 'create', 'update', 'delete'], 'Comment');
@@ -85,6 +101,52 @@ export class AbilityFactory {
         can('update', 'LineItem');
         can('read', 'BrandKit');
         can('read', 'ProductCatalogItem');
+        // Phase 3 additions for member (CPQ):
+        can('read', 'Bundle');
+        can('use', 'Bundle');
+        can('read', 'PricingRule');
+        can('read', 'Playbook');
+        can('use', 'Playbook');
+        cannot('create', 'Bundle');
+        cannot('update', 'Bundle');
+        cannot('delete', 'Bundle');
+        cannot('create', 'PricingRule');
+        cannot('update', 'PricingRule');
+        cannot('delete', 'PricingRule');
+        cannot('create', 'Playbook');
+        cannot('update', 'Playbook');
+        cannot('delete', 'Playbook');
+        cannot('decide', 'CpqApproval');
+        // Phase 3 additions for member (Workflow Orchestration):
+        can('read', 'WorkflowDefinition');
+        can('execute', 'WorkflowDefinition');
+        can('read', 'WorkflowInstance');
+        cannot('create', 'WorkflowDefinition');
+        cannot('update', 'WorkflowDefinition');
+        cannot('delete', 'WorkflowDefinition');
+        // Phase 3 additions for member (Deal Rooms):
+        can('read', 'DealRoom');
+        can('create', 'DealRoom');
+        can('update', 'DealRoom');
+        cannot('delete', 'DealRoom');
+        can(['read', 'create'], 'DealRoomMessage');
+        if (userId) {
+          can('update', 'DealRoomMessage', { authorId: { $eq: userId } } as any);
+          can('delete', 'DealRoomMessage', { authorId: { $eq: userId } } as any);
+        } else {
+          can('update', 'DealRoomMessage');
+          can('delete', 'DealRoomMessage');
+        }
+        // Phase 3 additions for member (Portfolio Intelligence):
+        can('read', 'Portfolio');
+        can(['read', 'create', 'update'], 'ObligationRecord');
+        can(['read', 'create', 'update'], 'Counterparty');
+        can(['read', 'create', 'update'], 'CustomExtractionField');
+        can(['read', 'create', 'update'], 'Signature');
+        cannot('delete', 'Signature');
+        cannot('delete', 'ObligationRecord');
+        cannot('delete', 'Counterparty');
+        cannot('delete', 'CustomExtractionField');
         // Phase 2 additions for member:
         can(['read', 'create'], 'Comment');
         if (userId) {
@@ -147,6 +209,43 @@ export class AbilityFactory {
         cannot('delete', 'PricingTable');
         can('read', 'BrandKit');
         can('read', 'ProductCatalogItem');
+        // Phase 3 additions for collaborator (CPQ):
+        cannot('manage', 'Bundle');
+        cannot('use', 'Bundle');
+        cannot('manage', 'PricingRule');
+        cannot('manage', 'Playbook');
+        cannot('use', 'Playbook');
+        cannot('decide', 'CpqApproval');
+        // Phase 3 additions for collaborator (Workflow Orchestration):
+        cannot('manage', 'WorkflowDefinition');
+        cannot('read', 'WorkflowDefinition');
+        cannot('execute', 'WorkflowDefinition');
+        cannot('manage', 'WorkflowInstance');
+        cannot('read', 'WorkflowInstance');
+        // Phase 3 additions for collaborator (Deal Rooms):
+        can('read', 'DealRoom');
+        cannot('create', 'DealRoom');
+        cannot('update', 'DealRoom');
+        cannot('delete', 'DealRoom');
+        can('read', 'DealRoomMessage');
+        can('create', 'DealRoomMessage');
+        cannot('update', 'DealRoomMessage');
+        cannot('delete', 'DealRoomMessage');
+        cannot('manage', 'Signature');
+        cannot('create', 'Signature');
+        cannot('update', 'Signature');
+        cannot('delete', 'Signature');
+        // Phase 3 additions for collaborator (Portfolio Intelligence):
+        can('read', 'Portfolio');
+        can('read', 'ObligationRecord');
+        can('read', 'Counterparty');
+        cannot('manage', 'CustomExtractionField');
+        cannot('create', 'ObligationRecord');
+        cannot('update', 'ObligationRecord');
+        cannot('delete', 'ObligationRecord');
+        cannot('create', 'Counterparty');
+        cannot('update', 'Counterparty');
+        cannot('delete', 'Counterparty');
         // Phase 2 additions for collaborator:
         can('read', 'Comment');
         can('create', 'Comment'); // collaborators can comment

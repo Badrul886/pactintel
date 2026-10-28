@@ -71,6 +71,21 @@ model Organization {
   clickwrapAgreements         ClickwrapAgreement[]
   clickwrapVersions           ClickwrapVersion[]
   clickwrapAcceptances        ClickwrapAcceptance[]
+  productBundles              ProductBundle[]
+  bundleItems                 BundleItem[]
+  pricingRules                PricingRule[]
+  cpqPlaybooks                CpqPlaybook[]
+  workflowDefinitions         WorkflowDefinition[]
+  workflowInstances           WorkflowInstance[]
+  workflowNodeExecutions      WorkflowNodeExecution[]
+  dealRooms                   DealRoom[]
+  dealRoomMembers             DealRoomMember[]
+  dealRoomDocuments           DealRoomDocument[]
+  dealRoomMessages            DealRoomMessage[]
+  dealRoomMagicLinks          DealRoomMagicLink[]
+  counterparties              Counterparty[]
+  customExtractionFields      CustomExtractionField[]
+  obligationRecords           ObligationRecord[]
 
   @@map("organizations")
 }
@@ -93,6 +108,11 @@ model Workspace {
   folders        Folder[]
   approvalChains ApprovalChain[]
   automationRules AutomationRule[]
+  productBundles      ProductBundle[]
+  pricingRules        PricingRule[]
+  cpqPlaybooks        CpqPlaybook[]
+  workflowDefinitions WorkflowDefinition[]
+  dealRooms           DealRoom[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -146,6 +166,10 @@ model User {
   fallbackApprovalSteps   ApprovalStep[]           @relation("FallbackApprover")
   followUpQueueItems      FollowUpQueue[]
   aiGenerationLogs        AiGenerationLog[]
+  workflowsCreated         WorkflowDefinition[]     @relation("WorkflowCreator")
+  dealRoomMemberships      DealRoomMember[]
+  dealRoomDocumentsAdded   DealRoomDocument[]       @relation("DealRoomDocAdder")
+  dealRoomMessagesAuthored DealRoomMessage[]        @relation("DealRoomMsgAuthor")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -215,6 +239,7 @@ model Document {
   currency               String                  @default("USD")
   totalValue             Decimal?                @map("total_value") @db.Decimal(15, 2)
   metadata               Json                    @default("{}")
+  counterpartyId         String?                 @map("counterparty_id")
   currentVersionId       String?                 @map("current_version_id")
   createdAt              DateTime                @default(now()) @map("created_at")
   updatedAt              DateTime                @updatedAt @map("updated_at")
@@ -224,6 +249,7 @@ model Document {
   workspace              Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   owner                  User                    @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   sourceTemplate         Template?               @relation(fields: [sourceTemplateId], references: [id])
+  counterparty           Counterparty?           @relation(fields: [counterpartyId], references: [id])
   versions               DocumentVersion[]
   comments               Comment[]
   signatureRequests      SignatureRequest[]
@@ -236,6 +262,8 @@ model Document {
   approvalSteps          ApprovalStep[]
   followUpQueueItems     FollowUpQueue[]
   aiGenerationLogs       AiGenerationLog[]
+  dealRoomDocuments      DealRoomDocument[]
+  obligationRecords      ObligationRecord[]
 
   @@unique([organizationId, slug])
   @@index([workspaceId, status])
@@ -254,6 +282,7 @@ model DocumentVersion {
   isSigned          Boolean            @default(false) @map("is_signed")
   isCurrent         Boolean            @default(false) @map("is_current")
   yjsState          Bytes?             @map("yjs_state")
+  contentEmbedding  Unsupported("vector(768)")? @map("content_embedding")
   schemaVersion     Int                @default(1) @map("schema_version")
   createdBy         String?            @map("created_by")
   createdAt         DateTime           @default(now()) @map("created_at")
@@ -263,6 +292,7 @@ model DocumentVersion {
   creator           User?              @relation(fields: [createdBy], references: [id])
   signatureRequests SignatureRequest[]
   documentComments  DocumentComment[]
+  obligationRecords ObligationRecord[]
 
   @@unique([documentId, versionNumber])
   @@index([documentId, isCurrent])
@@ -396,6 +426,9 @@ model Signer {
   roleLabel           String?   @map("role_label")
   signingOrder        Int       @default(0) @map("signing_order")
   verificationMethod  String    @default("none") @map("verification_method") // none, email, passcode, sms, kba, id_document, qes
+  verificationAttempts Int       @default(0) @map("verification_attempts")
+  verificationResult  Json?     @map("verification_result")
+  kbaLockedAt         DateTime? @map("kba_locked_at")
   status              String    @default("pending") // pending, sent, viewed, signed, declined, reassigned
   signatureData       Json?     @map("signature_data")
   signingToken        String?   @unique @map("signing_token")
@@ -415,6 +448,7 @@ model Signer {
 
   @@index([signatureRequestId])
   @@index([email])
+  @@index([kbaLockedAt])
   @@map("signers")
 }
 
@@ -646,6 +680,7 @@ model BrandKit {
   deletedAt       DateTime? @map("deleted_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dealRooms       DealRoom[]
 
   @@index([organizationId])
   @@map("brand_kits")
@@ -689,6 +724,7 @@ model ProductCatalogItem {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lineItems    LineItem[]
+  bundleItems  BundleItem[]
 
   @@index([organizationId])
   @@map("product_catalog_items")
@@ -918,6 +954,7 @@ model ApprovalChain {
   workspaceId    String    @map("workspace_id")
   name           String
   conditions     Json      @default("{}")
+  cpqConditions  Json      @default("{}") @map("cpq_conditions")
   isActive       Boolean   @default(true) @map("is_active")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -1092,6 +1129,363 @@ model ClickwrapAcceptance {
 
   @@index([clickwrapVersionId, acceptedAt(sort: Desc)])
   @@map("clickwrap_acceptances")
+}
+
+// -----------------------------------------------------------------------------
+// 10. CPQ Additions (Sprint 3.1)
+// -----------------------------------------------------------------------------
+
+model ProductBundle {
+  id              String       @id // UUIDv7
+  organizationId  String       @map("organization_id")
+  workspaceId     String       @map("workspace_id")
+  name            String
+  description     String?
+  bundleType      String       @map("bundle_type") // fixed, sum_of_items, percent_discount
+  fixedPrice      Decimal?     @map("fixed_price") @db.Decimal(15, 4)
+  discountPercent Decimal?     @map("discount_percent") @db.Decimal(5, 2)
+  isActive        Boolean      @default(true) @map("is_active")
+  version         Int          @default(1)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  deletedAt       DateTime?    @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items        BundleItem[]
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@map("product_bundles")
+}
+
+model BundleItem {
+  id             String   @id // UUIDv7
+  bundleId       String   @map("bundle_id")
+  organizationId String   @map("organization_id")
+  productItemId  String   @map("product_item_id")
+  isRequired     Boolean  @default(true) @map("is_required")
+  sortOrder      Int      @default(0) @map("sort_order")
+  quantity       Decimal  @default(1) @db.Decimal(15, 4)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  bundle       ProductBundle      @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productItem  ProductCatalogItem @relation(fields: [productItemId], references: [id], onDelete: Restrict)
+
+  @@index([bundleId])
+  @@index([organizationId])
+  @@map("bundle_items")
+}
+
+model PricingRule {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  name           String
+  ruleType       String    @map("rule_type") // volume_discount, deal_value_threshold, customer_segment, time_based, stacking_policy
+  conditions     Json      @default("{}")
+  actions        Json      @default("{}")
+  priority       Int       @default(0)
+  stackingMode   String    @default("highest_wins") @map("stacking_mode") // stack_all, highest_wins, first_match
+  isActive       Boolean   @default(true) @map("is_active")
+  validFrom      DateTime? @map("valid_from")
+  validUntil     DateTime? @map("valid_until")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@map("pricing_rules")
+}
+
+model CpqPlaybook {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  name           String
+  description    String?
+  steps          Json      @default("[]")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@map("cpq_playbooks")
+}
+
+// -----------------------------------------------------------------------------
+// 11. Workflow Orchestration Engine (Sprint 3.2)
+// -----------------------------------------------------------------------------
+
+model WorkflowDefinition {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  name           String
+  description    String?
+  triggerEvent   String    @map("trigger_event")
+  dag            Json      @default("{\"nodes\":[],\"edges\":[]}")
+  status         String    @default("draft") // draft, active, paused, archived
+  version        Int       @default(1)
+  maxInstances   Int       @default(1000) @map("max_instances")
+  createdBy      String    @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator      User               @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  instances    WorkflowInstance[]
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([organizationId, status])
+  @@map("workflow_definitions")
+}
+
+model WorkflowInstance {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workflowId     String    @map("workflow_id")
+  triggerPayload Json      @default("{}") @map("trigger_payload")
+  currentNodeId  String?   @map("current_node_id")
+  status         String    @default("running") // running, completed, failed, halted, paused
+  chainDepth     Int       @default(0) @map("chain_depth")
+  visitedNodes   Json      @default("[]") @map("visited_nodes")
+  errorMessage   String?   @map("error_message")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflow       WorkflowDefinition      @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  nodeExecutions WorkflowNodeExecution[]
+
+  @@index([organizationId])
+  @@index([workflowId])
+  @@index([organizationId, status])
+  @@map("workflow_instances")
+}
+
+model WorkflowNodeExecution {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  instanceId     String    @map("instance_id")
+  nodeId         String    @map("node_id")
+  nodeType       String    @map("node_type") // trigger, condition, action, risk_assessment, delay, end
+  input          Json      @default("{}")
+  output         Json?
+  status         String    @default("pending") // pending, running, completed, failed, skipped
+  startedAt      DateTime? @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  errorMessage   String?   @map("error_message")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  instance     WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([instanceId])
+  @@map("workflow_node_executions")
+}
+
+// -----------------------------------------------------------------------------
+// 12. Deal Rooms (Sprint 3.3)
+// -----------------------------------------------------------------------------
+
+model DealRoom {
+  id               String    @id // UUIDv7
+  organizationId   String    @map("organization_id")
+  workspaceId      String    @map("workspace_id")
+  title            String
+  slug             String
+  status           String    @default("active") // active, closed, archived
+  brandKitId       String?   @map("brand_kit_id")
+  mutualActionPlan Json      @default("[]") @map("mutual_action_plan")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  brandKit         BrandKit?          @relation(fields: [brandKitId], references: [id], onDelete: SetNull)
+  members          DealRoomMember[]
+  documents        DealRoomDocument[]
+  messages         DealRoomMessage[]
+  magicLinks       DealRoomMagicLink[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([organizationId, status])
+  @@map("deal_rooms")
+}
+
+model DealRoomMember {
+  id             String    @id // UUIDv7
+  dealRoomId     String    @map("deal_room_id")
+  organizationId String    @map("organization_id")
+  userId         String?   @map("user_id")
+  externalEmail  String?   @map("external_email")
+  externalName   String?   @map("external_name")
+  role           String    @default("viewer") // owner, member, viewer
+  invitedAt      DateTime  @default(now()) @map("invited_at")
+  joinedAt       DateTime? @map("joined_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  dealRoom       DealRoom            @relation(fields: [dealRoomId], references: [id], onDelete: Cascade)
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  magicLinks     DealRoomMagicLink[]
+
+  @@index([dealRoomId])
+  @@index([organizationId])
+  @@index([dealRoomId, externalEmail])
+  @@map("deal_room_members")
+}
+
+model DealRoomDocument {
+  id             String   @id // UUIDv7
+  dealRoomId     String   @map("deal_room_id")
+  organizationId String   @map("organization_id")
+  documentId     String   @map("document_id")
+  addedBy        String   @map("added_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  dealRoom       DealRoom     @relation(fields: [dealRoomId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document       Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  addedByUser    User         @relation("DealRoomDocAdder", fields: [addedBy], references: [id], onDelete: Cascade)
+
+  @@unique([dealRoomId, documentId])
+  @@index([dealRoomId])
+  @@index([organizationId])
+  @@map("deal_room_documents")
+}
+
+model DealRoomMessage {
+  id             String    @id // UUIDv7
+  dealRoomId     String    @map("deal_room_id")
+  organizationId String    @map("organization_id")
+  authorUserId   String?   @map("author_user_id")
+  authorEmail    String?   @map("author_email")
+  authorName     String?   @map("author_name")
+  body           String
+  visibility     String    @default("external") // internal, external
+  parentId       String?   @map("parent_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  dealRoom       DealRoom          @relation(fields: [dealRoomId], references: [id], onDelete: Cascade)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  authorUser     User?             @relation("DealRoomMsgAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+  parent         DealRoomMessage?  @relation("MessageReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies        DealRoomMessage[] @relation("MessageReplies")
+
+  @@index([dealRoomId, createdAt])
+  @@index([dealRoomId, visibility])
+  @@index([organizationId])
+  @@map("deal_room_messages")
+}
+
+model DealRoomMagicLink {
+  id             String    @id // UUIDv7
+  dealRoomId     String    @map("deal_room_id")
+  organizationId String    @map("organization_id")
+  memberId       String    @map("member_id")
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at")
+  usedAt         DateTime? @map("used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  dealRoom       DealRoom       @relation(fields: [dealRoomId], references: [id], onDelete: Cascade)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  member         DealRoomMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tokenHash])
+  @@index([dealRoomId])
+  @@index([organizationId])
+  @@map("deal_room_magic_links")
+}
+
+// -----------------------------------------------------------------------------
+// 12. Portfolio Agreement Intelligence (Sprint 3.5)
+// -----------------------------------------------------------------------------
+
+model Counterparty {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  canonicalName  String    @map("canonical_name")
+  aliases        String[]  @default([])
+  domain         String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  documents      Document[]
+
+  @@index([organizationId, canonicalName])
+  @@index([organizationId])
+  @@map("counterparties")
+}
+
+model CustomExtractionField {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  fieldName      String    @map("field_name")
+  description    String
+  fieldType      String    @map("field_type") // text, numeric, date, boolean, list
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, fieldName])
+  @@index([organizationId, isActive])
+  @@map("custom_extraction_fields")
+}
+
+model ObligationRecord {
+  id                 String    @id // UUIDv7
+  organizationId     String    @map("organization_id")
+  documentId         String    @map("document_id")
+  documentVersionId  String    @map("document_version_id")
+  fieldName          String    @map("field_name")
+  fieldValue         String?   @map("field_value")
+  fieldValueNumeric  Decimal?  @map("field_value_numeric") @db.Decimal(20, 4)
+  fieldValueDate     DateTime? @map("field_value_date")
+  fieldType          String    @map("field_type") // text, numeric, date, boolean, list
+  confidenceScore    Decimal?  @map("confidence_score") @db.Decimal(4, 3)
+  extractionMethod   String    @map("extraction_method") // ai_llm, ocr_llm, manual
+  isCustomField      Boolean   @default(false) @map("is_custom_field")
+  isVerified         Boolean   @default(false) @map("is_verified")
+  pendingUpdate      Json?     @map("pending_update") // for amendment review per RULE PORT-001
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document           Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersion    DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, documentId])
+  @@index([organizationId, fieldName])
+  @@index([organizationId, fieldValueDate])
+  @@map("obligation_records")
 }
 
 

@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import Decimal from 'decimal.js';
 import { CpqRepository } from './cpq.repository';
+import { CpqPlaybookService, PlaybookExecutionResult } from './cpq-playbook.service';
+import { evaluateCpqRules } from './cpq-rules.engine';
 import {
   CreatePricingTableDto,
   UpdatePricingTableDto,
@@ -11,6 +13,17 @@ import {
   PricingTableResponseDto,
   PricingTotalsResponse,
   CalculatedLineItemTotal,
+  CreateBundleDto,
+  UpdateBundleDto,
+  CreateBundleItemDto,
+  UpdateBundleItemDto,
+  CreatePricingRuleDto,
+  UpdatePricingRuleDto,
+  CreatePlaybookDto,
+  UpdatePlaybookDto,
+  ExecutePlaybookDto,
+  EvaluateCpqDto,
+  CpqEvaluationResultDto,
 } from '@pactintel/shared-types';
 
 export interface PricingInputLineItem {
@@ -50,7 +63,10 @@ export interface BuyerSelectionOverride {
 
 @Injectable()
 export class CpqService {
-  constructor(private readonly cpqRepo: CpqRepository) {}
+  constructor(
+    private readonly cpqRepo: CpqRepository,
+    @Optional() private readonly playbookService?: CpqPlaybookService,
+  ) {}
 
   /**
    * EXACT CALCULATION ALGORITHM (RULE CPQ-001 — Decimal.js only, no floating point)
@@ -391,5 +407,182 @@ export class CpqService {
     }
 
     return this.calculatePricingTotals(table as any, table.lineItems, overrides);
+  }
+
+  // ===========================================================================
+  // Product Bundles (Phase 3 Sprint 3.1)
+  // ===========================================================================
+
+  async createBundle(organizationId: string, dto: CreateBundleDto) {
+    return this.cpqRepo.createBundle(organizationId, dto);
+  }
+
+  async listBundles(
+    organizationId: string,
+    options: { workspaceId?: string; search?: string; cursor?: string; limit?: number },
+  ) {
+    return this.cpqRepo.findBundles(organizationId, options);
+  }
+
+  async getBundle(id: string, organizationId: string) {
+    const bundle = await this.cpqRepo.findBundleById(id, organizationId);
+    if (!bundle) {
+      throw new NotFoundException(`Bundle ${id} not found in organization`);
+    }
+    return bundle;
+  }
+
+  async updateBundle(id: string, organizationId: string, dto: UpdateBundleDto) {
+    return this.cpqRepo.updateBundle(id, organizationId, dto);
+  }
+
+  async deleteBundle(id: string, organizationId: string) {
+    await this.cpqRepo.softDeleteBundle(id, organizationId);
+    return { success: true };
+  }
+
+  async addBundleItem(bundleId: string, organizationId: string, dto: CreateBundleItemDto) {
+    return this.cpqRepo.addBundleItem(bundleId, organizationId, dto);
+  }
+
+  async updateBundleItem(
+    bundleId: string,
+    itemId: string,
+    organizationId: string,
+    dto: UpdateBundleItemDto,
+  ) {
+    return this.cpqRepo.updateBundleItem(bundleId, itemId, organizationId, dto);
+  }
+
+  async deleteBundleItem(bundleId: string, itemId: string, organizationId: string) {
+    await this.cpqRepo.deleteBundleItem(bundleId, itemId, organizationId);
+    return { success: true };
+  }
+
+  // ===========================================================================
+  // Pricing Rules (Phase 3 Sprint 3.1)
+  // ===========================================================================
+
+  async createPricingRule(organizationId: string, dto: CreatePricingRuleDto) {
+    return this.cpqRepo.createPricingRule(organizationId, dto);
+  }
+
+  async listPricingRules(
+    organizationId: string,
+    options: { workspaceId?: string; isActive?: boolean; ruleType?: string },
+  ) {
+    return this.cpqRepo.findPricingRules(organizationId, options);
+  }
+
+  async getPricingRule(id: string, organizationId: string) {
+    const rule = await this.cpqRepo.findPricingRuleById(id, organizationId);
+    if (!rule) {
+      throw new NotFoundException(`Pricing rule ${id} not found`);
+    }
+    return rule;
+  }
+
+  async updatePricingRule(id: string, organizationId: string, dto: UpdatePricingRuleDto) {
+    return this.cpqRepo.updatePricingRule(id, organizationId, dto);
+  }
+
+  async deletePricingRule(id: string, organizationId: string) {
+    await this.cpqRepo.softDeletePricingRule(id, organizationId);
+    return { success: true };
+  }
+
+  async evaluateRules(
+    organizationId: string,
+    dto: EvaluateCpqDto,
+    workspaceId?: string,
+  ): Promise<CpqEvaluationResultDto> {
+    const activeRules = await this.cpqRepo.findPricingRules(organizationId, {
+      workspaceId,
+      isActive: true,
+    });
+
+    const timestamp = dto.timestamp ? new Date(dto.timestamp) : new Date();
+
+    return evaluateCpqRules(
+      {
+        lineItems: dto.lineItems as any,
+        dealAttributes: dto.dealAttributes as any,
+        orgId: organizationId,
+        timestamp,
+      },
+      activeRules as any,
+    );
+  }
+
+  // ===========================================================================
+  // Guided-Selling Playbooks (Phase 3 Sprint 3.1)
+  // ===========================================================================
+
+  async createPlaybook(organizationId: string, dto: CreatePlaybookDto) {
+    return this.cpqRepo.createPlaybook(organizationId, dto);
+  }
+
+  async listPlaybooks(
+    organizationId: string,
+    options: { workspaceId?: string; isActive?: boolean },
+  ) {
+    return this.cpqRepo.findPlaybooks(organizationId, options);
+  }
+
+  async getPlaybook(id: string, organizationId: string) {
+    const playbook = await this.cpqRepo.findPlaybookById(id, organizationId);
+    if (!playbook) {
+      throw new NotFoundException(`Playbook ${id} not found`);
+    }
+    return playbook;
+  }
+
+  async updatePlaybook(id: string, organizationId: string, dto: UpdatePlaybookDto) {
+    return this.cpqRepo.updatePlaybook(id, organizationId, dto);
+  }
+
+  async deletePlaybook(id: string, organizationId: string) {
+    await this.cpqRepo.softDeletePlaybook(id, organizationId);
+    return { success: true };
+  }
+
+  async executePlaybook(
+    organizationId: string,
+    playbookId: string,
+    dto: ExecutePlaybookDto,
+  ): Promise<PlaybookExecutionResult> {
+    if (!this.playbookService) {
+      throw new Error('Playbook service not configured');
+    }
+    return this.playbookService.executePlaybook(organizationId, playbookId, dto);
+  }
+
+  // ===========================================================================
+  // Native CRM-Embedded CPQ (Phase 3 Sprint 3.1)
+  // ===========================================================================
+
+  async getCrmEmbedData(
+    organizationId: string,
+    workspaceId?: string,
+    dealAttributes: Record<string, any> = {},
+  ) {
+    const bundlesPage = await this.cpqRepo.findBundles(organizationId, {
+      workspaceId,
+      limit: 50,
+    });
+    const rules = await this.cpqRepo.findPricingRules(organizationId, {
+      workspaceId,
+      isActive: true,
+    });
+
+    return {
+      organizationId,
+      workspaceId,
+      dealAttributes,
+      availableBundles: bundlesPage.items.filter((b) => b.isActive),
+      activeRulesCount: rules.length,
+      embeddedSyncProtocol: 'postMessage',
+      supportedCrmTypes: ['hubspot', 'salesforce'],
+    };
   }
 }

@@ -14,7 +14,8 @@ export interface EmailDispatchOptions {
     | 'document-signed'
     | 'document-declined'
     | 'document-expired'
-    | 'billing-alert';
+    | 'billing-alert'
+    | 'kba-lockout-notice';
   data: Record<string, unknown>;
   organizationId: string;
   userId?: string;

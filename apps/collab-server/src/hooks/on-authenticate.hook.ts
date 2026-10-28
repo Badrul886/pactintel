@@ -30,6 +30,60 @@ export const onAuthenticateHook = async (
     throw new Error('Unauthorized: no token provided');
   }
 
+  // Deal Room namespace: 'deal-room:{uuid}'
+  if (documentName.startsWith('deal-room:')) {
+    const roomId = documentName.replace('deal-room:', '');
+    if (!UUID_REGEX.test(roomId)) {
+      throw new Error('Forbidden: invalid deal room ID');
+    }
+
+    // 1. Try standard user session (seller team)
+    const session = await authService.validateSessionToken(resolvedToken);
+    if (session) {
+      const isContentAdmin =
+        session.role === 'admin' || session.role === 'owner' || session.role === 'manager';
+      const readOnly = session.role === 'viewer';
+      (connection as any).readOnly = readOnly;
+
+      const context: CollabConnectionContext = {
+        userId: session.userId,
+        organizationId: session.organizationId,
+        documentId: roomId,
+        email: session.email,
+        name: session.name,
+        role: session.role,
+        isContentAdmin,
+        readOnly,
+      };
+
+      (connection as any).context = context;
+      return context;
+    }
+
+    // 2. Try guest magic link token (buyer side)
+    const guestSession = await authService.validateDealRoomSessionToken(resolvedToken, roomId);
+    if (guestSession) {
+      const readOnly = guestSession.role === 'viewer';
+      (connection as any).readOnly = readOnly;
+
+      const context: CollabConnectionContext = {
+        userId: `guest-${guestSession.email}`,
+        organizationId: guestSession.organizationId,
+        documentId: roomId,
+        email: guestSession.email,
+        name: guestSession.name,
+        role: guestSession.role,
+        isContentAdmin: false,
+        readOnly,
+      };
+
+      (connection as any).context = context;
+      return context;
+    }
+
+    throw new Error('Unauthorized: invalid session');
+  }
+
   // 1. Validate session token via Auth Service
   const session = await authService.validateSessionToken(resolvedToken);
   if (!session) {

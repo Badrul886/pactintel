@@ -8,7 +8,10 @@ export type Action =
   | 'send'
   | 'snooze'
   | 'dismiss'
-  | 'decide';
+  | 'decide'
+  | 'execute'
+  | 'resume'
+  | 'halt';
 
 export type Subject =
   | 'Document'
@@ -40,6 +43,18 @@ export type Subject =
   | 'ClickwrapVersion'
   | 'ClickwrapAcceptance'
   | 'PaymentCredential'
+  | 'Bundle'
+  | 'PricingRule'
+  | 'Playbook'
+  | 'CpqApproval'
+  | 'WorkflowDefinition'
+  | 'WorkflowInstance'
+  | 'DealRoom'
+  | 'DealRoomMessage'
+  | 'Portfolio'
+  | 'ObligationRecord'
+  | 'Counterparty'
+  | 'CustomExtractionField'
   | 'all';
 
 export interface RequiredPolicyRule {

@@ -122,6 +122,24 @@ export class SigningRepository {
     });
   }
 
+  async findSignerById(organizationId: string, id: string) {
+    return this.prisma.signer.findFirst({
+      where: { id, organizationId },
+      include: {
+        signatureRequest: {
+          include: {
+            document: {
+              include: {
+                organization: true,
+              },
+            },
+            documentVersion: true,
+          },
+        },
+      },
+    });
+  }
+
   /**
    * RULE SIG-005: Signer substitution preserves full audit trail.
    * Sets old signer to 'reassigned' (never deletes).
@@ -377,6 +395,131 @@ export class SigningRepository {
         documentVersion: true,
         signers: true,
       },
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Advanced ID Verification Repository Operations (Sprint 3.6)
+  // ---------------------------------------------------------------------------
+
+  async recordKbaFailure(
+    organizationId: string,
+    documentId: string,
+    signerId: string,
+    attempts: number,
+    locked: boolean,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const updatedSigner = await tx.signer.update({
+        where: { id: signerId },
+        data: {
+          verificationAttempts: attempts,
+          kbaLockedAt: locked ? new Date() : undefined,
+        },
+      });
+
+      await tx.signatureEvent.create({
+        data: {
+          id: generateId(),
+          organizationId,
+          documentId,
+          signerId,
+          eventType: locked ? 'kba_locked' : 'verification_failed',
+          ipAddress,
+          userAgent,
+          metadata: {
+            method: 'kba',
+            attempts,
+            locked,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      return updatedSigner;
+    });
+  }
+
+  async recordVerificationPassed(
+    organizationId: string,
+    documentId: string,
+    signerId: string,
+    method: string,
+    verificationResult: Prisma.InputJsonValue,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const signer = await tx.signer.findUniqueOrThrow({ where: { id: signerId } });
+
+      const updatedSigner = await tx.signer.update({
+        where: { id: signerId },
+        data: {
+          verificationResult,
+          status: signer.status === 'sent' ? 'viewed' : signer.status,
+        },
+      });
+
+      await tx.signatureEvent.create({
+        data: {
+          id: generateId(),
+          organizationId,
+          documentId,
+          signerId,
+          eventType: 'verification_passed',
+          ipAddress,
+          userAgent,
+          metadata: {
+            method,
+            result: verificationResult,
+            verifiedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return updatedSigner;
+    });
+  }
+
+  async recordVerificationFallback(
+    organizationId: string,
+    documentId: string,
+    signerId: string,
+    originalMethod: string,
+    fallbackMethod: string,
+    reason: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const updatedSigner = await tx.signer.update({
+        where: { id: signerId },
+        data: {
+          verificationMethod: fallbackMethod,
+        },
+      });
+
+      await tx.signatureEvent.create({
+        data: {
+          id: generateId(),
+          organizationId,
+          documentId,
+          signerId,
+          eventType: 'verification_fallback',
+          ipAddress,
+          userAgent,
+          metadata: {
+            originalMethod,
+            fallbackMethod,
+            reason,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+
+      return updatedSigner;
     });
   }
 }

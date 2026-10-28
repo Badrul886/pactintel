@@ -116,6 +116,60 @@ export class ApprovalService {
         }
       }
 
+      // Check CPQ threshold conditions (Phase 3 Sprint 3.1)
+      const cpqCond = (chain.cpqConditions || (conditions as any)?.cpqConditions) as any;
+      if (cpqCond) {
+        // a. dealValueGt
+        if (cpqCond.dealValueGt !== undefined && cpqCond.dealValueGt !== null) {
+          const threshold = new Decimal(cpqCond.dealValueGt);
+          if (effectiveValue.lessThanOrEqualTo(threshold)) {
+            continue;
+          }
+        }
+
+        // b. discountPctGt
+        if (cpqCond.discountPctGt !== undefined && cpqCond.discountPctGt !== null) {
+          const pricingTables = await this.prisma.pricingTable.findMany({
+            where: { documentId, organizationId },
+            include: { lineItems: true },
+          });
+          let totalGross = new Decimal(0);
+          let totalDisc = new Decimal(0);
+          for (const pt of pricingTables) {
+            for (const li of pt.lineItems) {
+              const qty = new Decimal(li.quantity ? Number(li.quantity) : 1);
+              const price = new Decimal(li.unitPrice ? Number(li.unitPrice) : 0);
+              const sub = qty.mul(price);
+              totalGross = totalGross.plus(sub);
+              const discAmt = new Decimal(li.discountAmount ? Number(li.discountAmount) : 0);
+              totalDisc = totalDisc.plus(discAmt);
+            }
+          }
+          const effPct = totalGross.isZero() ? new Decimal(0) : totalDisc.div(totalGross).mul(100);
+          if (effPct.lessThanOrEqualTo(new Decimal(cpqCond.discountPctGt))) {
+            continue;
+          }
+        }
+
+        // c. restrictedProductIds
+        if (
+          cpqCond.restrictedProductIds &&
+          Array.isArray(cpqCond.restrictedProductIds) &&
+          cpqCond.restrictedProductIds.length > 0
+        ) {
+          const hasRestricted = await this.prisma.lineItem.findFirst({
+            where: {
+              organizationId,
+              pricingTable: { documentId },
+              productItemId: { in: cpqCond.restrictedProductIds },
+            },
+          });
+          if (!hasRestricted) {
+            continue;
+          }
+        }
+      }
+
       // Chain matches! Instantiate steps
       const steps = await this.repo.createDocumentApprovalSteps(
         organizationId,

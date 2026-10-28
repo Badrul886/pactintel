@@ -44,6 +44,9 @@ describe('RULE BILL-002: Monthly Document Limit and Quota Checking on Send', () 
       subscription: {
         findUnique: jest.fn(),
       },
+      approvalStep: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     };
 
     docService = new DocumentService(

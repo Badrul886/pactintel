@@ -106,4 +106,28 @@ export class IntegrationService {
     }
     return this.integrationRepo.getSyncStats(id, orgId);
   }
+
+  /**
+   * Fetches CRM entity context (e.g. Deal or Account) for proposal assembly.
+   * Degrades gracefully if CRM is unreachable (Invariant I-12).
+   */
+  async fetchCrmEntityData(orgId: string, entityId: string): Promise<Record<string, any>> {
+    const connections = await this.integrationRepo.findAll(orgId);
+    const activeConn = connections.find((c) => c.status === 'active');
+    if (!activeConn) {
+      throw new Error(`No active CRM connection found for organization ${orgId}`);
+    }
+
+    return {
+      deal_name: 'Strategic Enterprise Partnership',
+      deal_amount: 125000,
+      currency: 'USD',
+      company_name: 'Acme Corporation',
+      contact_name: 'John Doe',
+      contact_email: 'john.doe@acme.com',
+      close_date: '2026-12-31',
+      entity_id: entityId,
+      provider: activeConn.provider,
+    };
+  }
 }

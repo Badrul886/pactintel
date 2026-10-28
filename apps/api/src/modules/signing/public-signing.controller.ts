@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Param,
+  Query,
   Body,
   Req,
   Headers,
@@ -21,6 +22,12 @@ import {
   DeclineWithTokenDto,
   DeclineWithTokenDtoSchema,
   VerifySignerIdentityDto,
+  SubmitKbaAnswersDto,
+  SubmitKbaAnswersDtoSchema,
+  InitiateIdVerificationDto,
+  InitiateIdVerificationDtoSchema,
+  InitiateQesDto,
+  InitiateQesDtoSchema,
 } from '@pactintel/shared-types';
 
 @Controller('api/v1')
@@ -50,6 +57,93 @@ export class PublicSigningController {
     const userAgent = req.headers['user-agent'];
 
     return this.signingService.verifySignerIdentity(token, dto.passcode, ip, userAgent);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Advanced ID Verification Routes (Sprint 3.6)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Initiate KBA Session
+   */
+  @Post('sign/:token/kba/initiate')
+  async initiateKba(@Param('token') token: string, @Req() req: Request) {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string);
+    const userAgent = req.headers['user-agent'];
+    return this.signingService.initiateKba(token, ip, userAgent);
+  }
+
+  /**
+   * Submit KBA Answers
+   */
+  @Post('sign/:token/kba/submit')
+  @UsePipes(new ZodValidationPipe(SubmitKbaAnswersDtoSchema))
+  async submitKbaAnswers(
+    @Param('token') token: string,
+    @Body() dto: SubmitKbaAnswersDto,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string);
+    const userAgent = req.headers['user-agent'];
+    return this.signingService.submitKbaAnswers(token, dto, ip, userAgent);
+  }
+
+  /**
+   * Initiate Government ID & Biometric Verification
+   */
+  @Post('sign/:token/id-verify/initiate')
+  @UsePipes(new ZodValidationPipe(InitiateIdVerificationDtoSchema))
+  async initiateIdVerification(
+    @Param('token') token: string,
+    @Body() dto: InitiateIdVerificationDto,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string);
+    const userAgent = req.headers['user-agent'];
+    return this.signingService.initiateIdVerification(token, dto, ip, userAgent);
+  }
+
+  /**
+   * Query Government ID Verification Status
+   */
+  @Get('sign/:token/id-verify/result')
+  async getIdVerificationResult(
+    @Param('token') token: string,
+    @Query('sessionId') sessionId: string,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string);
+    const userAgent = req.headers['user-agent'];
+    return this.signingService.checkIdVerificationResult(token, sessionId, ip, userAgent);
+  }
+
+  /**
+   * Initiate Qualified Electronic Signature (QES)
+   */
+  @Post('sign/:token/qes/initiate')
+  @UsePipes(new ZodValidationPipe(InitiateQesDtoSchema))
+  async initiateQes(
+    @Param('token') token: string,
+    @Body() dto: InitiateQesDto,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string);
+    const userAgent = req.headers['user-agent'];
+    return this.signingService.initiateQes(token, dto, ip, userAgent);
+  }
+
+  /**
+   * Query QES Verification Status
+   */
+  @Get('sign/:token/qes/result')
+  async getQesResult(
+    @Param('token') token: string,
+    @Query('sessionId') sessionId: string,
+    @Req() req: Request,
+  ) {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string);
+    const userAgent = req.headers['user-agent'];
+    return this.signingService.checkQesResult(token, sessionId, ip, userAgent);
   }
 
   /**

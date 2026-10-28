@@ -12,8 +12,18 @@ export interface AuthenticatedUserSession {
   role: 'owner' | 'admin' | 'manager' | 'member' | 'viewer';
 }
 
+export interface DealRoomGuestSession {
+  dealRoomId: string;
+  organizationId: string;
+  email: string;
+  name: string;
+  role: string;
+  isExternalGuest: boolean;
+}
+
 export class AuthService {
   private static mockSessions = new Map<string, AuthenticatedUserSession>();
+  private static mockDealRoomSessions = new Map<string, DealRoomGuestSession>();
 
   /**
    * For testing & mocks
@@ -26,8 +36,17 @@ export class AuthService {
     }
   }
 
+  static setMockDealRoomSession(token: string, session: DealRoomGuestSession | null) {
+    if (session) {
+      this.mockDealRoomSessions.set(token, session);
+    } else {
+      this.mockDealRoomSessions.delete(token);
+    }
+  }
+
   static clearMockSessions() {
     this.mockSessions.clear();
+    this.mockDealRoomSessions.clear();
   }
 
   async validateSessionToken(token: string): Promise<AuthenticatedUserSession | null> {
@@ -82,6 +101,53 @@ export class AuthService {
     } catch (err) {
       if (process.env.NODE_ENV !== 'test') {
         console.error('[CollabAuth] Failed to validate session token against API:', err);
+      }
+      return null;
+    }
+  }
+
+  async validateDealRoomSessionToken(
+    token: string,
+    roomId: string,
+  ): Promise<DealRoomGuestSession | null> {
+    if (!token || typeof token !== 'string') {
+      return null;
+    }
+
+    if (AuthService.mockDealRoomSessions.has(token)) {
+      const sess = AuthService.mockDealRoomSessions.get(token);
+      if (sess && sess.dealRoomId === roomId) {
+        return sess;
+      }
+      return null;
+    }
+
+    if (process.env.NODE_ENV === 'test' || config.env === 'test') {
+      return null;
+    }
+
+    try {
+      const res = await fetch(`${config.apiUrl}/api/v1/deal-rooms/access/${token}`);
+      if (!res.ok) {
+        return null;
+      }
+
+      const data = await res.json();
+      if (!data?.session || data.session.dealRoomId !== roomId) {
+        return null;
+      }
+
+      return {
+        dealRoomId: data.session.dealRoomId,
+        organizationId: data.session.organizationId,
+        email: data.session.email,
+        name: data.session.name,
+        role: data.session.role,
+        isExternalGuest: true,
+      };
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.error('[CollabAuth] Failed to validate deal room magic link token:', err);
       }
       return null;
     }

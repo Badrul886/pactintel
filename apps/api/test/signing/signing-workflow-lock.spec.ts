@@ -38,11 +38,28 @@ describe('RULE SIG-002 & RULE SIG-003: Signing Workflow and Immutability Version
       $transaction: jest.fn().mockImplementation((cb: (tx: any) => Promise<any>) => cb(mockTx)),
     };
 
+    const mockSigningProvider = {
+      providerName: 'boldsign',
+      getCircuitBreakerStatus: jest
+        .fn()
+        .mockReturnValue({ isOpen: false, failureCount: 0, cooldownRemainingMs: 0 }),
+      resetCircuitBreaker: jest.fn(),
+      recordFailure: jest.fn(),
+      recordSuccess: jest.fn(),
+      initiateKba: jest.fn(),
+      submitKbaAnswers: jest.fn(),
+      initiateIdVerification: jest.fn(),
+      getIdVerificationResult: jest.fn(),
+      initiateQes: jest.fn(),
+      getQesResult: jest.fn(),
+    };
+
     signingService = new SigningService(
       mockSigningRepo as SigningRepository,
       mockOutbox as DocumentOutboxService,
       mockNotificationService as NotificationService,
       mockPrisma as PrismaService,
+      mockSigningProvider as any,
     );
   });
 
