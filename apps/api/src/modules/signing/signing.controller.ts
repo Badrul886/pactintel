@@ -5,13 +5,17 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   UsePipes,
   HttpException,
   HttpStatus,
+  Optional,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { SigningService } from './signing.service';
 import { SigningRepository } from './signing.repository';
+import { VerificationReportService } from './verification-report.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { CaslGuard, CheckPolicies } from '../../common/guards/casl.guard';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -35,6 +39,7 @@ export class SigningController {
     private readonly signingService: SigningService,
     private readonly signingRepo: SigningRepository,
     private readonly cls: ClsService,
+    @Optional() private readonly verificationReportService?: VerificationReportService,
   ) {}
 
   @Post('documents/:id/signature-requests')
@@ -165,5 +170,42 @@ export class SigningController {
       );
     }
     return this.signingService.initiateQes(signer.signingToken, dto);
+  }
+
+  /**
+   * Formal AML/KYC proof-of-verification export (PDF / JSON)
+   * Product Blueprint §5.20 & Sprint 3.7
+   */
+  @Get('signature-requests/:id/verification-report')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'Signature' })
+  async getVerificationReport(
+    @Param('id') signatureRequestId: string,
+    @Query('format') format: string = 'json',
+    @Res() res: Response,
+  ) {
+    if (!this.verificationReportService) {
+      throw new HttpException(
+        'Verification report service not available.',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    const orgId = this.cls.get<string>('organizationId');
+    const reportData = await this.verificationReportService.generateReportData(
+      orgId,
+      signatureRequestId,
+    );
+
+    if (format === 'pdf') {
+      const pdfBuffer = await this.verificationReportService.generateReportPdf(reportData);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="verification-report-${signatureRequestId}.pdf"`,
+      );
+      return res.send(pdfBuffer);
+    }
+
+    return res.json(reportData);
   }
 }

@@ -32,6 +32,7 @@ interface SignerInfo {
   kbaLocked?: boolean;
   kbaLockedAt?: string;
   verificationResult?: Record<string, any>;
+  isPreVerified?: boolean;
 }
 
 interface DocumentInfo {
@@ -116,12 +117,15 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
   // Helper: check if advanced verification is satisfied
   const isVerificationSatisfied = () => {
     if (!signer) return true;
+    if (signer.isPreVerified) return true;
     const method = signer.verificationMethod;
     if (!method || ['none', 'email', 'passcode', 'sms'].includes(method)) {
       return true;
     }
     const result = signer.verificationResult;
-    return Boolean(result && (result.status === 'passed' || result.status === 'completed'));
+    return Boolean(
+      result && (result.status === 'passed' || result.status === 'completed' || result.preVerified),
+    );
   };
 
   // Load initial signing request metadata
@@ -1039,8 +1043,41 @@ export default function ExternalSigningPage({ params }: SignPageProps) {
         </div>
       </div>
 
+      {/* Pre-Verified Recognition Banner (Sprint 3.7 - Invariant I-03) */}
+      {signer?.isPreVerified && (
+        <div
+          style={{
+            backgroundColor: 'var(--status-success-bg)',
+            border: '1px solid var(--status-success-border)',
+            borderRadius: '8px',
+            padding: '16px 20px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <ShieldCheck size={22} color="var(--status-success-text)" />
+          <div>
+            <div
+              style={{
+                fontSize: '14px',
+                fontWeight: 600,
+                color: 'var(--status-success-text)',
+              }}
+            >
+              PactIntel Verified Network Recognition
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--color-gray-600)', marginTop: '2px' }}>
+              Your identity was previously verified under AML/KYC Level 2 standards. Repeat document
+              verification is waived for this transaction.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Advanced Verification Banner (Sprint 3.6) */}
-      {hasAdvancedVerification && (
+      {hasAdvancedVerification && !signer?.isPreVerified && (
         <div
           style={{
             backgroundColor: isVerified

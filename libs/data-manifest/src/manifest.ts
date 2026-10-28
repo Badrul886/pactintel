@@ -495,6 +495,29 @@ export const dataManifest: DataManifest = {
         'Structured contractual terms, milestones, and obligations with RULE PORT-001 review gating',
     },
 
+    // --- PostgreSQL: Risk-Adaptive Identity Verification (Sprint 3.7) ---
+    {
+      id: 'pg-pre-verified-signers',
+      type: 'postgresql_table',
+      tableOrResource: 'pre_verified_signers',
+      rls: false, // Global network lookup (zero PII, SHA-256 email hashes only per Invariant I-03)
+      retention: '1_year',
+      erasure: 'hard_delete_on_request',
+      residency: 'global_control_plane',
+      description:
+        'Global pre-verified network index storing SHA-256 email hashes to waive repeat verification',
+    },
+    {
+      id: 'pg-risk-assessments',
+      type: 'postgresql_table',
+      tableOrResource: 'risk_assessments',
+      rls: true,
+      retention: '7_years',
+      erasure: 'hard_delete_cascade',
+      residency: 'cell_jurisdiction',
+      description: 'Signer risk scoring evaluations and dynamic verification tier audit records',
+    },
+
     // --- PostgreSQL: Custom Domains, Integrations & Notifications (Phase 1) ---
     {
       id: 'pg-custom-domains',

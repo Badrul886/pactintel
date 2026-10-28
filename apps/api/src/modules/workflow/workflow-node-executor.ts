@@ -1,6 +1,7 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { NotificationService } from '../notification/notification.service';
 import { WorkflowNode } from '@pactintel/shared-types';
+import { RISK_SCORING_PORT, RiskScoringPort } from '../signing/ports/risk-scoring.port';
 
 export interface NodeExecutionInput {
   instanceId: string;
@@ -21,7 +22,10 @@ export interface NodeExecutionOutput {
 export class WorkflowNodeExecutor {
   private readonly logger = new Logger(WorkflowNodeExecutor.name);
 
-  constructor(@Optional() private readonly notificationService?: NotificationService) {}
+  constructor(
+    @Optional() private readonly notificationService?: NotificationService,
+    @Optional() @Inject(RISK_SCORING_PORT) private readonly riskScoringPort?: RiskScoringPort,
+  ) {}
 
   async executeNode(input: NodeExecutionInput): Promise<NodeExecutionOutput> {
     const { node, triggerPayload, previousOutput, organizationId } = input;
@@ -73,15 +77,42 @@ export class WorkflowNodeExecutor {
         }
 
         case 'risk_assessment': {
-          // Sprint 3.2 stub for Risk Assessment node (ties into Sprint 3.7)
           const dealValue = Number(context.dealValue || context.totalValue || 0);
-          const riskScore = dealValue > 100000 ? 85 : dealValue > 25000 ? 50 : 20;
-          const riskLevel = riskScore >= 75 ? 'high' : riskScore >= 40 ? 'medium' : 'low';
+          const email = String(
+            context.signerEmail ||
+              context.recipientEmail ||
+              context.email ||
+              'signer@enterprise.com',
+          );
+
+          let riskScore = dealValue > 100000 ? 85 : dealValue > 25000 ? 50 : 20;
+          let riskLevel: 'low' | 'medium' | 'high' =
+            riskScore >= 75 ? 'high' : riskScore >= 40 ? 'medium' : 'low';
+          let suggestedMethod =
+            riskLevel === 'high' ? 'id_document' : riskLevel === 'medium' ? 'sms' : 'passcode';
+          let fallbackApplied = false;
+
+          if (this.riskScoringPort) {
+            const result = await this.riskScoringPort.computeRiskScore({
+              signerId: String(context.signerId || 'workflow-signer'),
+              email,
+              dealValue,
+              organizationId,
+              documentId: String(context.documentId || ''),
+            });
+            riskScore = Math.round(result.score * 100);
+            riskLevel = result.level;
+            suggestedMethod = result.suggestedMethod;
+            fallbackApplied = Boolean(result.fallbackApplied);
+          }
+
           return {
             status: 'completed',
             output: {
               riskScore,
               riskLevel,
+              suggestedMethod,
+              fallbackApplied,
               requiresStepUpVerification: riskLevel === 'high',
               assessedAt: new Date().toISOString(),
             },

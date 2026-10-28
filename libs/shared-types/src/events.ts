@@ -75,7 +75,10 @@ export type WebhookEventType =
   | 'verification.id.passed'
   | 'verification.id.failed'
   | 'verification.qes.applied'
-  | 'verification.fallback_applied';
+  | 'verification.fallback_applied'
+  | 'verification.risk_adaptive.evaluated'
+  | 'verification.pre_verified.recognized'
+  | 'verification.risk_scoring.fallback';
 
 export interface OutboxEventRecord {
   id: string;

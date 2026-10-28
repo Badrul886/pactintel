@@ -522,4 +522,136 @@ export class SigningRepository {
       return updatedSigner;
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // Sprint 3.7: Pre-Verified Network & Risk Assessment
+  // ---------------------------------------------------------------------------
+
+  async findPreVerifiedSigner(emailHash: string) {
+    return this.prisma.preVerifiedSigner.findUnique({
+      where: { emailHash },
+    });
+  }
+
+  async recordPreVerification(
+    emailHash: string,
+    verificationMethod: string,
+    verifiedAt: Date = new Date(),
+  ) {
+    const expiresAt = new Date(verifiedAt.getTime() + 365 * 24 * 60 * 60 * 1000); // 1-year validity
+    return this.prisma.preVerifiedSigner.upsert({
+      where: { emailHash },
+      update: {
+        verificationMethod,
+        verifiedAt,
+        expiresAt,
+      },
+      create: {
+        id: generateId(),
+        emailHash,
+        verificationMethod,
+        verifiedAt,
+        expiresAt,
+      },
+    });
+  }
+
+  async recordRiskAssessment(data: {
+    organizationId: string;
+    signerId?: string;
+    documentId?: string;
+    signatureRequestId?: string;
+    riskScore: number;
+    riskLevel: string;
+    assignedMethod: string;
+    isPreVerified?: boolean;
+    fallbackApplied?: boolean;
+    factors?: Prisma.InputJsonValue;
+    ipAddress?: string;
+    userAgent?: string;
+  }) {
+    return this.prisma.riskAssessment.create({
+      data: {
+        id: generateId(),
+        organizationId: data.organizationId,
+        signerId: data.signerId,
+        documentId: data.documentId,
+        signatureRequestId: data.signatureRequestId,
+        riskScore: data.riskScore,
+        riskLevel: data.riskLevel,
+        assignedMethod: data.assignedMethod,
+        isPreVerified: data.isPreVerified || false,
+        fallbackApplied: data.fallbackApplied || false,
+        factors: data.factors,
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
+      },
+    });
+  }
+
+  async recordPreVerifiedBypass(
+    organizationId: string,
+    documentId: string,
+    signerId: string,
+    previousMethod: string,
+    verifiedAt: Date,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const signer = await tx.signer.findUniqueOrThrow({ where: { id: signerId } });
+
+      const updatedSigner = await tx.signer.update({
+        where: { id: signerId },
+        data: {
+          verificationResult: {
+            preVerified: true,
+            verifiedAt: verifiedAt.toISOString(),
+            method: previousMethod,
+            status: 'passed',
+          },
+          status: signer.status === 'sent' ? 'viewed' : signer.status,
+        },
+      });
+
+      await tx.signatureEvent.create({
+        data: {
+          id: generateId(),
+          organizationId,
+          documentId,
+          signerId,
+          eventType: 'risk_scoring_pre_verified',
+          ipAddress,
+          userAgent,
+          metadata: {
+            previousMethod,
+            verifiedAt: verifiedAt.toISOString(),
+            bypassedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return updatedSigner;
+    });
+  }
+
+  async findSignatureRequestWithVerificationHistory(signatureRequestId: string) {
+    return this.prisma.signatureRequest.findUnique({
+      where: { id: signatureRequestId },
+      include: {
+        document: {
+          include: {
+            organization: { select: { id: true, name: true, slug: true } },
+            signatureEvents: {
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        },
+        documentVersion: true,
+        signers: {
+          orderBy: { signingOrder: 'asc' },
+        },
+      },
+    });
+  }
 }

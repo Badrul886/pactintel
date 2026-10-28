@@ -40,8 +40,10 @@ export class PublicSigningController {
    * RULE AUTH-005: External signer access gate (/sign/:token).
    */
   @Get('sign/:token')
-  async getSignerDocument(@Param('token') token: string) {
-    return this.signingService.getSignerByToken(token);
+  async getSignerDocument(@Param('token') token: string, @Req() req?: Request) {
+    const ip = req ? (req.headers?.['x-forwarded-for'] as string) || req.ip : undefined;
+    const userAgent = req?.headers?.['user-agent'];
+    return this.signingService.getSignerByToken(token, ip, userAgent);
   }
 
   /**

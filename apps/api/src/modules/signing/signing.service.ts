@@ -1,4 +1,4 @@
-import { Inject, Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { Inject, Injectable, HttpException, HttpStatus, Logger, Optional } from '@nestjs/common';
 import { SigningRepository } from './signing.repository';
 import { DocumentOutboxService } from '../document/outbox/document-outbox.service';
 import { NotificationService } from '../notification/notification.service';
@@ -14,6 +14,7 @@ import {
 } from '@pactintel/shared-types';
 import { generateId, sha256 } from '@pactintel/shared-utils';
 import { SIGNING_PROVIDER_PORT, SigningProviderPort } from './ports/signing-provider.port';
+import { RISK_SCORING_PORT, RiskScoringPort } from './ports/risk-scoring.port';
 import {
   CircuitBreakerOpenException,
   SigningProviderTimeoutException,
@@ -70,6 +71,9 @@ export class SigningService {
     private readonly prisma: PrismaService,
     @Inject(SIGNING_PROVIDER_PORT)
     private readonly signingProvider: SigningProviderPort,
+    @Optional()
+    @Inject(RISK_SCORING_PORT)
+    private readonly riskScoring?: RiskScoringPort,
   ) {}
 
   /**
@@ -89,6 +93,18 @@ export class SigningService {
 
     const currentTier = sub?.planTier?.toLowerCase() || 'free';
     const rank = this.tierRanks[currentTier] ?? 0;
+
+    if (method === 'adaptive' && rank < this.tierRanks['business']) {
+      throw new HttpException(
+        {
+          code: 'PLAN_GATE_RESTRICTED',
+          message: 'Risk-Adaptive Identity Verification requires a Business plan or above.',
+          currentTier,
+          requiredTier: 'business',
+        },
+        HttpStatus.FORBIDDEN,
+      );
+    }
 
     if (method === 'kba' && rank < this.tierRanks['professional']) {
       throw new HttpException(
@@ -291,7 +307,7 @@ export class SigningService {
    * RULE AUTH-005: External signer access gate (/sign/:token).
    * Validates token expiration, document state, and returns verification requirements.
    */
-  async getSignerByToken(token: string) {
+  async getSignerByToken(token: string, ipAddress?: string, userAgent?: string) {
     const signer = await this.signingRepo.findSignerByToken(token);
     if (!signer) {
       throw new HttpException(
@@ -327,6 +343,96 @@ export class SigningService {
       );
     }
 
+    // 2. Pre-Verified Network Recognition (Sprint 3.7 - Invariant I-03)
+    const emailHash = sha256(signer.email.toLowerCase().trim());
+    const preVerified =
+      typeof this.signingRepo.findPreVerifiedSigner === 'function'
+        ? await this.signingRepo.findPreVerifiedSigner(emailHash)
+        : null;
+    let isPreVerified = false;
+
+    if (preVerified && new Date() < preVerified.expiresAt) {
+      isPreVerified = true;
+      const vResult = (signer.verificationResult || {}) as Record<string, any>;
+      if (!vResult.preVerified && signer.status !== 'signed') {
+        if (typeof this.signingRepo.recordPreVerifiedBypass === 'function') {
+          await this.signingRepo.recordPreVerifiedBypass(
+            signer.organizationId,
+            document.id,
+            signer.id,
+            preVerified.verificationMethod,
+            preVerified.verifiedAt,
+            ipAddress,
+            userAgent,
+          );
+        }
+        signer.verificationResult = {
+          preVerified: true,
+          verifiedAt: preVerified.verifiedAt.toISOString(),
+          method: preVerified.verificationMethod,
+          status: 'passed',
+        };
+      }
+    }
+
+    // 3. Dynamic Risk-Adaptive Method Resolution (Sprint 3.7 - Product Blueprint §5.20)
+    if (signer.verificationMethod === 'adaptive' && !isPreVerified && this.riskScoring) {
+      const riskResult = await this.riskScoring.computeRiskScore({
+        signerId: signer.id,
+        email: signer.email,
+        name: signer.name || undefined,
+        ipAddress,
+        userAgent,
+        dealValue: document.totalValue ? Number(document.totalValue) : undefined,
+        currency: document.currency,
+        organizationId: signer.organizationId,
+        documentId: document.id,
+        signatureRequestId: signer.signatureRequestId,
+      });
+
+      if (typeof this.signingRepo.recordRiskAssessment === 'function') {
+        await this.signingRepo.recordRiskAssessment({
+          organizationId: signer.organizationId,
+          signerId: signer.id,
+          documentId: document.id,
+          signatureRequestId: signer.signatureRequestId,
+          riskScore: riskResult.score,
+          riskLevel: riskResult.level,
+          assignedMethod: riskResult.suggestedMethod,
+          isPreVerified: false,
+          fallbackApplied: Boolean(riskResult.fallbackApplied),
+          factors: riskResult.factors,
+          ipAddress,
+          userAgent,
+        });
+      }
+
+      if (riskResult.fallbackApplied) {
+        await this.prisma.signatureEvent.create({
+          data: {
+            id: generateId(),
+            organizationId: signer.organizationId,
+            documentId: document.id,
+            signerId: signer.id,
+            eventType: 'risk_scoring_fallback',
+            ipAddress,
+            userAgent,
+            metadata: {
+              reason: 'vendor_unreachable',
+              fallbackMethod: riskResult.suggestedMethod,
+              timestamp: new Date().toISOString(),
+            },
+          },
+        });
+      }
+
+      signer.verificationMethod = riskResult.suggestedMethod;
+      await this.prisma.signer.update({
+        where: { id: signer.id },
+        data: { verificationMethod: riskResult.suggestedMethod },
+      });
+    }
+
     const requiresPasscode = signer.verificationMethod === 'passcode' && signer.status !== 'signed';
     const isKbaLocked = !!signer.kbaLockedAt;
 
@@ -343,6 +449,7 @@ export class SigningService {
         kbaLockedAt: signer.kbaLockedAt,
         verificationResult: signer.verificationResult,
         requiresPasscode,
+        isPreVerified,
       },
       document: {
         id: document.id,
@@ -490,6 +597,11 @@ export class SigningService {
           userAgent,
         );
 
+        if (typeof this.signingRepo.recordPreVerification === 'function') {
+          const emailHash = sha256(signer.email.toLowerCase().trim());
+          await this.signingRepo.recordPreVerification(emailHash, 'kba');
+        }
+
         await this.prisma.$transaction(async (tx) => {
           await this.outbox.emit(
             tx,
@@ -564,6 +676,11 @@ export class SigningService {
           ipAddress,
           userAgent,
         );
+
+        if (typeof this.signingRepo.recordPreVerification === 'function') {
+          const emailHash = sha256(signer.email.toLowerCase().trim());
+          await this.signingRepo.recordPreVerification(emailHash, 'kba');
+        }
 
         await this.prisma.$transaction(async (tx) => {
           await this.outbox.emit(tx, signer.organizationId, 'verification.kba.passed', signer.id, {
@@ -641,6 +758,11 @@ export class SigningService {
           ipAddress,
           userAgent,
         );
+
+        if (typeof this.signingRepo.recordPreVerification === 'function') {
+          const emailHash = sha256(signer.email.toLowerCase().trim());
+          await this.signingRepo.recordPreVerification(emailHash, 'kba');
+        }
 
         await this.prisma.$transaction(async (tx) => {
           await this.outbox.emit(
@@ -779,6 +901,11 @@ export class SigningService {
         userAgent,
       );
 
+      if (typeof this.signingRepo.recordPreVerification === 'function') {
+        const emailHash = sha256(signer.email.toLowerCase().trim());
+        await this.signingRepo.recordPreVerification(emailHash, 'id_document');
+      }
+
       await this.prisma.$transaction(async (tx) => {
         await this.outbox.emit(tx, signer.organizationId, 'verification.id.passed', signer.id, {
           signerId: signer.id,
@@ -893,6 +1020,11 @@ export class SigningService {
         ipAddress,
         userAgent,
       );
+
+      if (typeof this.signingRepo.recordPreVerification === 'function') {
+        const emailHash = sha256(signer.email.toLowerCase().trim());
+        await this.signingRepo.recordPreVerification(emailHash, 'qes');
+      }
 
       await this.prisma.$transaction(async (tx) => {
         await this.outbox.emit(tx, signer.organizationId, 'verification.qes.applied', signer.id, {

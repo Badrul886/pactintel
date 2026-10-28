@@ -86,6 +86,7 @@ model Organization {
   counterparties              Counterparty[]
   customExtractionFields      CustomExtractionField[]
   obligationRecords           ObligationRecord[]
+  riskAssessments             RiskAssessment[]
 
   @@map("organizations")
 }
@@ -425,7 +426,7 @@ model Signer {
   name                String?
   roleLabel           String?   @map("role_label")
   signingOrder        Int       @default(0) @map("signing_order")
-  verificationMethod  String    @default("none") @map("verification_method") // none, email, passcode, sms, kba, id_document, qes
+  verificationMethod  String    @default("none") @map("verification_method") // none, email, passcode, sms, kba, id_document, qes, adaptive
   verificationAttempts Int       @default(0) @map("verification_attempts")
   verificationResult  Json?     @map("verification_result")
   kbaLockedAt         DateTime? @map("kba_locked_at")
@@ -1487,5 +1488,48 @@ model ObligationRecord {
   @@index([organizationId, fieldValueDate])
   @@map("obligation_records")
 }
+
+// -----------------------------------------------------------------------------
+// 13. Risk-Adaptive Identity Verification (Sprint 3.7)
+// -----------------------------------------------------------------------------
+
+model PreVerifiedSigner {
+  id                 String   @id // UUIDv7
+  emailHash          String   @unique @map("email_hash") // SHA-256 of lowercase trimmed email
+  verificationMethod String   @map("verification_method") // kba, id_document, qes
+  verifiedAt         DateTime @map("verified_at")
+  expiresAt          DateTime @map("expires_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([emailHash])
+  @@index([expiresAt])
+  @@map("pre_verified_signers")
+}
+
+model RiskAssessment {
+  id                 String   @id // UUIDv7
+  organizationId     String   @map("organization_id")
+  signerId           String?  @map("signer_id")
+  documentId         String?  @map("document_id")
+  signatureRequestId String?  @map("signature_request_id")
+  riskScore          Float    @map("risk_score") // 0.0 - 1.0
+  riskLevel          String   @map("risk_level") // low, medium, high
+  assignedMethod     String   @map("assigned_method")
+  isPreVerified      Boolean  @default(false) @map("is_pre_verified")
+  fallbackApplied    Boolean  @default(false) @map("fallback_applied")
+  factors            Json?    @map("factors")
+  ipAddress          String?  @map("ip_address")
+  userAgent          String?  @map("user_agent")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([signerId])
+  @@index([documentId])
+  @@index([signatureRequestId])
+  @@map("risk_assessments")
+}
+
 
 

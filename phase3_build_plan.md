@@ -1206,14 +1206,14 @@ Integration:
 
 ### Definition of Done for Sprint 3.7
 
-- [ ] RiskScoringPort interface defined
-- [ ] At least one RiskScoringAdapter implemented (vendor TBD, documented in ADR-0054)
-- [ ] RULE RISK-001 implemented for risk-scoring vendor outage
-- [ ] pre_verified_signers table created (global, email hash only)
-- [ ] Pre-verified network lookup integrated into signing flow
-- [ ] Proof-of-verification PDF generation and storage
-- [ ] Workflow risk-assessment node functional
-- [ ] ADR-0054 written (risk-scoring vendor selection)
+- [x] RiskScoringPort interface defined
+- [x] At least one RiskScoringAdapter implemented (vendor TBD, documented in ADR-0054)
+- [x] RULE RISK-001 implemented for risk-scoring vendor outage
+- [x] pre_verified_signers table created (global, email hash only)
+- [x] Pre-verified network lookup integrated into signing flow
+- [x] Proof-of-verification PDF generation and storage
+- [x] Workflow risk-assessment node functional
+- [x] ADR-0054 written (risk-scoring vendor selection)
 - [x] All tests pass
 
 ---

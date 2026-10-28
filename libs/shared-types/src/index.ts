@@ -2044,3 +2044,87 @@ export const VerificationFallbackConfigSchema = z.object({
   qesFallback: z.enum(['id_document', 'sms', 'passcode']).default('sms'),
 });
 export type VerificationFallbackConfig = z.infer<typeof VerificationFallbackConfigSchema>;
+
+// ---------------------------------------------------------------------------
+// Sprint 3.7: Risk-Adaptive Identity Verification Types
+// ---------------------------------------------------------------------------
+
+export const RiskLevelEnum = z.enum(['low', 'medium', 'high']);
+export type RiskLevel = z.infer<typeof RiskLevelEnum>;
+
+export interface RiskContext {
+  signerId: string;
+  email: string;
+  name?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  dealValue?: number;
+  currency?: string;
+  organizationId: string;
+  documentId?: string;
+  signatureRequestId?: string;
+}
+
+export interface RiskScoreResult {
+  score: number; // 0.0 to 1.0
+  level: RiskLevel;
+  suggestedMethod: 'passcode' | 'sms' | 'kba' | 'id_document' | 'qes';
+  factors: {
+    ipReputationScore: number;
+    deviceTrustScore: number;
+    emailDomainRisk: number;
+    dealSizeMultiplier: number;
+  };
+  circuitOpen?: boolean;
+  fallbackApplied?: boolean;
+  evaluatedAt: string;
+}
+
+export interface PreVerifiedCheckResult {
+  isPreVerified: boolean;
+  verificationMethod?: string;
+  verifiedAt?: string;
+  expiresAt?: string;
+}
+
+export const VerificationReportQuerySchema = z.object({
+  format: z.enum(['json', 'pdf']).default('json'),
+});
+export type VerificationReportQuery = z.infer<typeof VerificationReportQuerySchema>;
+
+export interface VerificationReportSignerEntry {
+  signerId: string;
+  name?: string;
+  emailMasked: string;
+  roleLabel?: string;
+  status: string;
+  verificationMethod: string;
+  isPreVerified: boolean;
+  riskAssessment?: {
+    riskScore: number;
+    riskLevel: string;
+    evaluatedAt: string;
+    fallbackApplied: boolean;
+  };
+  verificationResult?: {
+    status: string;
+    confidenceScore?: number;
+    vendorReferenceId?: string;
+    biometricMatch?: boolean;
+    certificateIssuer?: string;
+    certificateSerial?: string;
+    verifiedAt: string;
+  };
+}
+
+export interface VerificationReportResponse {
+  reportId: string;
+  signatureRequestId: string;
+  documentId: string;
+  documentTitle: string;
+  documentHash: string;
+  complianceStandard: string;
+  generatedAt: string;
+  signers: VerificationReportSignerEntry[];
+  assuranceStatement: string;
+}

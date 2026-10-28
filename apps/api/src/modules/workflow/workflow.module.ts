@@ -10,9 +10,14 @@ import { WorkflowController } from './workflow.controller';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationModule } from '../notification/notification.module';
 import { OrganizationModule } from '../organization/organization.module';
+import { SigningModule } from '../signing/signing.module';
 
 @Module({
-  imports: [forwardRef(() => NotificationModule), forwardRef(() => OrganizationModule)],
+  imports: [
+    forwardRef(() => NotificationModule),
+    forwardRef(() => OrganizationModule),
+    forwardRef(() => SigningModule),
+  ],
   controllers: [WorkflowController],
   providers: [
     PrismaService,
