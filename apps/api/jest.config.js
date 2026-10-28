@@ -10,6 +10,9 @@ module.exports = {
   collectCoverageFrom: ['src/**/*.(t|j)s'],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
+  maxWorkers: 2,
+  testTimeout: 30000,
+  cache: false,
   moduleNameMapper: {
     '^@pactintel/shared-types$': '<rootDir>/../../libs/shared-types/src',
     '^@pactintel/shared-utils$': '<rootDir>/../../libs/shared-utils/src',

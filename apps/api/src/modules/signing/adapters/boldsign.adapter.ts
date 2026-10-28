@@ -190,6 +190,9 @@ export class BoldSignAdapter implements SigningProviderPort {
       timer = setTimeout(() => {
         reject(new SigningProviderTimeoutException());
       }, this.TIMEOUT_MS);
+      if (timer && typeof timer.unref === 'function') {
+        timer.unref();
+      }
     });
 
     try {

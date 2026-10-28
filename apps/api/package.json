@@ -16,7 +16,7 @@
     "prisma:migrate": "prisma migrate dev --schema=src/prisma/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema=src/prisma/schema.prisma",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
+    "test": "jest --no-cache",
     "test:cov": "jest --coverage"
   },
   "dependencies": {

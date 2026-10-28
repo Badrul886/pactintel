@@ -8,6 +8,7 @@ module.exports = {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
   testEnvironment: 'node',
+  cache: false,
   moduleNameMapper: {
     '^@pactintel/shared-types$': '<rootDir>/../../libs/shared-types/src',
     '^@pactintel/shared-utils$': '<rootDir>/../../libs/shared-utils/src',

@@ -159,6 +159,9 @@ export class SiftRiskScoringAdapter implements RiskScoringPort {
       timer = setTimeout(() => {
         reject(new RiskScoringTimeoutException());
       }, this.TIMEOUT_MS);
+      if (timer && typeof timer.unref === 'function') {
+        timer.unref();
+      }
     });
 
     try {
