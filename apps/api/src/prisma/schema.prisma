@@ -23,6 +23,8 @@ model Organization {
   name      String
   slug      String   @unique
   cellId    String   @default("gcp-us1") @map("cell_id")
+  ssoPolicy String   @default("optional") @map("sso_policy")
+  workosSamlConnectionId String? @map("workos_saml_connection_id")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")

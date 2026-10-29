@@ -2199,3 +2199,103 @@ export interface WorkspaceOverviewResponse {
     sharedAssetsCount: number;
   };
 }
+
+// --- SAML SSO & SCIM Provisioning (Sprint 3.9) ---
+export const SsoPolicySchema = z.enum(['optional', 'required', 'required_admin_bypass']);
+export type SsoPolicy = z.infer<typeof SsoPolicySchema>;
+
+export const ConfigureSamlDtoSchema = z.object({
+  idpEntityId: z.string().min(1).max(500),
+  idpSsoUrl: z.string().url().max(1000),
+  idpCertificate: z.string().min(1),
+  ssoPolicy: SsoPolicySchema.optional().default('optional'),
+});
+export type ConfigureSamlDto = z.input<typeof ConfigureSamlDtoSchema>;
+
+export const UpdateSsoPolicyDtoSchema = z.object({
+  ssoPolicy: SsoPolicySchema,
+});
+export type UpdateSsoPolicyDto = z.infer<typeof UpdateSsoPolicyDtoSchema>;
+
+export interface SamlConfigResponse {
+  organizationId: string;
+  connectionId: string | null;
+  ssoPolicy: SsoPolicy;
+  status: 'active' | 'unconfigured' | 'error';
+  idpEntityId?: string;
+  idpSsoUrl?: string;
+  updatedAt?: string | Date;
+}
+
+// SCIM 2.0 (RFC 7643 / RFC 7644)
+export interface ScimName {
+  formatted?: string;
+  familyName?: string;
+  givenName?: string;
+}
+
+export interface ScimEmail {
+  value: string;
+  type?: string;
+  primary?: boolean;
+}
+
+export interface ScimUserResource {
+  schemas: string[];
+  id: string;
+  userName: string;
+  name?: ScimName;
+  emails: ScimEmail[];
+  active: boolean;
+  roles?: string[];
+  meta: {
+    resourceType: string;
+    created: string | Date;
+    lastModified: string | Date;
+    location?: string;
+  };
+}
+
+export const ScimCreateUserDtoSchema = z.object({
+  schemas: z.array(z.string()).optional(),
+  userName: z.string().email(),
+  name: z
+    .object({
+      formatted: z.string().optional(),
+      familyName: z.string().optional(),
+      givenName: z.string().optional(),
+    })
+    .optional(),
+  emails: z
+    .array(
+      z.object({
+        value: z.string().email(),
+        type: z.string().optional(),
+        primary: z.boolean().optional(),
+      }),
+    )
+    .optional(),
+  active: z.boolean().optional().default(true),
+  roles: z.array(z.string()).optional(),
+});
+export type ScimCreateUserDto = z.input<typeof ScimCreateUserDtoSchema>;
+
+export const ScimPatchOpSchema = z.object({
+  op: z.enum(['add', 'replace', 'remove', 'Add', 'Replace', 'Remove']),
+  path: z.string().optional(),
+  value: z.any(),
+});
+
+export const ScimPatchUserDtoSchema = z.object({
+  schemas: z.array(z.string()).optional(),
+  Operations: z.array(ScimPatchOpSchema),
+});
+export type ScimPatchUserDto = z.infer<typeof ScimPatchUserDtoSchema>;
+
+export interface ScimListResponse<T> {
+  schemas: string[];
+  totalResults: number;
+  itemsPerPage: number;
+  startIndex: number;
+  Resources: T[];
+}

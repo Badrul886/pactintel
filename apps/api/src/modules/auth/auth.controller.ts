@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Delete,
   Body,
   Param,
@@ -10,12 +11,22 @@ import {
   Req,
   HttpStatus,
   UseGuards,
+  UsePipes,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { ApiKeyService } from './api-key.service';
+import { SamlSsoService } from './saml-sso.service';
 import { AuthGuard, AuthenticatedUser } from '../../common/guards/auth.guard';
+import { CaslGuard, CheckPolicies } from '../../common/guards/casl.guard';
+import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
+import {
+  ConfigureSamlDto,
+  ConfigureSamlDtoSchema,
+  UpdateSsoPolicyDto,
+  UpdateSsoPolicyDtoSchema,
+} from '@pactintel/shared-types';
 import { ClsService } from 'nestjs-cls';
 
 @Controller('api/v1/auth')
@@ -23,6 +34,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly apiKeyService: ApiKeyService,
+    private readonly samlSsoService: SamlSsoService,
     private readonly cls: ClsService,
   ) {}
 
@@ -106,5 +118,52 @@ export class AuthController {
   async revokeApiKey(@Param('id') apiKeyId: string) {
     const organizationId = this.cls.get<string>('organizationId');
     return this.apiKeyService.revokeApiKey(organizationId, apiKeyId);
+  }
+
+  // --- SAML 2.0 Single Sign-On (Sprint 3.9) ---
+
+  @Post('sso/saml/configure')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'manage', subject: 'Organization' })
+  @UsePipes(new ZodValidationPipe(ConfigureSamlDtoSchema))
+  async configureSaml(@Body() dto: ConfigureSamlDto) {
+    const organizationId = this.cls.get<string>('organizationId');
+    const userId = this.cls.get<string>('userId');
+    return this.samlSsoService.configureSaml(organizationId, dto, userId);
+  }
+
+  @Get('sso/saml/config')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'manage', subject: 'Organization' })
+  async getSamlConfig() {
+    const organizationId = this.cls.get<string>('organizationId');
+    return this.samlSsoService.getSamlConfig(organizationId);
+  }
+
+  @Delete('sso/saml/config')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'manage', subject: 'Organization' })
+  async removeSamlConfig() {
+    const organizationId = this.cls.get<string>('organizationId');
+    const userId = this.cls.get<string>('userId');
+    return this.samlSsoService.removeSamlConfig(organizationId, userId);
+  }
+
+  @Post('sso/saml/test')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'manage', subject: 'Organization' })
+  async testSamlConnection() {
+    const organizationId = this.cls.get<string>('organizationId');
+    return this.samlSsoService.testSamlConnection(organizationId);
+  }
+
+  @Patch('sso/saml/policy')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'manage', subject: 'Organization' })
+  @UsePipes(new ZodValidationPipe(UpdateSsoPolicyDtoSchema))
+  async updateSsoPolicy(@Body() dto: UpdateSsoPolicyDto) {
+    const organizationId = this.cls.get<string>('organizationId');
+    const userId = this.cls.get<string>('userId');
+    return this.samlSsoService.updateSsoPolicy(organizationId, dto.ssoPolicy, userId);
   }
 }

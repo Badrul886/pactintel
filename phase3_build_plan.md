@@ -1469,15 +1469,15 @@ Integration:
 
 ### Definition of Done for Sprint 3.9
 
-- [ ] SAML SSO configuration UI and backend (via WorkOS)
-- [ ] JIT provisioning on first SSO login
-- [ ] SSO policy enforcement (optional/required)
-- [ ] Basic SCIM user sync endpoints
-- [ ] Organizations table updated with SSO fields
-- [ ] All SOC 2 artifact docs created (soc2-evidence-index, threat-model, incident-response)
-- [ ] Vanta integration configured
-- [ ] GCP IAM least-privilege reviewed and IaC updated
-- [ ] ADR-0056 written (SAML implementation)
+- [x] SAML SSO configuration UI and backend (via WorkOS)
+- [x] JIT provisioning on first SSO login
+- [x] SSO policy enforcement (optional/required)
+- [x] Basic SCIM user sync endpoints
+- [x] Organizations table updated with SSO fields
+- [x] All SOC 2 artifact docs created (soc2-evidence-index, threat-model, incident-response)
+- [x] Vanta integration configured
+- [x] GCP IAM least-privilege reviewed and IaC updated
+- [x] ADR-0056 written (SAML implementation)
 - [x] All tests pass
 
 ---

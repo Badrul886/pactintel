@@ -85,7 +85,13 @@ export type WebhookEventType =
   | 'workspace.member_added'
   | 'workspace.member_updated'
   | 'workspace.member_removed'
-  | 'workspace.ownership_transferred';
+  | 'workspace.ownership_transferred'
+  | 'saml.configured'
+  | 'saml.removed'
+  | 'saml.policy_updated'
+  | 'scim.user_provisioned'
+  | 'scim.user_updated'
+  | 'scim.user_deactivated';
 
 export interface OutboxEventRecord {
   id: string;

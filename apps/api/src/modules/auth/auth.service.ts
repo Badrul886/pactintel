@@ -1,6 +1,7 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException, Optional } from '@nestjs/common';
 import { ApiKeyService } from './api-key.service';
 import { SessionService, UserSessionData } from './session.service';
+import { SamlSsoService } from './saml-sso.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { generateId } from '@pactintel/shared-utils';
 
@@ -12,6 +13,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly apiKeyService: ApiKeyService,
     private readonly sessionService: SessionService,
+    @Optional() private readonly samlSsoService?: SamlSsoService,
   ) {}
 
   /**
@@ -31,8 +33,15 @@ export class AuthService {
   /**
    * Exchanges authorization code for a session and provisions user/tenant if new.
    */
-  async handleCallback(code: string, mockEmail?: string) {
-    this.logger.log(`Processing Auth callback with authorization code: ${code.slice(0, 6)}...`);
+  async handleCallback(
+    code: string,
+    mockEmail?: string,
+    authType: 'sso' | 'password' | 'oauth' = 'sso',
+    targetOrganizationId?: string,
+  ) {
+    this.logger.log(
+      `Processing Auth callback with authorization code: ${code.slice(0, 6)}... (authType: ${authType})`,
+    );
 
     // In a live production environment, this calls WorkOS API:
     // const { user: workosUser } = await workos.userManagement.authenticateWithCode({ code, clientId });
@@ -43,6 +52,20 @@ export class AuthService {
       where: { email },
       include: { organization: true },
     });
+
+    if (user && this.samlSsoService) {
+      // Enforce organization SSO login policy (optional, required, required_admin_bypass)
+      await this.samlSsoService.validateSsoLoginPolicy(user.organizationId, authType, user.role);
+    }
+
+    if (!user && targetOrganizationId && this.samlSsoService) {
+      // Just-In-Time provisioning into target enterprise organization
+      const jitUser = await this.samlSsoService.provisionJitUser(targetOrganizationId, email);
+      user = await this.prisma.user.findUnique({
+        where: { id: jitUser.id },
+        include: { organization: true },
+      });
+    }
 
     if (!user) {
       // Auto-provision initial organization and user on first login
