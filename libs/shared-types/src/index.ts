@@ -2479,3 +2479,174 @@ export const ManagerOverdueQueryDtoSchema = z.object({
   teamId: z.string().optional(),
 });
 export type ManagerOverdueQueryDto = z.input<typeof ManagerOverdueQueryDtoSchema>;
+
+// =============================================================================
+// Standalone Forms Types & Contracts (Sprint 3.11, Blueprint §5.12)
+// =============================================================================
+
+export type FormStatus = 'draft' | 'published' | 'closed' | 'archived';
+export type FormSubmissionStatus = 'partial' | 'complete' | 'voided';
+export type FormFieldType =
+  | 'text'
+  | 'textarea'
+  | 'email'
+  | 'phone'
+  | 'number'
+  | 'date'
+  | 'time'
+  | 'dropdown'
+  | 'checkbox'
+  | 'radio'
+  | 'file_upload'
+  | 'signature'
+  | 'payment';
+
+export interface FormFieldDefinition {
+  id: string;
+  label: string;
+  type: FormFieldType;
+  required?: boolean;
+  placeholder?: string;
+  description?: string;
+  options?: string[];
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  pattern?: string;
+  dependsOn?: {
+    fieldId: string;
+    operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
+    value: unknown;
+  };
+}
+
+export interface FormSection {
+  id: string;
+  title: string;
+  description?: string;
+  fields: FormFieldDefinition[];
+}
+
+export interface FormRoutingRule {
+  id: string;
+  condition: {
+    fieldId: string;
+    operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than';
+    value: unknown;
+  };
+  action: {
+    type: 'notify_email' | 'webhook';
+    target: string;
+  };
+}
+
+export interface FormDefinition {
+  sections: FormSection[];
+  routingRules?: FormRoutingRule[];
+}
+
+export interface FormSettings {
+  oneResponsePerEmail?: boolean;
+  submissionLimit?: number;
+  closeDate?: string;
+  requireLogin?: boolean;
+  customBranding?: {
+    logoUrl?: string;
+    primaryColor?: string;
+    headerTitle?: string;
+  };
+  successPage?: {
+    redirectUrl?: string;
+    customThankYouMessage?: string;
+  };
+}
+
+export interface FormRoleDefinition {
+  id?: string;
+  roleName: string;
+  sortOrder: number;
+  fields: string[];
+  routingEmail?: string;
+}
+
+export interface FormResponse {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  createdBy: string;
+  name: string;
+  slug: string;
+  status: FormStatus;
+  definition: FormDefinition;
+  settings: FormSettings;
+  version: number;
+  customDomain?: string | null;
+  roles?: FormRoleDefinition[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FormSubmissionResponse {
+  id: string;
+  organizationId: string;
+  formId: string;
+  formVersion: number;
+  submitterEmail?: string | null;
+  submitterIp?: string | null;
+  data: Record<string, unknown>;
+  status: FormSubmissionStatus;
+  currentRole?: string | null;
+  submittedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const CreateFormDtoSchema = z.object({
+  name: z.string().min(1).max(255),
+  workspaceId: z.string().optional(),
+  definition: z.record(z.unknown()).optional(),
+  settings: z.record(z.unknown()).optional(),
+  customDomain: z.string().optional(),
+  roles: z
+    .array(
+      z.object({
+        roleName: z.string().min(1),
+        sortOrder: z.number().int().nonnegative(),
+        fields: z.array(z.string()),
+        routingEmail: z.string().email().optional(),
+      }),
+    )
+    .optional(),
+});
+export type CreateFormDto = z.input<typeof CreateFormDtoSchema>;
+
+export const UpdateFormDtoSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  workspaceId: z.string().optional(),
+  definition: z.record(z.unknown()).optional(),
+  settings: z.record(z.unknown()).optional(),
+  customDomain: z.string().nullable().optional(),
+  roles: z
+    .array(
+      z.object({
+        roleName: z.string().min(1),
+        sortOrder: z.number().int().nonnegative(),
+        fields: z.array(z.string()),
+        routingEmail: z.string().email().optional(),
+      }),
+    )
+    .optional(),
+});
+export type UpdateFormDto = z.input<typeof UpdateFormDtoSchema>;
+
+export const SubmitFormDtoSchema = z.object({
+  submitterEmail: z.string().email().optional(),
+  data: z.record(z.unknown()),
+});
+export type SubmitFormDto = z.input<typeof SubmitFormDtoSchema>;
+
+export const ContinueFormSubmissionDtoSchema = z.object({
+  data: z.record(z.unknown()),
+});
+export type ContinueFormSubmissionDto = z.input<typeof ContinueFormSubmissionDtoSchema>;

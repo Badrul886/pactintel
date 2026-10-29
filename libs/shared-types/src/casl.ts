@@ -57,6 +57,8 @@ export type Subject =
   | 'CustomExtractionField'
   | 'CustomReport'
   | 'Analytics'
+  | 'Form'
+  | 'FormSubmission'
   | 'all';
 
 export interface RequiredPolicyRule {

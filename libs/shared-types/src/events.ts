@@ -95,7 +95,15 @@ export type WebhookEventType =
   | 'analytics.engagement.disengaged'
   | 'analytics.engagement.reengaged'
   | 'custom_report.created'
-  | 'custom_report.run';
+  | 'custom_report.run'
+  | 'form.created'
+  | 'form.updated'
+  | 'form.published'
+  | 'form.closed'
+  | 'form.submitted'
+  | 'form.completed'
+  | 'form.role_advanced'
+  | 'form.voided';
 
 export interface OutboxEventRecord {
   id: string;

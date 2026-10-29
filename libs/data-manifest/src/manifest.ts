@@ -528,6 +528,47 @@ export const dataManifest: DataManifest = {
       description:
         'Custom report builder definitions, dimensions, metrics, and scheduled delivery configurations',
     },
+    {
+      id: 'pg-forms',
+      type: 'postgresql_table',
+      tableOrResource: 'forms',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description: 'Standalone forms builder definitions, settings, branding, and status',
+    },
+    {
+      id: 'pg-form-submissions',
+      type: 'postgresql_table',
+      tableOrResource: 'form_submissions',
+      rls: true,
+      retention: '7_years',
+      erasure: 'crypto_shred',
+      residency: 'cell_jurisdiction',
+      description:
+        'Standalone form submission responses, submitter metadata, and role progression state',
+    },
+    {
+      id: 'pg-form-roles',
+      type: 'postgresql_table',
+      tableOrResource: 'form_roles',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'hard_delete_cascade',
+      residency: 'cell_jurisdiction',
+      description: 'Multi-role definitions and assigned field configurations for standalone forms',
+    },
+    {
+      id: 'pg-form-magic-links',
+      type: 'postgresql_table',
+      tableOrResource: 'form_magic_links',
+      rls: true,
+      retention: '30_days',
+      erasure: 'hard_delete_cascade',
+      residency: 'cell_jurisdiction',
+      description: 'SHA-256 hashed magic link tokens for multi-role form submission continuation',
+    },
 
     // --- PostgreSQL: Custom Domains, Integrations & Notifications (Phase 1) ---
     {

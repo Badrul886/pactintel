@@ -90,6 +90,10 @@ model Organization {
   obligationRecords           ObligationRecord[]
   riskAssessments             RiskAssessment[]
   customReports               CustomReport[]
+  forms                       Form[]
+  formSubmissions             FormSubmission[]
+  formRoles                   FormRole[]
+  formMagicLinks              FormMagicLink[]
 
   @@map("organizations")
 }
@@ -124,6 +128,7 @@ model Workspace {
   workflowDefinitions WorkflowDefinition[]
   dealRooms           DealRoom[]
   customReports       CustomReport[]
+  forms               Form[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -183,6 +188,7 @@ model User {
   dealRoomDocumentsAdded   DealRoomDocument[]       @relation("DealRoomDocAdder")
   dealRoomMessagesAuthored DealRoomMessage[]        @relation("DealRoomMsgAuthor")
   customReportsCreated     CustomReport[]           @relation("CustomReportCreator")
+  formsCreated             Form[]                   @relation("FormCreator")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -1573,6 +1579,101 @@ model CustomReport {
   @@index([workspaceId])
   @@index([createdBy])
   @@map("custom_reports")
+}
+
+model Form {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  createdBy      String    @map("created_by")
+  name           String
+  slug           String
+  status         String    @default("draft") // draft, published, closed, archived
+  definition     Json      @default("{}")
+  settings       Json      @default("{}")
+  version        Int       @default(1)
+  customDomain   String?   @map("custom_domain")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator        User             @relation("FormCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  submissions    FormSubmission[]
+  roles          FormRole[]
+  magicLinks     FormMagicLink[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, workspaceId])
+  @@index([slug])
+  @@index([status])
+  @@index([createdAt])
+  @@map("forms")
+}
+
+model FormSubmission {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  formId         String    @map("form_id")
+  formVersion    Int       @map("form_version")
+  submitterEmail String?   @map("submitter_email")
+  submitterIp    String?   @map("submitter_ip")
+  data           Json      @default("{}")
+  status         String    @default("partial") // partial, complete, voided
+  currentRole    String?   @map("current_role")
+  submittedAt    DateTime? @map("submitted_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  form           Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
+  magicLinks     FormMagicLink[]
+
+  @@index([organizationId, formId])
+  @@index([formId, submitterEmail])
+  @@index([status])
+  @@index([submittedAt])
+  @@map("form_submissions")
+}
+
+model FormRole {
+  id             String   @id // UUIDv7
+  organizationId String   @map("organization_id")
+  formId         String   @map("form_id")
+  roleName       String   @map("role_name")
+  sortOrder      Int      @default(0) @map("sort_order")
+  fields         Json     @default("[]")
+  routingEmail   String?  @map("routing_email")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  form         Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, formId])
+  @@index([formId, sortOrder])
+  @@map("form_roles")
+}
+
+model FormMagicLink {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  formId         String    @map("form_id")
+  submissionId   String    @map("submission_id")
+  roleName       String    @map("role_name")
+  tokenHash      String    @unique @map("token_hash")
+  expiresAt      DateTime  @map("expires_at")
+  usedAt         DateTime? @map("used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  form         Form           @relation(fields: [formId], references: [id], onDelete: Cascade)
+  submission   FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, tokenHash])
+  @@index([submissionId])
+  @@index([expiresAt])
+  @@map("form_magic_links")
 }
 
 

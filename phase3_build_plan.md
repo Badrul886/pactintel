@@ -1829,16 +1829,16 @@ Integration:
 
 ### Definition of Done for Sprint 3.11
 
-- [ ] forms, form_submissions, form_roles, form_magic_links tables with RLS + manifest
-- [ ] Form builder UI (drag-and-drop, all field types, conditional logic)
-- [ ] Public form page (server-rendered, accessible without login)
-- [ ] Form submission API (rate limited, validation, one-per-email enforcement)
-- [ ] Multi-role routing with magic links
-- [ ] Form versioning (edits to published form do not break existing submissions)
-- [ ] Routing rules (answer-based email routing)
-- [ ] Submission inbox and CSV export
-- [ ] Embed code and QR code generation
-- [ ] ADR-0057 written
+- [x] forms, form_submissions, form_roles, form_magic_links tables with RLS + manifest
+- [x] Form builder UI (drag-and-drop, all field types, conditional logic)
+- [x] Public form page (server-rendered, accessible without login)
+- [x] Form submission API (rate limited, validation, one-per-email enforcement)
+- [x] Multi-role routing with magic links
+- [x] Form versioning (edits to published form do not break existing submissions)
+- [x] Routing rules (answer-based email routing)
+- [x] Submission inbox and CSV export
+- [x] Embed code and QR code generation
+- [x] ADR-0058 written (Standalone Forms Architecture)
 - [x] All tests pass
 
 ---
@@ -2307,8 +2307,9 @@ ADR-0053: Phase 3 Sprint 3.6 - Advanced ID Verification (KBA, Gov ID, QES)
 ADR-0054: Phase 3 Sprint 3.7 - Risk-Adaptive Identity Verification Vendor Selection
 ADR-0055: Phase 3 Sprint 3.8 - Multi-Workspace Architecture and RLS Strategy
 ADR-0056: Phase 3 Sprint 3.9 - SAML SSO Implementation via WorkOS
-ADR-0057: Phase 3 Sprint 3.11 - Standalone Forms Architecture
-ADR-0058: Phase 3 Sprint 3.12 - Public REST API Design, SDK Generation, MCP Connector
+ADR-0057: Phase 3 Sprint 3.10 - Advanced Analytics & Custom Report Builder
+ADR-0058: Phase 3 Sprint 3.11 - Standalone Forms Architecture
+ADR-0059: Phase 3 Sprint 3.12 - Public REST API Design, SDK Generation, MCP Connector
 
 Each ADR must use the standard format:
 

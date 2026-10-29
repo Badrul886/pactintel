@@ -55,6 +55,8 @@ export class AbilityFactory {
         can('manage', 'Signature');
         can('manage', 'CustomReport');
         can('read', 'Analytics');
+        can('manage', 'Form');
+        can('manage', 'FormSubmission');
         can('read', 'BrandKit');
         // Phase 2 additions for manager:
         can(['read', 'create', 'update', 'delete'], 'Comment');
@@ -159,6 +161,9 @@ export class AbilityFactory {
         cannot('delete', 'CustomExtractionField');
         can(['read', 'create', 'update', 'delete'], 'CustomReport');
         can('read', 'Analytics');
+        can(['read', 'create', 'update', 'delete'], 'Form');
+        can('read', 'FormSubmission');
+        cannot(['create', 'update', 'delete'], 'FormSubmission');
         // Phase 2 additions for member:
         can(['read', 'create'], 'Comment');
         if (userId) {
@@ -238,6 +243,9 @@ export class AbilityFactory {
         cannot('read', 'WorkflowInstance');
         // Phase 3 additions for collaborator (Deal Rooms):
         can('read', 'DealRoom');
+        can('read', 'Form');
+        cannot(['create', 'update', 'delete'], 'Form');
+        cannot(['read', 'create', 'update', 'delete'], 'FormSubmission');
         cannot('create', 'DealRoom');
         cannot('update', 'DealRoom');
         cannot('delete', 'DealRoom');

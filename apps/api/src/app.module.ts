@@ -34,6 +34,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
 import { DealRoomModule } from './modules/deal-room/deal-room.module';
 import { PortfolioModule } from './modules/portfolio/portfolio.module';
 import { WorkspaceModule } from './modules/workspace/workspace.module';
+import { FormsModule } from './modules/forms/forms.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { WorkspaceModule } from './modules/workspace/workspace.module';
     DealRoomModule,
     PortfolioModule,
     WorkspaceModule,
+    FormsModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [
