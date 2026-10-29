@@ -53,6 +53,8 @@ export class AbilityFactory {
         can('manage', 'Counterparty');
         can('manage', 'CustomExtractionField');
         can('manage', 'Signature');
+        can('manage', 'CustomReport');
+        can('read', 'Analytics');
         can('read', 'BrandKit');
         // Phase 2 additions for manager:
         can(['read', 'create', 'update', 'delete'], 'Comment');
@@ -151,7 +153,12 @@ export class AbilityFactory {
         cannot('delete', 'Signature');
         cannot('delete', 'ObligationRecord');
         cannot('delete', 'Counterparty');
+        cannot('manage', 'CustomReport');
+        cannot('read', 'CustomReport');
+        cannot('read', 'Analytics');
         cannot('delete', 'CustomExtractionField');
+        can(['read', 'create', 'update', 'delete'], 'CustomReport');
+        can('read', 'Analytics');
         // Phase 2 additions for member:
         can(['read', 'create'], 'Comment');
         if (userId) {
@@ -253,6 +260,9 @@ export class AbilityFactory {
         cannot('create', 'Counterparty');
         cannot('update', 'Counterparty');
         cannot('delete', 'Counterparty');
+        cannot('manage', 'CustomReport');
+        cannot('read', 'CustomReport');
+        cannot('read', 'Analytics');
         // Phase 2 additions for collaborator:
         can('read', 'Comment');
         can('create', 'Comment'); // collaborators can comment

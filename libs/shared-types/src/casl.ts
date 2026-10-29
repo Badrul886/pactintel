@@ -55,6 +55,8 @@ export type Subject =
   | 'ObligationRecord'
   | 'Counterparty'
   | 'CustomExtractionField'
+  | 'CustomReport'
+  | 'Analytics'
   | 'all';
 
 export interface RequiredPolicyRule {

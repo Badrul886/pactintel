@@ -517,6 +517,17 @@ export const dataManifest: DataManifest = {
       residency: 'cell_jurisdiction',
       description: 'Signer risk scoring evaluations and dynamic verification tier audit records',
     },
+    {
+      id: 'pg-custom-reports',
+      type: 'postgresql_table',
+      tableOrResource: 'custom_reports',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'soft_delete',
+      residency: 'cell_jurisdiction',
+      description:
+        'Custom report builder definitions, dimensions, metrics, and scheduled delivery configurations',
+    },
 
     // --- PostgreSQL: Custom Domains, Integrations & Notifications (Phase 1) ---
     {
@@ -712,6 +723,17 @@ export const dataManifest: DataManifest = {
       erasure: 'partition_drop',
       residency: 'cell_jurisdiction',
       description: 'High-volume section-level viewer reading duration and scroll depth telemetry',
+    },
+    {
+      id: 'ch-document-engagement',
+      type: 'clickhouse_table',
+      tableOrResource: 'document_engagement',
+      rls: false,
+      retention: '2_years',
+      erasure: 'partition_drop',
+      residency: 'cell_jurisdiction',
+      description:
+        'Aggregated document engagement scores, disengagement flags, and reactivation state',
     },
 
     // --- Cloud Storage Buckets ---

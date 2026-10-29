@@ -91,7 +91,11 @@ export type WebhookEventType =
   | 'saml.policy_updated'
   | 'scim.user_provisioned'
   | 'scim.user_updated'
-  | 'scim.user_deactivated';
+  | 'scim.user_deactivated'
+  | 'analytics.engagement.disengaged'
+  | 'analytics.engagement.reengaged'
+  | 'custom_report.created'
+  | 'custom_report.run';
 
 export interface OutboxEventRecord {
   id: string;

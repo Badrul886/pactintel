@@ -2299,3 +2299,183 @@ export interface ScimListResponse<T> {
   startIndex: number;
   Resources: T[];
 }
+
+// --- Advanced Analytics & Custom Reports (Phase 3 Sprint 3.10) ---
+
+export const ReportDimensionEnum = z.enum([
+  'document_type',
+  'template',
+  'workspace',
+  'rep',
+  'team',
+  'date_range',
+  'status',
+]);
+export type ReportDimension = z.infer<typeof ReportDimensionEnum>;
+
+export const ReportMetricEnum = z.enum([
+  'count',
+  'sum_value',
+  'avg_value',
+  'avg_time_to_view',
+  'avg_time_to_sign',
+  'views_count',
+]);
+export type ReportMetric = z.infer<typeof ReportMetricEnum>;
+
+export const ReportChartTypeEnum = z.enum(['table', 'bar_chart', 'line_chart', 'pie_chart']);
+export type ReportChartType = z.infer<typeof ReportChartTypeEnum>;
+
+export const CustomReportDefinitionSchema = z.object({
+  dimensions: z.array(ReportDimensionEnum).min(1),
+  metrics: z.array(ReportMetricEnum).min(1),
+  filters: z
+    .object({
+      workspaceId: z.string().optional(),
+      repId: z.string().optional(),
+      teamId: z.string().optional(),
+      templateId: z.string().optional(),
+      status: z.array(z.string()).optional(),
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+    })
+    .optional(),
+  chartType: ReportChartTypeEnum.default('table'),
+});
+export type CustomReportDefinition = z.infer<typeof CustomReportDefinitionSchema>;
+
+export const CustomReportScheduleSchema = z.object({
+  frequency: z.enum(['daily', 'weekly', 'monthly']),
+  recipients: z.array(z.string().email()).min(1),
+});
+export type CustomReportSchedule = z.infer<typeof CustomReportScheduleSchema>;
+
+export const CreateCustomReportDtoSchema = z.object({
+  name: z.string().min(1).max(255),
+  workspaceId: z.string().min(1),
+  definition: CustomReportDefinitionSchema,
+  schedule: CustomReportScheduleSchema.optional().nullable(),
+});
+export type CreateCustomReportDto = z.input<typeof CreateCustomReportDtoSchema>;
+
+export const UpdateCustomReportDtoSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  definition: CustomReportDefinitionSchema.optional(),
+  schedule: CustomReportScheduleSchema.optional().nullable(),
+});
+export type UpdateCustomReportDto = z.input<typeof UpdateCustomReportDtoSchema>;
+
+export interface CustomReportResponse {
+  id: string;
+  organizationId: string;
+  workspaceId: string;
+  createdBy: string;
+  name: string;
+  definition: CustomReportDefinition;
+  schedule: CustomReportSchedule | null;
+  lastRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomReportExecutionResult {
+  reportId: string;
+  executedAt: string;
+  rowCount: number;
+  columns: string[];
+  rows: Record<string, any>[];
+  chartData?: {
+    categories: string[];
+    series: { name: string; data: number[] }[];
+  };
+}
+
+export interface EngagementScoreSummary {
+  documentId: string;
+  score: number; // 0 - 100
+  breakdown: {
+    timeOnPageScore: number;
+    completionScore: number;
+    returnVisitsScore: number;
+    uniqueViewersScore: number;
+    recencyPenalty: number;
+  };
+  isDisengaged: boolean;
+  isReengaged: boolean;
+  daysSinceLastView: number;
+  calculatedAt: string;
+}
+
+export interface AnalyticsRollupOverview {
+  scope: 'company' | 'team' | 'personal';
+  documentsSent: number;
+  documentsViewed: number;
+  documentsSigned: number;
+  conversionRatePct: number;
+  avgTimeToSignHours: number;
+  avgTimeToViewMinutes: number;
+  revenueClosedCents: number;
+  topTemplates: {
+    templateId: string;
+    templateName: string;
+    conversionRatePct: number;
+    usageCount: number;
+  }[];
+}
+
+export interface ConversionFunnelData {
+  createdCount: number;
+  sentCount: number;
+  viewedCount: number;
+  signedCount: number;
+  stages: {
+    stage: 'created' | 'sent' | 'viewed' | 'signed';
+    count: number;
+    dropoffPct: number;
+  }[];
+  dealVelocityDays: {
+    avgCreatedToSignedDays: number;
+    avgSentToViewedDays: number;
+    avgViewedToSignedDays: number;
+  };
+}
+
+export interface TemplatePerformanceItem {
+  templateId: string;
+  templateName: string;
+  documentsCreated: number;
+  documentsSent: number;
+  documentsSigned: number;
+  conversionRatePct: number;
+  totalRevenueClosedCents: number;
+  avgTimeToSignDays: number;
+}
+
+export interface ManagerOverdueFollowupItem {
+  documentId: string;
+  documentTitle: string;
+  repId: string;
+  repName: string;
+  recipientEmail: string;
+  daysSinceSent: number;
+  lastViewedAt: string | null;
+  status: string;
+}
+
+export const OverviewQueryDtoSchema = z.object({
+  timeRange: z
+    .enum(['today', 'this_week', 'this_month', 'this_quarter', 'custom'])
+    .optional()
+    .default('this_month'),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  workspaceId: z.string().optional(),
+  teamId: z.string().optional(),
+});
+export type OverviewQueryDto = z.input<typeof OverviewQueryDtoSchema>;
+
+export const ManagerOverdueQueryDtoSchema = z.object({
+  thresholdDays: z.coerce.number().int().min(1).max(365).optional().default(3),
+  teamId: z.string().optional(),
+});
+export type ManagerOverdueQueryDto = z.input<typeof ManagerOverdueQueryDtoSchema>;

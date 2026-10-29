@@ -89,6 +89,7 @@ model Organization {
   customExtractionFields      CustomExtractionField[]
   obligationRecords           ObligationRecord[]
   riskAssessments             RiskAssessment[]
+  customReports               CustomReport[]
 
   @@map("organizations")
 }
@@ -122,6 +123,7 @@ model Workspace {
   cpqPlaybooks        CpqPlaybook[]
   workflowDefinitions WorkflowDefinition[]
   dealRooms           DealRoom[]
+  customReports       CustomReport[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -180,6 +182,7 @@ model User {
   dealRoomMemberships      DealRoomMember[]
   dealRoomDocumentsAdded   DealRoomDocument[]       @relation("DealRoomDocAdder")
   dealRoomMessagesAuthored DealRoomMessage[]        @relation("DealRoomMsgAuthor")
+  customReportsCreated     CustomReport[]           @relation("CustomReportCreator")
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -1547,6 +1550,29 @@ model RiskAssessment {
   @@index([documentId])
   @@index([signatureRequestId])
   @@map("risk_assessments")
+}
+
+model CustomReport {
+  id             String    @id // UUIDv7
+  organizationId String    @map("organization_id")
+  workspaceId    String    @map("workspace_id")
+  createdBy      String    @map("created_by")
+  name           String
+  definition     Json      // dimensions, metrics, filters, chartType
+  schedule       Json?     // { frequency: 'daily' | 'weekly' | 'monthly', recipients: string[] }
+  lastRunAt      DateTime? @map("last_run_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace      Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator        User         @relation("CustomReportCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([workspaceId])
+  @@index([createdBy])
+  @@map("custom_reports")
 }
 
 

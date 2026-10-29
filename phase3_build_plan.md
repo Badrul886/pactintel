@@ -1626,16 +1626,16 @@ Integration:
 
 ### Definition of Done for Sprint 3.10
 
-- [ ] Company, team, personal analytics dashboards
-- [ ] Conversion funnel and template performance reports
-- [ ] Engagement scoring pipeline (BullMQ job + ClickHouse update)
-- [ ] Disengaged/re-engaged flags computed and surfaced in UI
-- [ ] Custom report builder UI (drag-and-drop, filter, chart type)
-- [ ] Scheduled report delivery (email CSV, Cloud Scheduler)
-- [ ] Manager overdue follow-up view
-- [ ] CSV export for any report
-- [ ] Plan gating for custom reports
-- [ ] custom_reports table with RLS + data-manifest
+- [x] Company, team, personal analytics dashboards
+- [x] Conversion funnel and template performance reports
+- [x] Engagement scoring pipeline (BullMQ job + ClickHouse update)
+- [x] Disengaged/re-engaged flags computed and surfaced in UI
+- [x] Custom report builder UI (drag-and-drop, filter, chart type)
+- [x] Scheduled report delivery (email CSV, Cloud Scheduler)
+- [x] Manager overdue follow-up view
+- [x] CSV export for any report
+- [x] Plan gating for custom reports
+- [x] custom_reports table with RLS + data-manifest
 - [x] All tests pass
 
 ---

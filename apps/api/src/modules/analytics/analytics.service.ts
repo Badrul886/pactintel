@@ -15,7 +15,14 @@ import {
   SectionViewEvent,
   SectionAnalyticsSummary,
   DocumentAnalyticsFullResponse,
+  AnalyticsRollupOverview,
+  ConversionFunnelData,
+  TemplatePerformanceItem,
+  EngagementScoreSummary,
+  ManagerOverdueFollowupItem,
+  OverviewQueryDto,
 } from '@pactintel/shared-types';
+import { EngagementScoringService } from './engagement-scoring.service';
 
 export const TRANSPARENT_1X1_GIF = Buffer.from(
   'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
@@ -25,8 +32,14 @@ export const TRANSPARENT_1X1_GIF = Buffer.from(
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
+  private scoringService: EngagementScoringService;
 
-  constructor(private readonly repository: AnalyticsRepository) {}
+  constructor(
+    private readonly repository: AnalyticsRepository,
+    scoringService?: EngagementScoringService,
+  ) {
+    this.scoringService = scoringService || new EngagementScoringService(repository);
+  }
 
   /**
    * Tracks a document view via 1x1 transparent tracking GIF (RULE AN-001 & ACC-001).
@@ -142,7 +155,6 @@ export class AnalyticsService {
     sessionId: string,
     events: SectionViewEvent[],
   ): Promise<void> {
-    // EC-ANALYTICS-01: Max 50 events per batch
     if (!events || events.length === 0) {
       return;
     }
@@ -150,7 +162,6 @@ export class AnalyticsService {
       throw new UnprocessableEntityException('Section batch size cannot exceed 50 events');
     }
 
-    // Calculate total duration for this batch and individual bounds
     let batchDurationSum = 0;
     for (const event of events) {
       if (event.durationMs < 0 || event.durationMs > 3600000) {
@@ -162,7 +173,6 @@ export class AnalyticsService {
       batchDurationSum += event.durationMs;
     }
 
-    // EC-ANALYTICS-02: durationMs sum per session per minute < 120,000ms
     const isWithinRateLimit = this.repository.checkAndRecordSessionDuration(
       sessionId,
       batchDurationSum,
@@ -176,7 +186,6 @@ export class AnalyticsService {
       );
     }
 
-    // Lookup document
     const document = await this.repository.findDocumentBySlugOrId(documentSlug);
     if (!document) {
       this.logger.debug(
@@ -185,7 +194,6 @@ export class AnalyticsService {
       return;
     }
 
-    // Construct buffered section view records (UUIDv7 via generateId())
     const sectionViews: BufferedSectionView[] = events.map((event) => ({
       eventId: generateId(),
       organizationId: document.organizationId,
@@ -199,19 +207,13 @@ export class AnalyticsService {
       createdAt: new Date(),
     }));
 
-    // EC-ANALYTICS-03: Pub/Sub buffer publish — swallow error and never return 5xx
     try {
       await this.repository.bufferSectionViews(sectionViews);
     } catch (err: any) {
       this.logger.error(`[Analytics] Failed to buffer section views: ${err.message}`, err.stack);
-      // Swallow error — client recipient experience must never be disrupted
     }
   }
 
-  /**
-   * Returns section-level metrics for a document (cached for 5 min).
-   * GET /api/v1/documents/:id/analytics/sections
-   */
   async getSectionAnalytics(
     documentId: string,
     organizationId: string,
@@ -219,10 +221,6 @@ export class AnalyticsService {
     return this.repository.getSectionAnalytics(documentId, organizationId);
   }
 
-  /**
-   * Returns full analytics dashboard payload (Overview KPIs, Heatmap, Viewer table).
-   * GET /api/v1/documents/:id/analytics/full
-   */
   async getFullDocumentAnalytics(
     documentId: string,
     organizationId: string,
@@ -230,13 +228,71 @@ export class AnalyticsService {
     return this.repository.getFullDocumentAnalytics(documentId, organizationId);
   }
 
-  /**
-   * Returns basic document analytics summary (ACC-001).
-   */
   async getDocumentAnalytics(
     documentId: string,
     organizationId: string,
   ): Promise<DocumentAnalyticsSummary> {
     return this.repository.getDocumentMetrics(documentId, organizationId);
+  }
+
+  // =========================================================================
+  // Sprint 3.10: Enterprise Analytics, Funnels, and Rollups
+  // =========================================================================
+
+  private resolveRoleScope(role: string): 'company' | 'team' | 'personal' {
+    const normalized = (role || 'member').toLowerCase();
+    if (['owner', 'admin'].includes(normalized)) return 'company';
+    if (normalized === 'manager') return 'team';
+    return 'personal';
+  }
+
+  async getRollupOverview(
+    organizationId: string,
+    userRole: string,
+    userId: string,
+    query?: OverviewQueryDto,
+  ): Promise<AnalyticsRollupOverview> {
+    const scope = this.resolveRoleScope(userRole);
+    return this.repository.getRollupOverview(organizationId, scope, userId, query);
+  }
+
+  async getConversionFunnel(
+    organizationId: string,
+    userRole: string,
+    userId: string,
+    query?: OverviewQueryDto,
+  ): Promise<ConversionFunnelData> {
+    const scope = this.resolveRoleScope(userRole);
+    return this.repository.getConversionFunnel(organizationId, scope, userId, query);
+  }
+
+  async getTemplatePerformance(
+    organizationId: string,
+    userRole: string,
+    userId: string,
+  ): Promise<TemplatePerformanceItem[]> {
+    const scope = this.resolveRoleScope(userRole);
+    return this.repository.getTemplatePerformance(organizationId, scope, userId);
+  }
+
+  async getDocumentEngagementScore(
+    documentId: string,
+    organizationId: string,
+  ): Promise<EngagementScoreSummary> {
+    return this.scoringService.evaluateDocumentEngagement(documentId, organizationId);
+  }
+
+  async getManagerOverdueFollowups(
+    organizationId: string,
+    userId: string,
+    thresholdDays: number = 3,
+    teamId?: string,
+  ): Promise<ManagerOverdueFollowupItem[]> {
+    return this.repository.getManagerOverdueFollowups(
+      organizationId,
+      userId,
+      thresholdDays,
+      teamId,
+    );
   }
 }

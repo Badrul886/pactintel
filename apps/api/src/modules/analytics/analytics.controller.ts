@@ -2,7 +2,10 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Param,
+  Query,
   Body,
   Req,
   Res,
@@ -12,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AnalyticsService } from './analytics.service';
+import { CustomReportService } from './custom-report.service';
 import { HeartbeatDto } from './dto/heartbeat.dto';
 import { BatchSectionEventsDto } from './dto/section-events.dto';
 import { AuthGuard } from '../../common/guards/auth.guard';
@@ -20,11 +24,24 @@ import {
   DocumentAnalyticsSummary,
   SectionAnalyticsSummary,
   DocumentAnalyticsFullResponse,
+  AnalyticsRollupOverview,
+  ConversionFunnelData,
+  TemplatePerformanceItem,
+  EngagementScoreSummary,
+  ManagerOverdueFollowupItem,
+  CustomReportResponse,
+  CustomReportExecutionResult,
+  CreateCustomReportDto,
+  UpdateCustomReportDto,
+  OverviewQueryDto,
 } from '@pactintel/shared-types';
 
 @Controller()
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(
+    private readonly analyticsService: AnalyticsService,
+    private readonly customReportService: CustomReportService,
+  ) {}
 
   /**
    * 1x1 Transparent Tracking Pixel (NO auth).
@@ -134,5 +151,215 @@ export class AnalyticsController {
   ): Promise<DocumentAnalyticsSummary> {
     const orgId = req.organizationId || req.user?.organizationId;
     return this.analyticsService.getDocumentAnalytics(documentId, orgId);
+  }
+
+  // =========================================================================
+  // Sprint 3.10: Enterprise Analytics, Funnels, and Custom Reports
+  // =========================================================================
+
+  /**
+   * Company/team/personal analytics overview roll-up.
+   * GET /api/v1/analytics/overview
+   */
+  @Get('api/v1/analytics/overview')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'Analytics' })
+  async getOverview(
+    @Req() req: any,
+    @Query() query: OverviewQueryDto,
+  ): Promise<AnalyticsRollupOverview> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    const role = req.user?.role || 'member';
+    const userId = req.user?.id || req.user?.userId;
+    return this.analyticsService.getRollupOverview(orgId, role, userId, query);
+  }
+
+  /**
+   * Conversion Funnel & Deal Velocity Report.
+   * GET /api/v1/analytics/conversion
+   */
+  @Get('api/v1/analytics/conversion')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'Analytics' })
+  async getConversion(
+    @Req() req: any,
+    @Query() query: OverviewQueryDto,
+  ): Promise<ConversionFunnelData> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    const role = req.user?.role || 'member';
+    const userId = req.user?.id || req.user?.userId;
+    return this.analyticsService.getConversionFunnel(orgId, role, userId, query);
+  }
+
+  /**
+   * Template Performance Rankings.
+   * GET /api/v1/analytics/templates
+   */
+  @Get('api/v1/analytics/templates')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'Analytics' })
+  async getTemplatePerformance(@Req() req: any): Promise<TemplatePerformanceItem[]> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    const role = req.user?.role || 'member';
+    const userId = req.user?.id || req.user?.userId;
+    return this.analyticsService.getTemplatePerformance(orgId, role, userId);
+  }
+
+  /**
+   * Proprietary Document Engagement Score (0-100).
+   * GET /api/v1/analytics/documents/:id/engagement-score
+   */
+  @Get('api/v1/analytics/documents/:id/engagement-score')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'Analytics' })
+  async getEngagementScore(
+    @Param('id') documentId: string,
+    @Req() req: any,
+  ): Promise<EngagementScoreSummary> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.analyticsService.getDocumentEngagementScore(documentId, orgId);
+  }
+
+  /**
+   * Manager Overdue Follow-up Tracker.
+   * GET /api/v1/analytics/manager/overdue-followups
+   */
+  @Get('api/v1/analytics/manager/overdue-followups')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'Analytics' })
+  async getManagerOverdueFollowups(
+    @Req() req: any,
+    @Query('thresholdDays') thresholdDays?: number,
+    @Query('teamId') teamId?: string,
+  ): Promise<ManagerOverdueFollowupItem[]> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    const userId = req.user?.id || req.user?.userId;
+    const days = thresholdDays ? Number(thresholdDays) : 3;
+    return this.analyticsService.getManagerOverdueFollowups(orgId, userId, days, teamId);
+  }
+
+  // --- Custom Report Builder Endpoints (Plan Gated: Business+) ---
+
+  /**
+   * Create custom report definition.
+   * POST /api/v1/analytics/reports
+   */
+  @Post('api/v1/analytics/reports')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'create', subject: 'CustomReport' })
+  async createReport(
+    @Req() req: any,
+    @Body() dto: CreateCustomReportDto,
+  ): Promise<CustomReportResponse> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    const userId = req.user?.id || req.user?.userId;
+    const workspaceId = dto.workspaceId || req.workspaceId || req.user?.workspaceId;
+    return this.customReportService.createReport(orgId, workspaceId, userId, dto);
+  }
+
+  /**
+   * List custom reports.
+   * GET /api/v1/analytics/reports
+   */
+  @Get('api/v1/analytics/reports')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'CustomReport' })
+  async listReports(
+    @Req() req: any,
+    @Query('workspaceId') workspaceId?: string,
+  ): Promise<CustomReportResponse[]> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.customReportService.listReports(orgId, workspaceId);
+  }
+
+  /**
+   * Get custom report by ID.
+   * GET /api/v1/analytics/reports/:id
+   */
+  @Get('api/v1/analytics/reports/:id')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'CustomReport' })
+  async getReport(@Param('id') reportId: string, @Req() req: any): Promise<CustomReportResponse> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.customReportService.getReportById(orgId, reportId);
+  }
+
+  /**
+   * Run custom report.
+   * POST /api/v1/analytics/reports/:id/run
+   */
+  @Post('api/v1/analytics/reports/:id/run')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'CustomReport' })
+  async runReport(
+    @Param('id') reportId: string,
+    @Req() req: any,
+  ): Promise<CustomReportExecutionResult> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.customReportService.runReport(orgId, reportId);
+  }
+
+  /**
+   * Get last results of custom report.
+   * GET /api/v1/analytics/reports/:id/results
+   */
+  @Get('api/v1/analytics/reports/:id/results')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'CustomReport' })
+  async getReportResults(
+    @Param('id') reportId: string,
+    @Req() req: any,
+  ): Promise<CustomReportExecutionResult> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.customReportService.runReport(orgId, reportId);
+  }
+
+  /**
+   * Export custom report as RFC-4180 CSV (OWASP formula injection protected).
+   * GET /api/v1/analytics/reports/:id/export
+   */
+  @Get('api/v1/analytics/reports/:id/export')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'read', subject: 'CustomReport' })
+  async exportReportCsv(@Param('id') reportId: string, @Req() req: any, @Res() res: Response) {
+    const orgId = req.organizationId || req.user?.organizationId;
+    const csvString = await this.customReportService.exportCsv(orgId, reportId);
+
+    res.set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="report-${reportId}.csv"`,
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    });
+
+    res.status(HttpStatus.OK).send(csvString);
+  }
+
+  /**
+   * Update custom report.
+   * PATCH /api/v1/analytics/reports/:id
+   */
+  @Patch('api/v1/analytics/reports/:id')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'update', subject: 'CustomReport' })
+  async updateReport(
+    @Param('id') reportId: string,
+    @Req() req: any,
+    @Body() dto: UpdateCustomReportDto,
+  ): Promise<CustomReportResponse> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.customReportService.updateReport(orgId, reportId, dto);
+  }
+
+  /**
+   * Soft-delete custom report.
+   * DELETE /api/v1/analytics/reports/:id
+   */
+  @Delete('api/v1/analytics/reports/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'delete', subject: 'CustomReport' })
+  async deleteReport(@Param('id') reportId: string, @Req() req: any): Promise<void> {
+    const orgId = req.organizationId || req.user?.organizationId;
+    await this.customReportService.deleteReport(orgId, reportId);
   }
 }
