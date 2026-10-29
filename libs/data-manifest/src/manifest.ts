@@ -621,6 +621,16 @@ export const dataManifest: DataManifest = {
       residency: 'cell_jurisdiction',
       description: 'In-app notification inbox feed for users',
     },
+    {
+      id: 'pg-devices',
+      type: 'postgresql_table',
+      tableOrResource: 'devices',
+      rls: true,
+      retention: 'until_org_deletion',
+      erasure: 'hard_delete_cascade',
+      residency: 'cell_jurisdiction',
+      description: 'Mobile device push notification tokens (FCM/APNs) for user alert delivery',
+    },
 
     // --- PostgreSQL: Phase 2 Additions (Collaboration, Approvals, Automation, AI, Clickwrap) ---
     {

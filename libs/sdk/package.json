@@ -1,0 +1,14 @@
+{
+  "name": "@pactintel/sdk",
+  "version": "1.0.0",
+  "description": "Official TypeScript & JavaScript SDK for PactIntel legal and contract intelligence platform",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "nx": {
+    "tags": [
+      "scope:shared",
+      "type:sdk"
+    ]
+  },
+  "dependencies": {}
+}

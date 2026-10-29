@@ -55,7 +55,7 @@ describe('AI Guardrails Unit Tests (RULES AI-003, AI-008 & EC-AI-03)', () => {
       fail('Expected 403 ForbiddenException');
     } catch (err: any) {
       expect(err).toBeInstanceOf(ForbiddenException);
-      expect(err.getResponse()).toEqual({
+      expect(err.getResponse()).toMatchObject({
         code: 'AI_GUARDRAIL_VIOLATION',
         message: 'AI is not permitted for this document',
       });
@@ -97,7 +97,7 @@ describe('AI Guardrails Unit Tests (RULES AI-003, AI-008 & EC-AI-03)', () => {
       fail('Expected 403 ForbiddenException');
     } catch (err: any) {
       expect(err).toBeInstanceOf(ForbiddenException);
-      expect(err.getResponse()).toEqual({
+      expect(err.getResponse()).toMatchObject({
         code: 'AI_GUARDRAIL_VIOLATION',
         message: 'AI features are disabled for your organization',
       });

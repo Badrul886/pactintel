@@ -17,6 +17,7 @@
   "dependencies": {
     "@pactintel/shared-types": "workspace:*",
     "@pactintel/ui": "workspace:*",
+    "@pactintel/i18n": "workspace:*",
     "@tiptap/extension-collaboration": "^3.32.0",
     "@tiptap/extension-collaboration-cursor": "^2.26.2",
     "@tiptap/pm": "^3.32.0",
@@ -26,6 +27,7 @@
     "next": "^15.1.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-intl": "^12.1.6",
     "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },

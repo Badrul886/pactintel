@@ -100,3 +100,4 @@ CREATE POLICY form_roles_isolation ON form_roles
 
 CREATE POLICY form_magic_links_isolation ON form_magic_links
   FOR ALL USING (organization_id = (SELECT current_setting('app.current_organization_id', true)::uuid));
+

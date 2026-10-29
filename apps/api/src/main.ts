@@ -13,8 +13,39 @@ async function bootstrap() {
   const logger = app.get(Logger);
   app.useLogger(logger);
 
-  // Security Headers
-  app.use(helmet());
+  // Security Headers (RULE SEC-001 & Phase 3 Cross-Cutting Requirements)
+  app.use((req: any, res: any, next: any) => {
+    const isEmbedOrForm = req.path.startsWith('/embed') || req.path.startsWith('/f/');
+
+    if (isEmbedOrForm) {
+      // Relaxed framing for white-label embedding and public forms
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors *;",
+      );
+    } else {
+      // Strict framing protection for standard internal SaaS routes
+      res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none';",
+      );
+      res.setHeader('X-Frame-Options', 'DENY');
+    }
+
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+
+    next();
+  });
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Managed custom dynamically above
+      frameguard: false, // Managed custom dynamically above
+    }),
+  );
 
   // CORS allowlist configuration
   const allowedOrigins = [

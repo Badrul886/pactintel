@@ -104,4 +104,22 @@ export class OrganizationController {
     const orgId = this.cls.get<string>('organizationId');
     return this.orgService.createWorkspace(orgId, name, slug);
   }
+
+  // --- AI Guardrails Management (RULE AI-003) ---
+
+  @Get('organizations/settings/ai-guardrails')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'manage', subject: 'Organization' })
+  async getAiGuardrails() {
+    const orgId = this.cls.get<string>('organizationId');
+    return this.orgService.getAiGuardrails(orgId);
+  }
+
+  @Patch('organizations/settings/ai-guardrails')
+  @UseGuards(AuthGuard, CaslGuard)
+  @CheckPolicies({ action: 'manage', subject: 'Organization' })
+  async updateAiGuardrails(@Body() dto: any) {
+    const orgId = this.cls.get<string>('organizationId');
+    return this.orgService.updateAiGuardrails(orgId, dto);
+  }
 }

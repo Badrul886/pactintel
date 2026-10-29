@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { ApiKeyController } from './api-key.controller';
 import { ApiKeyService } from './api-key.service';
 import { SessionService } from './session.service';
 import { SamlSsoService } from './saml-sso.service';
@@ -13,7 +14,7 @@ import { DocumentModule } from '../document/document.module';
 
 @Module({
   imports: [DocumentModule],
-  controllers: [AuthController, ScimController, WorkosWebhookHandler],
+  controllers: [AuthController, ApiKeyController, ScimController, WorkosWebhookHandler],
   providers: [
     AuthService,
     ApiKeyService,

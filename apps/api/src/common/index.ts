@@ -10,3 +10,4 @@ export * from './health/health.controller';
 export * from './logging/pino.config';
 export * from './metrics/prometheus';
 export * from './telemetry/otel';
+export * from './resilience/circuit-breaker';

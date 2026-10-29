@@ -1,0 +1,524 @@
+openapi: 3.0.3
+info:
+  title: PactIntel Public REST API
+  description: |
+    The official REST API for PactIntel — the open, multi-jurisdiction contract intelligence,
+    electronic signature, and legal workflow automation platform.
+
+    All requests require either an API Key (`X-Api-Key: pi_live_...`) or session authentication (`Bearer <token>`).
+    All operations are multi-tenant and enforce strict PostgreSQL 17 Row-Level Security.
+  version: 1.0.0
+  contact:
+    name: PactIntel Developer Support
+    url: https://pactintel.com/docs
+    email: developers@pactintel.com
+  license:
+    name: Proprietary
+    url: https://pactintel.com/terms
+
+servers:
+  - url: https://api.pactintel.com/api/v1
+    description: Production Global Cell (gcp-us1 / gcp-eu1)
+  - url: http://localhost:4000/api/v1
+    description: Local Development Environment
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+paths:
+  /api-keys:
+    get:
+      summary: List API keys
+      description: Returns all active and revoked API keys for the authenticated organization. Plaintext keys are never returned.
+      operationId: listApiKeys
+      tags:
+        - Developer Platform
+      responses:
+        '200':
+          description: List of organization API keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create an API key
+      description: Generates a new cryptographically secure API key. The plaintext key is returned exactly once.
+      operationId: createApiKey
+      tags:
+        - Developer Platform
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  example: CRM Sync Integration
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                  example: ['read:documents', 'write:documents']
+                expiresInDays:
+                  type: integer
+                  example: 90
+                mfaVerified:
+                  type: boolean
+                  example: true
+      responses:
+        '201':
+          description: API key created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyCreated'
+        '403':
+          description: MFA required or insufficient permissions
+
+  /api-keys/{id}:
+    delete:
+      summary: Revoke an API key
+      description: Permanently deactivates an API key. Revoked keys immediately return 401 on subsequent requests.
+      operationId: revokeApiKey
+      tags:
+        - Developer Platform
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: API key revoked successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /documents:
+    get:
+      summary: List documents
+      description: Returns cursor-paginated list of contracts, quotes, and proposals.
+      operationId: listDocuments
+      tags:
+        - Documents
+      parameters:
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, sent, viewed, signed, declined, expired, archived]
+      responses:
+        '200':
+          description: Paginated document list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+                  nextCursor:
+                    type: string
+                    nullable: true
+    post:
+      summary: Create a document
+      description: Creates a new contract or proposal from draft or template.
+      operationId: createDocument
+      tags:
+        - Documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - type
+              properties:
+                title:
+                  type: string
+                  example: Master Services Agreement
+                type:
+                  type: string
+                  enum: [contract, proposal, quote, sow, form]
+                templateId:
+                  type: string
+                variables:
+                  type: object
+      responses:
+        '201':
+          description: Document created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+
+  /documents/{id}:
+    get:
+      summary: Get document details
+      operationId: getDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+    patch:
+      summary: Update document
+      operationId: updateDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+    delete:
+      summary: Soft-delete document
+      operationId: deleteDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document moved to trash
+
+  /documents/{id}/send:
+    post:
+      summary: Send document for signature
+      operationId: sendDocument
+      tags:
+        - Documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signers:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      role:
+                        type: string
+      responses:
+        '200':
+          description: Document sent to signers
+
+  /forms:
+    get:
+      summary: List standalone forms
+      operationId: listForms
+      tags:
+        - Forms
+      responses:
+        '200':
+          description: List of forms
+    post:
+      summary: Create standalone form
+      operationId: createForm
+      tags:
+        - Forms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFormRequest'
+      responses:
+        '201':
+          description: Form created
+
+  /forms/{id}/publish:
+    post:
+      summary: Publish form
+      description: Makes form publicly accessible at /f/{orgSlug}/{formSlug}.
+      operationId: publishForm
+      tags:
+        - Forms
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Form published
+
+  /webhooks:
+    get:
+      summary: List webhook subscriptions
+      operationId: listWebhooks
+      tags:
+        - Webhooks
+      responses:
+        '200':
+          description: List of webhooks
+    post:
+      summary: Create webhook subscription
+      operationId: createWebhook
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+                - events
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  example: https://customer.app/webhooks/pactintel
+                events:
+                  type: array
+                  items:
+                    type: string
+                  example: ['document.signed', 'payment.completed']
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Webhook subscription created
+
+  /webhooks/{id}/test:
+    post:
+      summary: Send test webhook event
+      operationId: testWebhook
+      tags:
+        - Webhooks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test payload dispatched with signature
+
+  /devices/register:
+    post:
+      summary: Register mobile push token
+      description: Registers an iOS APNs or Android FCM device token for authenticated user push alerts.
+      operationId: registerDevice
+      tags:
+        - Mobile & Push
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - platform
+                - token
+              properties:
+                platform:
+                  type: string
+                  enum: [ios, android]
+                token:
+                  type: string
+                  example: fcm_device_token_xyz_123
+      responses:
+        '201':
+          description: Device registered
+
+  /devices/{id}:
+    delete:
+      summary: Deregister mobile push token
+      operationId: deregisterDevice
+      tags:
+        - Mobile & Push
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Device deregistered
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Api-Key
+      description: High-entropy SHA-256 hashed API Key (e.g. pi_live_...).
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Authentication failed or missing credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+
+  schemas:
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        prefix:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    ApiKeyCreated:
+      type: object
+      properties:
+        apiKey:
+          type: string
+          description: Plaintext key, displayed ONCE only
+          example: pi_live_9d8f37a6b4c1e204958d7c6b5a4e3d2c
+        id:
+          type: string
+        name:
+          type: string
+        prefix:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        organizationId:
+          type: string
+        title:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateFormRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        workspaceId:
+          type: string
+        definition:
+          type: object
+        settings:
+          type: object
+
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: NOT_FOUND
+            message:
+              type: string
+              example: The requested resource was not found
+            requestId:
+              type: string
+              example: req_01948df9_8123_7020_9bc1_df837261a9bc

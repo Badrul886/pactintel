@@ -18,7 +18,10 @@ import {
 export interface AiGatewayContext {
   userId: string;
   organizationId: string;
+  workspaceId?: string;
   documentId?: string;
+  crmFieldsAccessed?: string[];
+  contentVariationType?: string;
 }
 
 export interface AiGatewayResult {
@@ -47,18 +50,69 @@ export class AiGateway {
     input: Record<string, unknown>,
     context: AiGatewayContext,
   ): Promise<AiGatewayResult> {
-    // 1. RULE AI-003: Server-side guardrail check
+    // 1. RULE AI-003: Server-side guardrail checks
     const guardrails = await this.orgService.getAiGuardrails(context.organizationId);
-    if (guardrails.disabled) {
+
+    // a. Kill switch
+    if (guardrails.killSwitch || guardrails.disabled) {
       throw new ForbiddenException({
         code: 'AI_GUARDRAIL_VIOLATION',
+        violated_rule: 'kill_switch',
         message: 'AI features are disabled for your organization',
       });
     }
 
+    // b. Workspace restriction
+    if (context.workspaceId && guardrails.excludedWorkspaceIds?.includes(context.workspaceId)) {
+      throw new ForbiddenException({
+        code: 'AI_GUARDRAIL_VIOLATION',
+        violated_rule: 'workspace_restriction',
+        message: `AI features are restricted in workspace '${context.workspaceId}'`,
+      });
+    }
+
+    // c. Data source restriction (CRM fields)
+    if (context.crmFieldsAccessed && context.crmFieldsAccessed.length > 0) {
+      const disallowed = context.crmFieldsAccessed.filter((field) => {
+        if (guardrails.disallowedCrmFields?.includes(field)) return true;
+        if (
+          guardrails.allowedCrmFields &&
+          guardrails.allowedCrmFields.length > 0 &&
+          !guardrails.allowedCrmFields.includes(field)
+        ) {
+          return true;
+        }
+        return false;
+      });
+      if (disallowed.length > 0) {
+        throw new ForbiddenException({
+          code: 'AI_GUARDRAIL_VIOLATION',
+          violated_rule: 'data_source_restriction',
+          message: `AI cannot access restricted CRM fields: ${disallowed.join(', ')}`,
+        });
+      }
+    }
+
+    // d. Content variation restriction
+    if (
+      context.contentVariationType &&
+      guardrails.allowedContentVariationTypes &&
+      guardrails.allowedContentVariationTypes.length > 0
+    ) {
+      if (!guardrails.allowedContentVariationTypes.includes(context.contentVariationType)) {
+        throw new ForbiddenException({
+          code: 'AI_GUARDRAIL_VIOLATION',
+          violated_rule: 'content_variation_restriction',
+          message: `AI content variation type '${context.contentVariationType}' is restricted by organization policy`,
+        });
+      }
+    }
+
+    // e. Document restriction
     if (context.documentId && guardrails.excludedDocumentIds?.includes(context.documentId)) {
       throw new ForbiddenException({
         code: 'AI_GUARDRAIL_VIOLATION',
+        violated_rule: 'document_exclusion',
         message: 'AI is not permitted for this document',
       });
     }

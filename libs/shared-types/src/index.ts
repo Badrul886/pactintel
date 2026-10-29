@@ -2650,3 +2650,29 @@ export const ContinueFormSubmissionDtoSchema = z.object({
   data: z.record(z.unknown()),
 });
 export type ContinueFormSubmissionDto = z.input<typeof ContinueFormSubmissionDtoSchema>;
+
+// =============================================================================
+// AI Guardrails (RULE AI-003)
+// =============================================================================
+
+export const AiGuardrailsSchema = z.object({
+  killSwitch: z.boolean().default(false),
+  disabled: z.boolean().optional(),
+  excludedWorkspaceIds: z.array(z.string()).default([]),
+  allowedCrmFields: z.array(z.string()).default([]),
+  disallowedCrmFields: z.array(z.string()).default([]),
+  allowedContentVariationTypes: z.array(z.string()).default([]),
+  excludedDocumentIds: z.array(z.string()).default([]),
+});
+export type AiGuardrails = z.infer<typeof AiGuardrailsSchema>;
+
+export const UpdateAiGuardrailsDtoSchema = z.object({
+  killSwitch: z.boolean().optional(),
+  disabled: z.boolean().optional(),
+  excludedWorkspaceIds: z.array(z.string()).optional(),
+  allowedCrmFields: z.array(z.string()).optional(),
+  disallowedCrmFields: z.array(z.string()).optional(),
+  allowedContentVariationTypes: z.array(z.string()).optional(),
+  excludedDocumentIds: z.array(z.string()).optional(),
+});
+export type UpdateAiGuardrailsDto = z.input<typeof UpdateAiGuardrailsDtoSchema>;

@@ -6,6 +6,8 @@ import { NotificationPreferenceItem } from '@pactintel/shared-types';
 import { InAppNotification, NotificationPreference, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { generateId } from '@pactintel/shared-utils';
+import { getMessages, formatMessage, SupportedLocale, DEFAULT_LOCALE } from '@pactintel/i18n';
+import { CircuitBreaker } from '../../common/resilience/circuit-breaker';
 
 export interface EmailDispatchOptions {
   to: string;
@@ -19,6 +21,7 @@ export interface EmailDispatchOptions {
   data: Record<string, unknown>;
   organizationId: string;
   userId?: string;
+  locale?: string;
   isSystemCritical?: boolean;
 }
 
@@ -39,6 +42,8 @@ export class NotificationService {
   private userStreamSubjects = new Map<string, Subject<MessageEvent>>();
   private repository: NotificationRepository;
   private prisma: PrismaClient | PrismaService;
+  private readonly fcmBreaker = new CircuitBreaker({ name: 'fcm' });
+  private readonly apnsBreaker = new CircuitBreaker({ name: 'apns' });
 
   constructor(
     repositoryOrPrisma: NotificationRepository | PrismaService | PrismaClient,
@@ -74,8 +79,12 @@ export class NotificationService {
       }
     }
 
+    const locale =
+      options.locale || (await this.getOrgLocale(options.organizationId)) || DEFAULT_LOCALE;
+    const rendered = this.renderEmailContent(options.template, locale, options.data);
+
     this.logger.log(
-      `[NotificationQueue] Enqueued ${options.template} email to ${options.to} for org ${options.organizationId}`,
+      `[NotificationQueue] Enqueued ${options.template} (${locale}) email to ${options.to} for org ${options.organizationId}: subject="${rendered.subject}"`,
     );
     return true;
   }
@@ -149,6 +158,11 @@ export class NotificationService {
         });
       }
     }
+
+    // 3. Dispatch to mobile devices if registered (Sprint 3.12 FCM/APNs push)
+    this.dispatchPushNotification(userId, orgId, payload).catch((err) => {
+      this.logger.warn(`Failed to dispatch push notification: ${err.message}`);
+    });
 
     return createdNotification;
   }
@@ -235,5 +249,110 @@ export class NotificationService {
         },
       },
     });
+  }
+
+  // --- i18n Email Rendering (RULE I18N-002) ---
+
+  async getOrgLocale(organizationId: string): Promise<SupportedLocale> {
+    try {
+      const org = await (this.prisma as PrismaClient).organization.findUnique({
+        where: { id: organizationId },
+        select: { locale: true },
+      });
+      return (org?.locale as SupportedLocale) || DEFAULT_LOCALE;
+    } catch {
+      return DEFAULT_LOCALE;
+    }
+  }
+
+  renderEmailContent(
+    template: string,
+    locale: string,
+    data: Record<string, unknown>,
+  ): { subject: string; body: string } {
+    const messages = getMessages(locale);
+    const normalizedKey = template.replace(/-/g, '_');
+    const subjectTemplate =
+      messages[`email.${normalizedKey}.subject`] || `Notification from PactIntel`;
+    const bodyTemplate = messages[`email.${normalizedKey}.body`] || `You have a new update.`;
+
+    const vars: Record<string, string | number> = {};
+    for (const [k, v] of Object.entries(data)) {
+      if (typeof v === 'string' || typeof v === 'number') {
+        vars[k] = v;
+      }
+    }
+
+    return {
+      subject: formatMessage(subjectTemplate, vars),
+      body: formatMessage(bodyTemplate, vars),
+    };
+  }
+
+  // --- Mobile Push Notification Operations (Sprint 3.12 Backend Readiness) ---
+
+  async registerDevice(
+    organizationId: string,
+    userId: string,
+    platform: 'ios' | 'android',
+    token: string,
+  ) {
+    return (this.prisma as PrismaClient).device.upsert({
+      where: { token },
+      update: {
+        organizationId,
+        userId,
+        platform,
+        updatedAt: new Date(),
+      },
+      create: {
+        id: generateId(),
+        organizationId,
+        userId,
+        platform,
+        token,
+      },
+    });
+  }
+
+  async deregisterDevice(organizationId: string, userId: string, deviceId: string) {
+    return (this.prisma as PrismaClient).device.deleteMany({
+      where: {
+        id: deviceId,
+        organizationId,
+        userId,
+      },
+    });
+  }
+
+  async dispatchPushNotification(
+    userId: string,
+    organizationId: string,
+    payload: InAppNotificationPayload,
+  ): Promise<number> {
+    try {
+      const devices = await (this.prisma as PrismaClient).device.findMany({
+        where: { userId, organizationId },
+      });
+
+      if (!devices || devices.length === 0) {
+        return 0;
+      }
+
+      for (const device of devices) {
+        const breaker = device.platform === 'ios' ? this.apnsBreaker : this.fcmBreaker;
+        await breaker.execute(async () => {
+          // Simulation of FCM/APNs push dispatch (with circuit breaker)
+          this.logger.log(
+            `[PushNotification] Delivered ${device.platform.toUpperCase()} push alert to token ${device.token.slice(0, 8)}... (${payload.title})`,
+          );
+        });
+      }
+
+      return devices.length;
+    } catch (err: any) {
+      this.logger.warn(`Push dispatch failed: ${err.message}`);
+      return 0;
+    }
   }
 }

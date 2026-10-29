@@ -1,0 +1,15 @@
+{
+  "name": "@pactintel/mcp-server",
+  "version": "1.0.0",
+  "description": "PactIntel Model Context Protocol (MCP) Server for AI Agents",
+  "main": "./src/index.ts",
+  "nx": {
+    "tags": [
+      "scope:api",
+      "type:app"
+    ]
+  },
+  "dependencies": {
+    "@pactintel/sdk": "workspace:*"
+  }
+}

@@ -24,7 +24,11 @@
       "@pactintel/data-manifest": ["libs/data-manifest/src/index.ts"],
       "@pactintel/data-manifest/*": ["libs/data-manifest/src/*"],
       "@pactintel/ai": ["libs/ai/src/index.ts"],
-      "@pactintel/ai/*": ["libs/ai/src/*"]
+      "@pactintel/ai/*": ["libs/ai/src/*"],
+      "@pactintel/i18n": ["libs/i18n/src/index.ts"],
+      "@pactintel/i18n/*": ["libs/i18n/src/*"],
+      "@pactintel/sdk": ["libs/sdk/src/index.ts"],
+      "@pactintel/sdk/*": ["libs/sdk/src/*"]
     },
     "strict": true,
     "noImplicitAny": true,

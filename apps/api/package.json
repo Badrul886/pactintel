@@ -29,6 +29,8 @@
     "@nestjs/terminus": "^11.0.0",
     "@pactintel/ai": "workspace:*",
     "@pactintel/data-manifest": "workspace:*",
+    "@pactintel/i18n": "workspace:*",
+    "@pactintel/sdk": "workspace:*",
     "@pactintel/shared-types": "workspace:*",
     "@pactintel/shared-utils": "workspace:*",
     "@prisma/client": "^6.4.1",

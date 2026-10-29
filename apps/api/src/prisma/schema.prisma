@@ -23,6 +23,7 @@ model Organization {
   name      String
   slug      String   @unique
   cellId    String   @default("gcp-us1") @map("cell_id")
+  locale    String   @default("en-US")
   ssoPolicy String   @default("optional") @map("sso_policy")
   workosSamlConnectionId String? @map("workos_saml_connection_id")
   createdAt DateTime @default(now()) @map("created_at")
@@ -94,6 +95,7 @@ model Organization {
   formSubmissions             FormSubmission[]
   formRoles                   FormRole[]
   formMagicLinks              FormMagicLink[]
+  devices                     Device[]
 
   @@map("organizations")
 }
@@ -158,6 +160,7 @@ model User {
   email          String
   name           String?
   role           String    @default("member") // owner, admin, manager, member, collaborator
+  locale         String    @default("en-US")
   status         String    @default("active") // active, pending, deactivated
   seatType       String    @default("full") @map("seat_type") // full, collab
   avatarUrl      String?   @map("avatar_url")
@@ -189,6 +192,7 @@ model User {
   dealRoomMessagesAuthored DealRoomMessage[]        @relation("DealRoomMsgAuthor")
   customReportsCreated     CustomReport[]           @relation("CustomReportCreator")
   formsCreated             Form[]                   @relation("FormCreator")
+  devices                  Device[]
 
   @@unique([organizationId, email])
   @@index([organizationId, status])
@@ -1675,6 +1679,28 @@ model FormMagicLink {
   @@index([expiresAt])
   @@map("form_magic_links")
 }
+
+// -----------------------------------------------------------------------------
+// 25. Mobile Devices & Push Tokens (Sprint 3.12 Backend Readiness)
+// -----------------------------------------------------------------------------
+
+model Device {
+  id             String   @id // UUIDv7
+  organizationId String   @map("organization_id")
+  userId         String   @map("user_id")
+  platform       String   // ios, android
+  token          String   @unique
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@map("devices")
+}
+
 
 
 

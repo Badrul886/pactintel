@@ -110,4 +110,31 @@ export class NotificationController {
     const orgId = req.organizationId || req.user?.organizationId;
     return this.notificationService.updatePreferences(userId, orgId, body.preferences);
   }
+
+  // --- Mobile Devices Registration (Sprint 3.12 Backend Readiness) ---
+
+  /**
+   * Register mobile device push token (FCM/APNs).
+   * POST /api/v1/devices/register
+   */
+  @Post('devices/register')
+  async registerDevice(
+    @Req() req: any,
+    @Body() body: { platform: 'ios' | 'android'; token: string },
+  ) {
+    const userId = req.user?.id || req.user?.sub;
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.notificationService.registerDevice(orgId, userId, body.platform, body.token);
+  }
+
+  /**
+   * Deregister mobile device on logout.
+   * DELETE /api/v1/devices/:id
+   */
+  @Delete('devices/:id')
+  async deregisterDevice(@Param('id') id: string, @Req() req: any) {
+    const userId = req.user?.id || req.user?.sub;
+    const orgId = req.organizationId || req.user?.organizationId;
+    return this.notificationService.deregisterDevice(orgId, userId, id);
+  }
 }

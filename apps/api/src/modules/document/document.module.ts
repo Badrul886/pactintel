@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DocumentController } from './document.controller';
 import { PublicDocumentController } from './public-document.controller';
+import { EmbedController } from './embed.controller';
 import { DocumentService } from './document.service';
 import { DocumentRepository } from './document.repository';
 import { DocumentOutboxService } from './outbox/document-outbox.service';
@@ -15,7 +16,7 @@ import { ExpiryListener } from './listeners/expiry.listener';
 
 @Module({
   imports: [NotificationModule],
-  controllers: [DocumentController, PublicDocumentController],
+  controllers: [DocumentController, PublicDocumentController, EmbedController],
   providers: [
     DocumentService,
     DocumentRepository,

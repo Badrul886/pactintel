@@ -108,26 +108,45 @@ export class OrganizationService {
   }
 
   // AI Guardrail cache (RULE AI-003)
-  private readonly aiGuardrails = new Map<
-    string,
-    { disabled: boolean; excludedDocumentIds?: string[] }
-  >();
+  private readonly aiGuardrails = new Map<string, any>();
 
-  async getAiGuardrails(
-    organizationId: string,
-  ): Promise<{ disabled: boolean; excludedDocumentIds?: string[] }> {
+  async getAiGuardrails(organizationId: string): Promise<any> {
     return (
       this.aiGuardrails.get(organizationId) || {
+        killSwitch: false,
         disabled: false,
+        excludedWorkspaceIds: [],
+        allowedCrmFields: [],
+        disallowedCrmFields: [],
+        allowedContentVariationTypes: [],
         excludedDocumentIds: [],
       }
     );
   }
 
-  setAiGuardrails(
-    organizationId: string,
-    guardrails: { disabled: boolean; excludedDocumentIds?: string[] },
-  ) {
+  async updateAiGuardrails(organizationId: string, dto: any): Promise<any> {
+    const current = await this.getAiGuardrails(organizationId);
+    const updated = {
+      ...current,
+      ...dto,
+      killSwitch:
+        dto.killSwitch !== undefined
+          ? dto.killSwitch
+          : dto.disabled !== undefined
+            ? dto.disabled
+            : current.killSwitch,
+      disabled:
+        dto.disabled !== undefined
+          ? dto.disabled
+          : dto.killSwitch !== undefined
+            ? dto.killSwitch
+            : current.disabled,
+    };
+    this.aiGuardrails.set(organizationId, updated);
+    return updated;
+  }
+
+  setAiGuardrails(organizationId: string, guardrails: any) {
     this.aiGuardrails.set(organizationId, guardrails);
   }
 
