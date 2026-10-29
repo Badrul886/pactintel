@@ -92,23 +92,29 @@ model Organization {
 }
 
 model Workspace {
-  id             String    @id // UUIDv7
-  organizationId String    @map("organization_id")
-  name           String
-  slug           String
-  isDefault      Boolean   @default(false) @map("is_default")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  deletedAt      DateTime? @map("deleted_at")
+  id                     String    @id // UUIDv7
+  organizationId         String    @map("organization_id")
+  name                   String
+  slug                   String
+  isDefault              Boolean   @default(false) @map("is_default")
+  parentWorkspaceId      String?   @map("parent_workspace_id")
+  isSharedLibraryEnabled Boolean   @default(false) @map("is_shared_library_enabled")
+  brandingDefaults       Json?     @default("{}") @map("branding_defaults")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
 
-  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  memberships    WorkspaceMembership[]
-  documents      Document[]
-  templates      Template[]
-  contentBlocks  ContentBlock[]
-  folders        Folder[]
-  approvalChains ApprovalChain[]
-  automationRules AutomationRule[]
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentWorkspace     Workspace?            @relation("WorkspaceHierarchy", fields: [parentWorkspaceId], references: [id])
+  childWorkspaces     Workspace[]           @relation("WorkspaceHierarchy")
+  memberships         WorkspaceMembership[]
+  documents           Document[]
+  templates           Template[]
+  contentBlocks       ContentBlock[]
+  brandKits           BrandKit[]
+  folders             Folder[]
+  approvalChains      ApprovalChain[]
+  automationRules     AutomationRule[]
   productBundles      ProductBundle[]
   pricingRules        PricingRule[]
   cpqPlaybooks        CpqPlaybook[]
@@ -117,6 +123,7 @@ model Workspace {
 
   @@unique([organizationId, slug])
   @@index([organizationId])
+  @@index([parentWorkspaceId])
   @@map("workspaces")
 }
 
@@ -314,6 +321,7 @@ model Template {
   isSystem        Boolean   @default(false) @map("is_system")
   usageCount      Int       @default(0) @map("usage_count")
   folderId        String?   @map("folder_id")
+  visibility      String    @default("workspace") @map("visibility")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
@@ -324,6 +332,7 @@ model Template {
   documents    Document[]
 
   @@index([workspaceId])
+  @@index([organizationId, visibility])
   @@map("templates")
 }
 
@@ -336,6 +345,7 @@ model ContentBlock {
   content        Json
   tags           String[]
   usageCount     Int       @default(0) @map("usage_count")
+  visibility     String    @default("workspace") @map("visibility")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
@@ -344,6 +354,7 @@ model ContentBlock {
   workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([organizationId, visibility])
   @@map("content_blocks")
 }
 
@@ -663,7 +674,9 @@ model AuditLogEntry {
 model BrandKit {
   id              String    @id // UUIDv7
   organizationId  String    @map("organization_id")
+  workspaceId     String?   @map("workspace_id")
   name            String
+  visibility      String    @default("workspace") @map("visibility")
   primaryColor    String?   @map("primary_color")
   secondaryColor  String?   @map("secondary_color")
   accentColor     String?   @map("accent_color")
@@ -681,9 +694,12 @@ model BrandKit {
   deletedAt       DateTime? @map("deleted_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workspace    Workspace?   @relation(fields: [workspaceId], references: [id])
   dealRooms       DealRoom[]
 
   @@index([organizationId])
+  @@index([workspaceId])
+  @@index([organizationId, visibility])
   @@map("brand_kits")
 }
 

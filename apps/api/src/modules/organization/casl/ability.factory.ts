@@ -27,6 +27,8 @@ export class AbilityFactory {
         can('update', 'User');
         can('create', 'Workspace');
         can('read', 'Workspace');
+        can('update', 'Workspace');
+        cannot('delete', 'Workspace');
         can('manage', 'Template');
         can('use', 'Template');
         can('manage', 'ContentBlock');
@@ -81,6 +83,9 @@ export class AbilityFactory {
         can('update', 'Document');
         can('read', 'User');
         can('read', 'Workspace');
+        cannot('create', 'Workspace');
+        cannot('update', 'Workspace');
+        cannot('delete', 'Workspace');
         can('read', 'Template');
         can('use', 'Template');
         cannot('create', 'Template');
@@ -176,7 +181,6 @@ export class AbilityFactory {
         cannot('delete', 'Document');
         cannot('create', 'User');
         cannot('delete', 'User');
-        cannot('create', 'Workspace');
         cannot('manage', 'Organization');
         cannot('manage', 'Billing');
         cannot('manage', 'BrandKit');
@@ -192,6 +196,9 @@ export class AbilityFactory {
         can('read', 'Document');
         can('update', 'Document'); // Can comment/suggest, but not send/sign/delete
         can('read', 'Workspace');
+        cannot('create', 'Workspace');
+        cannot('update', 'Workspace');
+        cannot('delete', 'Workspace');
         can('read', 'Template');
         cannot('use', 'Template'); // Explicit deny
         cannot('create', 'Template');

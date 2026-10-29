@@ -409,6 +409,7 @@ export const CreateTemplateDtoSchema = z.object({
   variableFields: z.array(TemplateVariableFieldSchema).optional().default([]),
   signerRoles: z.array(TemplateSignerRoleSchema).optional().default([]),
   folderId: z.string().uuid().optional(),
+  visibility: z.enum(['workspace', 'organization']).optional().default('workspace'),
 });
 export type CreateTemplateDto = z.input<typeof CreateTemplateDtoSchema>;
 
@@ -421,6 +422,7 @@ export const UpdateTemplateDtoSchema = z.object({
   variableFields: z.array(TemplateVariableFieldSchema).optional(),
   signerRoles: z.array(TemplateSignerRoleSchema).optional(),
   folderId: z.string().uuid().nullable().optional(),
+  visibility: z.enum(['workspace', 'organization']).optional(),
 });
 export type UpdateTemplateDto = z.input<typeof UpdateTemplateDtoSchema>;
 
@@ -457,6 +459,7 @@ export const TemplateResponseDtoSchema = z.object({
   isSystem: z.boolean(),
   usageCount: z.number().int(),
   folderId: z.string().uuid().nullable().optional(),
+  visibility: z.string().optional(),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -472,6 +475,7 @@ export const CreateContentBlockDtoSchema = z.object({
   type: ContentBlockTypeEnum,
   content: z.record(z.unknown()),
   tags: z.array(z.string().max(50)).optional().default([]),
+  visibility: z.enum(['workspace', 'organization']).optional().default('workspace'),
 });
 export type CreateContentBlockDto = z.input<typeof CreateContentBlockDtoSchema>;
 
@@ -480,6 +484,7 @@ export const UpdateContentBlockDtoSchema = z.object({
   type: ContentBlockTypeEnum.optional(),
   content: z.record(z.unknown()).optional(),
   tags: z.array(z.string().max(50)).optional(),
+  visibility: z.enum(['workspace', 'organization']).optional(),
 });
 export type UpdateContentBlockDto = z.input<typeof UpdateContentBlockDtoSchema>;
 
@@ -2127,4 +2132,70 @@ export interface VerificationReportResponse {
   generatedAt: string;
   signers: VerificationReportSignerEntry[];
   assuranceStatement: string;
+}
+
+// --- Multi-Workspace & Parent-Account Oversight (Sprint 3.8) ---
+export type WorkspaceRole = 'admin' | 'manager' | 'member' | 'collaborator';
+export type AssetVisibility = 'workspace' | 'organization';
+
+export const CreateWorkspaceDtoSchema = z.object({
+  name: z.string().min(2).max(100),
+  slug: z
+    .string()
+    .min(2)
+    .max(50)
+    .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase alphanumeric with hyphens'),
+  parentWorkspaceId: z.string().uuid().optional(),
+  isSharedLibraryEnabled: z.boolean().optional(),
+  brandingDefaults: z.record(z.any()).optional(),
+});
+export type CreateWorkspaceDto = z.infer<typeof CreateWorkspaceDtoSchema>;
+
+export const UpdateWorkspaceDtoSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  parentWorkspaceId: z.string().uuid().nullable().optional(),
+  isSharedLibraryEnabled: z.boolean().optional(),
+  brandingDefaults: z.record(z.any()).optional(),
+});
+export type UpdateWorkspaceDto = z.infer<typeof UpdateWorkspaceDtoSchema>;
+
+export const AddWorkspaceMemberDtoSchema = z.object({
+  userId: z.string().uuid(),
+  role: z.enum(['admin', 'manager', 'member', 'collaborator']).default('member'),
+  hasContentAdmin: z.boolean().optional(),
+});
+export type AddWorkspaceMemberDto = z.infer<typeof AddWorkspaceMemberDtoSchema>;
+
+export const UpdateWorkspaceMemberDtoSchema = z.object({
+  role: z.enum(['admin', 'manager', 'member', 'collaborator']),
+  hasContentAdmin: z.boolean().optional(),
+});
+export type UpdateWorkspaceMemberDto = z.infer<typeof UpdateWorkspaceMemberDtoSchema>;
+
+export interface WorkspaceResponse {
+  id: string;
+  organizationId: string;
+  name: string;
+  slug: string;
+  isDefault: boolean;
+  parentWorkspaceId?: string | null;
+  isSharedLibraryEnabled: boolean;
+  brandingDefaults?: Record<string, any> | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  memberCount?: number;
+  documentCount?: number;
+}
+
+export interface WorkspaceOverviewResponse {
+  workspace: WorkspaceResponse;
+  metrics: {
+    totalDocuments: number;
+    completedDocuments: number;
+    pendingDocuments: number;
+    totalDealValue: number;
+    currency: string;
+    totalMembers: number;
+    sharedAssetsCount: number;
+  };
 }

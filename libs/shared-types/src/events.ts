@@ -78,7 +78,14 @@ export type WebhookEventType =
   | 'verification.fallback_applied'
   | 'verification.risk_adaptive.evaluated'
   | 'verification.pre_verified.recognized'
-  | 'verification.risk_scoring.fallback';
+  | 'verification.risk_scoring.fallback'
+  | 'workspace.created'
+  | 'workspace.updated'
+  | 'workspace.deleted'
+  | 'workspace.member_added'
+  | 'workspace.member_updated'
+  | 'workspace.member_removed'
+  | 'workspace.ownership_transferred';
 
 export interface OutboxEventRecord {
   id: string;

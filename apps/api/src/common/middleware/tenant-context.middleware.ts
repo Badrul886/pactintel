@@ -26,6 +26,22 @@ export class TenantContextMiddleware implements NestMiddleware {
       res.setHeader('x-organization-id', orgId);
     }
 
+    // 3. Check for workspace context header (Sprint 3.8 - RULE AUTH-003)
+    const wsHeader = (req.headers['x-workspace-id'] || req.headers['x-workspace']) as string;
+    const userWorkspace = (req as Request & { user?: { workspaceId?: string } }).user?.workspaceId;
+    const workspaceId = wsHeader || userWorkspace;
+
+    if (workspaceId) {
+      if (!isValidUuid(workspaceId)) {
+        throw new BadRequestException({
+          code: 'INVALID_WORKSPACE_ID',
+          message: 'The provided x-workspace-id must be a valid UUID.',
+        });
+      }
+      this.cls.set('workspaceId', workspaceId);
+      res.setHeader('x-workspace-id', workspaceId);
+    }
+
     next();
   }
 }

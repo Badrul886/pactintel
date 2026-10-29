@@ -1341,14 +1341,14 @@ Integration:
 
 ### Definition of Done for Sprint 3.8
 
-- [ ] Workspace slug added, validated unique per org
-- [ ] Template and content block visibility (workspace/organization)
-- [ ] RLS policies updated for workspace-scoped filtering
-- [ ] Tenant context carries both orgId and workspaceId
-- [ ] Multi-workspace CRUD endpoints
-- [ ] Owner cross-workspace overview analytics
-- [ ] Max workspace limit enforcement per plan
-- [ ] ADR-0055 written
+- [x] Workspace slug added, validated unique per org
+- [x] Template and content block visibility (workspace/organization)
+- [x] RLS policies updated for workspace-scoped filtering
+- [x] Tenant context carries both orgId and workspaceId
+- [x] Multi-workspace CRUD endpoints
+- [x] Owner cross-workspace overview analytics
+- [x] Max workspace limit enforcement per plan
+- [x] ADR-0055 written
 - [x] All tests pass
 
 ---

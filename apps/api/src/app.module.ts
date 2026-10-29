@@ -33,6 +33,7 @@ import { ClickwrapModule } from './modules/clickwrap/clickwrap.module';
 import { WorkflowModule } from './modules/workflow/workflow.module';
 import { DealRoomModule } from './modules/deal-room/deal-room.module';
 import { PortfolioModule } from './modules/portfolio/portfolio.module';
+import { WorkspaceModule } from './modules/workspace/workspace.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { PortfolioModule } from './modules/portfolio/portfolio.module';
     WorkflowModule,
     DealRoomModule,
     PortfolioModule,
+    WorkspaceModule,
   ],
   controllers: [HealthController, MetricsController],
   providers: [

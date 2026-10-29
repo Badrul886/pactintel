@@ -33,18 +33,27 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   /**
    * Runs an operation with a verified tenant context on Cloud SQL.
-   * Ensures SET LOCAL app.current_tenant is executed on the exact same connection (X-02, MT-002).
+   * Ensures SET LOCAL app.current_tenant and app.current_workspace are executed
+   * on the exact same connection (X-02, MT-002, RULE AUTH-003).
    */
   async withTenantContext<T>(
     organizationId: string,
     operation: (tx: Prisma.TransactionClient) => Promise<T>,
+    workspaceId?: string,
   ): Promise<T> {
     if (!organizationId) {
       throw new Error('Tenant context organizationId must be provided.');
     }
 
+    const ws = workspaceId || this.cls.get<string>('workspaceId');
+
     return this.$transaction(async (tx) => {
       await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant = '${organizationId}'`);
+      if (ws) {
+        await tx.$executeRawUnsafe(`SET LOCAL app.current_workspace = '${ws}'`);
+      } else {
+        await tx.$executeRawUnsafe(`SET LOCAL app.current_workspace = ''`);
+      }
       return operation(tx);
     });
   }

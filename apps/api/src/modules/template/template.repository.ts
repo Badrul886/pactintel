@@ -58,6 +58,7 @@ export class TemplateRepository {
           variableFields: (dto.variableFields ?? []) as Prisma.InputJsonValue,
           signerRoles: (dto.signerRoles ?? []) as Prisma.InputJsonValue,
           folderId: dto.folderId,
+          visibility: dto.visibility || 'workspace',
           usageCount: 0,
         },
       });
@@ -104,7 +105,11 @@ export class TemplateRepository {
       where: {
         organizationId,
         deletedAt: null,
-        ...(workspaceId ? { workspaceId } : {}),
+        ...(workspaceId
+          ? {
+              OR: [{ workspaceId }, { visibility: 'organization' }],
+            }
+          : {}),
         ...(category ? { category } : {}),
         ...(folderId ? { folderId } : {}),
         ...(search
@@ -145,6 +150,7 @@ export class TemplateRepository {
       if (dto.folderId !== undefined) {
         data.folder = dto.folderId ? { connect: { id: dto.folderId } } : { disconnect: true };
       }
+      if (dto.visibility !== undefined) data.visibility = dto.visibility;
 
       const updated = await tx.template.update({
         where: { id: templateId },
@@ -199,6 +205,7 @@ export class TemplateRepository {
         type: dto.type,
         content: dto.content as Prisma.InputJsonValue,
         tags: dto.tags ?? [],
+        visibility: dto.visibility || 'workspace',
         usageCount: 0,
       },
     });
@@ -218,7 +225,11 @@ export class TemplateRepository {
       where: {
         organizationId,
         deletedAt: null,
-        ...(workspaceId ? { workspaceId } : {}),
+        ...(workspaceId
+          ? {
+              OR: [{ workspaceId }, { visibility: 'organization' }],
+            }
+          : {}),
         ...(type ? { type } : {}),
         ...(tag ? { tags: { has: tag } } : {}),
         ...(search
@@ -243,6 +254,7 @@ export class TemplateRepository {
         ...(dto.type !== undefined ? { type: dto.type } : {}),
         ...(dto.content !== undefined ? { content: dto.content as Prisma.InputJsonValue } : {}),
         ...(dto.tags !== undefined ? { tags: dto.tags } : {}),
+        ...(dto.visibility !== undefined ? { visibility: dto.visibility } : {}),
       },
     });
   }
